@@ -1,27 +1,43 @@
 {
   "name": "comment-doc-links",
   "displayName": "Comment Doc Links",
-  "description": "Navigate between source comments and markdown documentation.",
-  "version": "0.0.1",
-  "publisher": "Manish Sharma - GetAnchorIO",
+  "description": "Navigate between source comments and markdown documentation with two-way links.",
+  "version": "0.1.0",
+  "publisher": "manish-sharma-getanchorio",
   "license": "MIT",
-
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anchor-os/commentDocLinksExtension"
+  },
+  "homepage": "https://github.com/anchor-os/commentDocLinksExtension",
+  "bugs": {
+    "url": "https://github.com/anchor-os/commentDocLinksExtension/issues"
+  },
+  "keywords": [
+    "documentation",
+    "comments",
+    "navigation",
+    "markdown",
+    "links",
+    "anchor"
+  ],
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#1e1e2e",
+    "theme": "dark"
+  },
   "type": "module",
-
   "main": "./src/extension.js",
-
   "engines": {
     "vscode": "^1.106.0"
   },
-
   "categories": [
-    "Other"
+    "Other",
+    "Programming Languages"
   ],
-
   "activationEvents": [
     "onStartupFinished"
   ],
-
   "contributes": {
     "commands": [
       {
@@ -34,12 +50,16 @@
       }
     ]
   },
-
   "scripts": {
-    "lint": "find src -name '*.js' -exec node --check {} +"
+    "lint": "find src -name '*.js' -exec node --check {} +",
+    "test": "node --test test/unit/*.test.js",
+    "test:e2e": "vscode-test",
+    "package": "vsce package"
   },
-
   "devDependencies": {
-    "@types/vscode": "^1.106.0"
+    "@types/vscode": "^1.106.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^3.9.2"
   }
 }

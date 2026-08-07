@@ -15,6 +15,8 @@ import {
     createCommandUri
 } from "../utils/commandUri.js";
 
+import { COMMANDS } from "../constants.js";
+
 export class CommentLinkProvider {
 
     /**
@@ -64,7 +66,7 @@ export class CommentLinkProvider {
                     );
 
                     const target = createCommandUri(
-                        "commentDocLinks.openDocumentation",
+                        COMMANDS.OPEN_DOCUMENTATION,
                         match.file,
                         match.anchor
                     );

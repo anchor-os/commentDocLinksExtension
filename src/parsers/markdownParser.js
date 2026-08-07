@@ -1,13 +1,33 @@
 // @ts-check
 
+import {
+    ANCHOR_SEPARATOR,
+    MARKDOWN_SOURCE_SEPARATOR,
+    ALTERNATE_SOURCE_SEPARATOR
+} from "../constants.js";
+
+/**
+ * Matches a documentation heading:
+ *
+ *   ## src/util/foo.js — anchor
+ *   ## src/util/foo.js - anchor
+ *   ## src/util/foo.js#anchor
+ *
+ * The em dash is the canonical separator; `#` and ` - ` are tolerated so
+ * existing documents keep working.
+ */
+const MARKDOWN_HEADING_REGEX = new RegExp(
+    `^#{2,}\\s+(.+?)(?:\\s+${MARKDOWN_SOURCE_SEPARATOR}\\s+|` +
+    `\\s+${ALTERNATE_SOURCE_SEPARATOR}\\s+|${ANCHOR_SEPARATOR})` +
+    `([A-Za-z0-9_-]+)$`
+);
+
 /**
  * Parse a documentation heading.
  *
  * Example:
  *
  * ## scripts/local/localGraphqlWorkerPool.js — timeout-exempt-keys
- * ## scripts/local/localGraphqlWorkerPool.js - timeout-exempt-keys
- * ## scripts/local/localGraphqlWorkerPool.js#timeout-exempt-keys
  *
  * @param {string} line
  * @returns {{
@@ -19,9 +39,7 @@
  */
 export function parseMarkdownHeading(line) {
 
-    const match = line.match(
-        /^#{2,}\s+(.+?)(?:\s+—\s+|\s+-\s+|#)([A-Za-z0-9_-]+)$/
-    );
+    const match = line.match(MARKDOWN_HEADING_REGEX);
 
     if (!match) {
         return null;

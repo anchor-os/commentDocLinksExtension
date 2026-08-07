@@ -7,6 +7,15 @@ import { registerOpenSourceCommand } from "./commands/openSource.js";
 import { MarkdownLinkProvider }
     from "./providers/markdownLinkProvider.js";
 
+import {
+    DiagnosticsManager
+} from "./diagnostics/diagnostics.js";
+
+import {
+    CommentCompletionProvider,
+    MarkdownCompletionProvider
+} from "./completion/completionProvider.js";
+
 export function activate(context) {
 
     registerOpenDocumentationCommand(context);
@@ -43,14 +52,76 @@ export function activate(context) {
 
     context.subscriptions.push(
 
-    vscode.languages.registerDocumentLinkProvider(
+        vscode.languages.registerDocumentLinkProvider(
 
-        { language: "markdown" },
+            { language: "markdown" },
 
-        new MarkdownLinkProvider()
+            new MarkdownLinkProvider()
 
-    )
+        )
 
-);
+    );
+
+    context.subscriptions.push(
+
+        vscode.languages.registerCompletionItemProvider(
+            selector,
+            new CommentCompletionProvider(),
+            "#"
+        )
+
+    );
+
+    context.subscriptions.push(
+
+        vscode.languages.registerCompletionItemProvider(
+
+            { language: "markdown" },
+
+            new MarkdownCompletionProvider(),
+            "—",
+            "-"
+
+        )
+
+    );
+
+    const diagnosticsManager = new DiagnosticsManager(
+        vscode.languages.createDiagnosticCollection(
+            "commentDocLinks"
+        )
+    );
+
+    context.subscriptions.push(diagnosticsManager);
+
+    const updateDiagnostics = (document) => {
+        diagnosticsManager.update(document);
+    };
+
+    const updateAllDiagnostics = () => {
+        for (const document of vscode.workspace.textDocuments) {
+            updateDiagnostics(document);
+        }
+    };
+
+    context.subscriptions.push(
+
+        vscode.workspace.onDidOpenTextDocument(
+            updateDiagnostics
+        ),
+
+        vscode.workspace.onDidChangeTextDocument(
+            updateAllDiagnostics
+        ),
+
+        vscode.window.onDidChangeActiveTextEditor((editor) => {
+            if (editor) {
+                updateDiagnostics(editor.document);
+            }
+        })
+
+    );
+
+    updateAllDiagnostics();
 
 }

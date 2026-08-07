@@ -22,6 +22,44 @@ export function supportsLanguage(languageId) {
     return SUPPORTED_LANGUAGES.has(languageId);
 }
 
+const EXTENSION_TO_LANGUAGE = {
+    ".js": "javascript",
+    ".mjs": "javascript",
+    ".cjs": "javascript",
+    ".jsx": "javascriptreact",
+    ".ts": "typescript",
+    ".mts": "typescript",
+    ".cts": "typescript",
+    ".tsx": "typescriptreact",
+    ".gql": "graphql",
+    ".graphql": "graphql",
+    ".tf": "terraform",
+    ".yaml": "yaml",
+    ".yml": "yaml",
+    ".vm": "velocity",
+    ".vtl": "velocity",
+    ".md": "markdown",
+    ".markdown": "markdown"
+};
+
+/**
+ * Best-effort languageId for a file path, or null when the extension
+ * is not one of the supported languages.
+ *
+ * @param {string} filename
+ * @returns {string|null}
+ */
+export function getLanguageIdFromExtension(filename) {
+    const lower = filename.toLowerCase();
+    const dot = lower.lastIndexOf(".");
+
+    if (dot === -1) {
+        return null;
+    }
+
+    return EXTENSION_TO_LANGUAGE[lower.slice(dot)] ?? null;
+}
+
 /**
  * Determine which portions of a line are comments.
  *
@@ -139,9 +177,9 @@ function getSlashCommentRanges(line, state) {
         i++;
     }
 
-    if (state.inBlockComment && start !== null) {
+    if (state.inBlockComment) {
         ranges.push({
-            start,
+            start: start ?? 0,
             end: line.length
         });
     }
