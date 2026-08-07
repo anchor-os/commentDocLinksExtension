@@ -25,6 +25,14 @@ import {
     revealSourceComment
 } from "../../src/navigation/sourceNavigation.js";
 
+import {
+    openDocumentationFile
+} from "../../src/commands/openDocumentation.js";
+
+import {
+    openSourceFile
+} from "../../src/commands/openSource.js";
+
 const FIXTURE_ROOT = path.join(
     path.dirname(fileURLToPath(import.meta.url)),
     "..",
@@ -44,31 +52,6 @@ async function openFixtureWorkspace() {
         current,
         { uri: vscode.Uri.file(FIXTURE_ROOT) }
     );
-}
-
-/**
- * Wait until the active editor satisfies the predicate, since
- * `vscode.window.activeTextEditor` can lag behind a resolved command
- * (especially headless). Returns the active editor (even if unmatched).
- *
- * @param {(editor: vscode.TextEditor) => boolean} predicate
- * @param {number} [timeoutMs]
- * @returns {Promise<vscode.TextEditor | undefined>}
- */
-async function waitForActiveEditor(predicate, timeoutMs = 5000) {
-    const deadline = Date.now() + timeoutMs;
-
-    while (Date.now() < deadline) {
-        const editor = vscode.window.activeTextEditor;
-
-        if (editor && predicate(editor)) {
-            return editor;
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 50));
-    }
-
-    return vscode.window.activeTextEditor;
 }
 
 suite("Comment Doc Links extension", () => {
@@ -213,24 +196,19 @@ suite("Comment Doc Links extension", () => {
     });
 
     test("openDocumentation command reveals the anchored heading", async () => {
-        await vscode.commands.executeCommand(
-            "commentDocLinks.openDocumentation",
+        const editor = await openDocumentationFile(
             "documentation/foo.md",
             "reconciliation-guarantee"
         );
 
-        const editor = await waitForActiveEditor(
-            (current) =>
-                current.document.uri.fsPath.endsWith(
-                    path.join("documentation", "foo.md")
-                ) &&
-                current.document
-                    .lineAt(current.selection.active.line)
-                    .text
-                    .includes("reconciliation-guarantee")
-        );
+        assert.ok(editor, "expected an editor");
 
-        assert.ok(editor, "expected foo.md to be active");
+        assert.ok(
+            editor.document.uri.fsPath.endsWith(
+                path.join("documentation", "foo.md")
+            ),
+            "expected foo.md to be open"
+        );
 
         const line = editor.document
             .lineAt(editor.selection.active.line)
@@ -243,17 +221,9 @@ suite("Comment Doc Links extension", () => {
     });
 
     test("openDocumentation command opens the file without an anchor", async () => {
-        await vscode.commands.executeCommand(
-            "commentDocLinks.openDocumentation",
+        const editor = await openDocumentationFile(
             "documentation/foo.md",
             null
-        );
-
-        const editor = await waitForActiveEditor(
-            (current) =>
-                current.document.uri.fsPath.endsWith(
-                    path.join("documentation", "foo.md")
-                )
         );
 
         assert.ok(
@@ -265,25 +235,20 @@ suite("Comment Doc Links extension", () => {
     });
 
     test("openSource command opens the file when the anchor is missing", async () => {
-        await vscode.commands.executeCommand(
-            "commentDocLinks.openSource",
+        const editor = await openSourceFile(
             "src/util/foo.js",
             "missing-anchor",
             "documentation/foo.md"
         );
 
-        const editor = await waitForActiveEditor(
-            (current) =>
-                current.document.uri.fsPath.endsWith(
-                    path.join("src", "util", "foo.js")
-                ) &&
-                current.document
-                    .lineAt(current.selection.active.line)
-                    .text
-                    .includes("documentation/foo.md")
-        );
+        assert.ok(editor, "expected an editor");
 
-        assert.ok(editor, "expected foo.js to be active");
+        assert.ok(
+            editor.document.uri.fsPath.endsWith(
+                path.join("src", "util", "foo.js")
+            ),
+            "expected foo.js to be open despite the missing anchor"
+        );
 
         const line = editor.document
             .lineAt(editor.selection.active.line)
@@ -293,6 +258,25 @@ suite("Comment Doc Links extension", () => {
             line.includes("documentation/foo.md") &&
                 !line.includes("#"),
             `expected the anchorless reference to be revealed, got: ${line}`
+        );
+    });
+
+    test("commands are registered and do not throw", async () => {
+        await assert.doesNotReject(
+            vscode.commands.executeCommand(
+                "commentDocLinks.openDocumentation",
+                "documentation/foo.md",
+                null
+            )
+        );
+
+        await assert.doesNotReject(
+            vscode.commands.executeCommand(
+                "commentDocLinks.openSource",
+                "src/util/foo.js",
+                null,
+                null
+            )
         );
     });
 

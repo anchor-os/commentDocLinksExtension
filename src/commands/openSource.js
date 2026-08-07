@@ -16,6 +16,41 @@ import {
 
 import { COMMANDS } from "../constants.js";
 
+/**
+ * Open a source file and reveal the comment that references a
+ * documentation file.
+ *
+ * @param {string} source
+ * @param {string|null} anchor
+ * @param {string|null} documentationFile
+ * @returns {Promise<vscode.TextEditor|null>}
+ */
+export async function openSourceFile(
+    source,
+    anchor,
+    documentationFile
+) {
+
+    const file = resolveWorkspacePath(source);
+
+    if (!file) {
+        return null;
+    }
+
+    const editor = await openFile(file);
+
+    if (documentationFile) {
+        revealSourceComment(
+            editor,
+            documentationFile,
+            anchor
+        );
+    }
+
+    return editor;
+
+}
+
 export function registerOpenSourceCommand(context) {
     context.subscriptions.push(
         vscode.commands.registerCommand(
@@ -35,28 +70,18 @@ export function registerOpenSourceCommand(context) {
                     return;
                 }
 
-                const file = resolveWorkspacePath(source);
-
-                if (!file) {
-                    vscode.window.showErrorMessage(
-                        "No workspace folder is open."
+                try {
+                    const editor = await openSourceFile(
+                        source,
+                        anchor,
+                        documentationFile
                     );
 
-                    return;
-                }
-
-                try {
-                    const editor = await openFile(file);
-
-                    if (documentationFile) {
-                        revealSourceComment(
-                            editor,
-                            documentationFile,
-                            anchor
+                    if (editor === null) {
+                        vscode.window.showErrorMessage(
+                            "No workspace folder is open."
                         );
                     }
-
-                    return editor;
                 } catch (error) {
                     console.error(error);
 
