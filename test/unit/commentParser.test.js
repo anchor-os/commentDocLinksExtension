@@ -76,6 +76,16 @@ test("start/end offsets include the reference prefix offset", () => {
     assert.equal(matches[0].end, text.length);
 });
 
+test("offsets include a nonzero parser offset", () => {
+    const text = "documentation/file.md#anchor";
+    const offset = 42;
+    const matches = parseComment(text, offset);
+
+    assert.equal(matches.length, 1);
+    assert.equal(matches[0].start, offset + text.indexOf("documentation"));
+    assert.equal(matches[0].end, offset + text.length);
+});
+
 test("no reference yields no matches", () => {
     const matches = parseComment("nothing to see here", 0);
 

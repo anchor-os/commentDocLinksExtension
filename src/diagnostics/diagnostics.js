@@ -37,11 +37,16 @@ export class DiagnosticsManager {
             return;
         }
 
+        const workspaceFolder =
+            vscode.workspace.getWorkspaceFolder(document.uri);
+
         const fsLike = {
 
             exists(relativePath) {
-                const absolute =
-                    resolveWorkspacePath(relativePath);
+                const absolute = resolveWorkspacePath(
+                    relativePath,
+                    workspaceFolder
+                );
 
                 return (
                     absolute !== null &&
@@ -50,17 +55,29 @@ export class DiagnosticsManager {
             },
 
             readText(relativePath) {
-                const absolute =
-                    resolveWorkspacePath(relativePath);
+                const absolute = resolveWorkspacePath(
+                    relativePath,
+                    workspaceFolder
+                );
 
-                if (
-                    absolute === null ||
-                    !fs.existsSync(absolute)
-                ) {
+                if (absolute === null) {
                     return null;
                 }
 
-                return fs.readFileSync(absolute, "utf8");
+                const open = vscode.workspace.textDocuments.find(
+                    (candidate) =>
+                        candidate.uri.fsPath === absolute
+                );
+
+                if (open) {
+                    return open.getText();
+                }
+
+                try {
+                    return fs.readFileSync(absolute, "utf8");
+                } catch {
+                    return null;
+                }
             }
 
         };

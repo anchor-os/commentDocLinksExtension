@@ -46,14 +46,38 @@ function anchorCompletionItem(text) {
 }
 
 /**
+ * Build the block-comment state up to a line so that a block comment
+ * opened on an earlier line is still recognized on the cursor line.
+ *
+ * @param {vscode.TextDocument} document
+ * @param {number} lineIndex
+ * @param {string} languageId
+ * @returns {{ inBlockComment: boolean }}
+ */
+function commentStateBefore(document, lineIndex, languageId) {
+    const state = { inBlockComment: false };
+
+    for (let i = 0; i < lineIndex; i++) {
+        getCommentRanges(
+            languageId,
+            document.lineAt(i).text,
+            state
+        );
+    }
+
+    return state;
+}
+
+/**
  * @param {string} line
  * @param {number} character
  * @param {string} languageId
- * @returns {string|null}
+ * @param {{ inBlockComment: boolean }} state
+ * @returns {{ text: string, offset: number }|null}
+ *   The comment text up to the cursor plus the character offset where the
+ *   comment starts on the line.
  */
-function commentTextUpTo(line, character, languageId) {
-    const state = { inBlockComment: false };
-
+function commentTextUpTo(line, character, languageId, state) {
     const ranges = getCommentRanges(languageId, line, state);
 
     for (const range of ranges) {
@@ -61,7 +85,10 @@ function commentTextUpTo(line, character, languageId) {
             character > range.start &&
             character <= range.end
         ) {
-            return line.slice(range.start, character);
+            return {
+                text: line.slice(range.start, character),
+                offset: range.start
+            };
         }
     }
 
@@ -83,23 +110,33 @@ export class CommentCompletionProvider {
     provideCompletionItems(document, position) {
         const line = document.lineAt(position.line).text;
 
-        const commentText = commentTextUpTo(
+        const comment = commentTextUpTo(
             line,
             position.character,
-            document.languageId
+            document.languageId,
+            commentStateBefore(
+                document,
+                position.line,
+                document.languageId
+            )
         );
 
-        if (commentText === null) {
+        if (comment === null) {
             return [];
         }
 
-        const reference = extractDocFileAfterHash(commentText);
+        const reference = extractDocFileAfterHash(
+            comment.text
+        );
 
         if (!reference) {
             return [];
         }
 
-        const absolute = resolveWorkspacePath(reference.file);
+        const absolute = resolveWorkspacePath(
+            reference.file,
+            vscode.workspace.getWorkspaceFolder(document.uri)
+        );
 
         if (
             absolute === null ||
@@ -116,7 +153,7 @@ export class CommentCompletionProvider {
         );
 
         const range = anchorSuffixRange(
-            commentText,
+            comment.text,
             reference.partialAnchor
         );
 
@@ -125,9 +162,9 @@ export class CommentCompletionProvider {
 
             item.range = new vscode.Range(
                 position.line,
-                range.start,
+                comment.offset + range.start,
                 position.line,
-                range.end
+                comment.offset + range.end
             );
 
             return item;
@@ -159,7 +196,10 @@ export class MarkdownCompletionProvider {
             return [];
         }
 
-        const absolute = resolveWorkspacePath(heading.source);
+        const absolute = resolveWorkspacePath(
+            heading.source,
+            vscode.workspace.getWorkspaceFolder(document.uri)
+        );
 
         if (
             absolute === null ||

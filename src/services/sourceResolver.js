@@ -80,7 +80,10 @@ export function resolveSourceReference(
                     };
                 }
 
-                if (fallback === null) {
+                if (
+                    match.anchor === null &&
+                    fallback === null
+                ) {
                     fallback = {
                         line,
                         character: 0,

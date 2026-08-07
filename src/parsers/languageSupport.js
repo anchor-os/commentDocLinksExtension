@@ -24,8 +24,12 @@ export function supportsLanguage(languageId) {
 
 const EXTENSION_TO_LANGUAGE = {
     ".js": "javascript",
+    ".mjs": "javascript",
+    ".cjs": "javascript",
     ".jsx": "javascriptreact",
     ".ts": "typescript",
+    ".mts": "typescript",
+    ".cts": "typescript",
     ".tsx": "typescriptreact",
     ".gql": "graphql",
     ".graphql": "graphql",

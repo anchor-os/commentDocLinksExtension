@@ -62,6 +62,22 @@ test("file referenced without the anchor falls back to first reference", () => {
     );
 });
 
+test("anchored reference cannot become the fallback", () => {
+    const document = makeDocument([
+        "// see documentation/a.md#anchored-first",
+        "// see documentation/a.md"
+    ]);
+
+    assert.deepEqual(
+        resolveSourceReference(
+            document,
+            "documentation/a.md",
+            "missing-anchor"
+        ),
+        { line: 1, character: 0, anchorFound: false }
+    );
+});
+
 test("unreferenced file resolves to the top of the document", () => {
     const document = makeDocument([
         "// unrelated comment",

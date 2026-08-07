@@ -6,7 +6,7 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2026-08-08
+## [Unreleased]
 
 ### Added
 
@@ -20,15 +20,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Diagnostics that flag references to missing documentation files and missing
   anchors (conservative, no false positives).
 - Completion for anchors after `file.md#` in comments and after
-  `## src/file.js — ` in Markdown headings.
+  `## src/file.js —` in Markdown headings.
 - Legacy heading separators tolerated when parsing existing documents:
   ` - ` and `#`.
 - Unit tests for parsers, resolvers, diagnostics and suggestions.
+- Language support for `.mjs`, `.cjs`, `.mts` and `.cts` module extensions.
 
 ### Changed
 
 - Refactored navigation, resolution, diagnostics and completion into focused
   modules under `src/`.
+- Completion now works inside multi-line block comments.
+- Resolved file paths are validated against the workspace root.
+- Diagnostics read from the in-memory buffer of open documents.
+
+### Fixed
+
+- Missing-anchor fallback no longer selects anchored references.
+- Diagnostics no longer throw when a referenced file becomes unreadable.
 
 ## [0.0.1] - 2026-07-10
 

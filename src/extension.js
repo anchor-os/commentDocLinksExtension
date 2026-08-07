@@ -98,15 +98,21 @@ export function activate(context) {
         diagnosticsManager.update(document);
     };
 
+    const updateAllDiagnostics = () => {
+        for (const document of vscode.workspace.textDocuments) {
+            updateDiagnostics(document);
+        }
+    };
+
     context.subscriptions.push(
 
         vscode.workspace.onDidOpenTextDocument(
             updateDiagnostics
         ),
 
-        vscode.workspace.onDidChangeTextDocument((event) => {
-            updateDiagnostics(event.document);
-        }),
+        vscode.workspace.onDidChangeTextDocument(
+            updateAllDiagnostics
+        ),
 
         vscode.window.onDidChangeActiveTextEditor((editor) => {
             if (editor) {
@@ -116,8 +122,6 @@ export function activate(context) {
 
     );
 
-    for (const document of vscode.workspace.textDocuments) {
-        updateDiagnostics(document);
-    }
+    updateAllDiagnostics();
 
 }

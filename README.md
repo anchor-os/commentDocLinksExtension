@@ -47,7 +47,7 @@ cannot be found, the source file is still opened.
 - Diagnostics highlight references to missing documentation files and anchors
   (conservative — only provably broken references are flagged).
 - Completion suggests anchors after `file.md#` in comments and source anchors
-  after `## src/file.js — ` in Markdown headings.
+  after `## src/file.js —` in Markdown headings.
 
 ## Supported languages
 

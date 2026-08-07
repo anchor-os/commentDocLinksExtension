@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 
 import {
     supportsLanguage,
+    getLanguageIdFromExtension,
     getCommentRanges
 } from "../../src/parsers/languageSupport.js";
 
@@ -26,6 +27,13 @@ test("supportsLanguage for known languages", () => {
     }
 
     assert.equal(supportsLanguage("python"), false);
+});
+
+test("module extensions map to their language", () => {
+    assert.equal(getLanguageIdFromExtension("a.mjs"), "javascript");
+    assert.equal(getLanguageIdFromExtension("a.cjs"), "javascript");
+    assert.equal(getLanguageIdFromExtension("a.mts"), "typescript");
+    assert.equal(getLanguageIdFromExtension("a.cts"), "typescript");
 });
 
 test("javascript line comments", () => {
