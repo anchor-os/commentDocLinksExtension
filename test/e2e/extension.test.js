@@ -45,12 +45,33 @@ function fixturePath(...parts) {
 }
 
 async function openFixtureWorkspace() {
-    const current = vscode.workspace.workspaceFolders?.length ?? 0;
+    const folder = vscode.Uri.file(FIXTURE_ROOT);
 
-    await vscode.workspace.updateWorkspaceFolders(
-        0,
-        current,
-        { uri: vscode.Uri.file(FIXTURE_ROOT) }
+    const deadline = Date.now() + 10000;
+
+    while (Date.now() < deadline) {
+        if (vscode.workspace.getWorkspaceFolder(folder)) {
+            return;
+        }
+
+        const current =
+            vscode.workspace.workspaceFolders?.length ?? 0;
+
+        if (vscode.workspace.updateWorkspaceFolders(
+            current,
+            0,
+            { uri: folder }
+        )) {
+            return;
+        }
+
+        await new Promise((resolve) =>
+            setTimeout(resolve, 200)
+        );
+    }
+
+    throw new Error(
+        "Failed to open the fixture workspace folder"
     );
 }
 
