@@ -1,0 +1,45 @@
+{
+  "name": "comment-doc-links",
+  "displayName": "Comment Doc Links",
+  "description": "Navigate between source comments and markdown documentation.",
+  "version": "0.0.1",
+  "publisher": "Manish Sharma - GetAnchorIO",
+  "license": "MIT",
+
+  "type": "module",
+
+  "main": "./src/extension.js",
+
+  "engines": {
+    "vscode": "^1.106.0"
+  },
+
+  "categories": [
+    "Other"
+  ],
+
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+
+  "contributes": {
+    "commands": [
+      {
+        "command": "commentDocLinks.openDocumentation",
+        "title": "Open Documentation"
+      },
+      {
+        "command": "commentDocLinks.openSource",
+        "title": "Open Source"
+      }
+    ]
+  },
+
+  "scripts": {
+    "lint": "find src -name '*.js' -exec node --check {} +"
+  },
+
+  "devDependencies": {
+    "@types/vscode": "^1.106.0"
+  }
+}
