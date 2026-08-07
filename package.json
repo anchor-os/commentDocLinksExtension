@@ -52,7 +52,7 @@
   },
   "scripts": {
     "lint": "find src -name '*.js' -exec node --check {} +",
-    "test": "node --test 'test/unit/*.test.js'",
+    "test": "node --test test/unit/*.test.js",
     "test:e2e": "vscode-test",
     "package": "vsce package"
   },
