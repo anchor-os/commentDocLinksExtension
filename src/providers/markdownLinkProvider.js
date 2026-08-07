@@ -5,6 +5,11 @@ import * as vscode from "vscode";
 import { parseMarkdownHeading }
     from "../parsers/markdownParser.js";
 
+import { createCommandUri }
+    from "../utils/commandUri.js";
+
+import { COMMANDS } from "../constants.js";
+
 /**
  * @implements {vscode.DocumentLinkProvider}
  */
@@ -13,6 +18,12 @@ export class MarkdownLinkProvider {
     provideDocumentLinks(document) {
 
         const links = [];
+
+        const documentationFile =
+            vscode.workspace.asRelativePath(
+                document.uri,
+                false
+            );
 
         for (let i = 0; i < document.lineCount; i++) {
 
@@ -37,21 +48,11 @@ export class MarkdownLinkProvider {
 
             );
 
-            const uri = vscode.Uri.parse(
-
-                `command:commentDocLinks.openSource?${
-                    encodeURIComponent(
-                        JSON.stringify([
-                            parsed.source,
-                            parsed.anchor,
-                            vscode.workspace.asRelativePath(
-                                document.uri,
-                                false
-                            )
-                        ])
-                    )
-                }`
-
+            const uri = createCommandUri(
+                COMMANDS.OPEN_SOURCE,
+                parsed.source,
+                parsed.anchor,
+                documentationFile
             );
 
             links.push(

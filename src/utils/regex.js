@@ -1,4 +1,26 @@
 // @ts-check
 
-export const DOCUMENT_LINK_REGEX =
-    /([A-Za-z0-9_./-]+\.md)(?:(?:#|\s+-\s+|\s+—\s+)([A-Za-z0-9_-]+))?/g;
+import {
+    MARKDOWN_EXTENSION,
+    ANCHOR_SEPARATOR,
+    MARKDOWN_SOURCE_SEPARATOR,
+    ALTERNATE_SOURCE_SEPARATOR
+} from "../constants.js";
+
+const escapedExtension =
+    MARKDOWN_EXTENSION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Matches documentation references inside comments:
+ *
+ *   documentation/file.md
+ *   documentation/file.md#anchor
+ *   documentation/file.md - anchor
+ *   documentation/file.md — anchor
+ */
+export const DOCUMENT_LINK_REGEX = new RegExp(
+    `([A-Za-z0-9_./-]+${escapedExtension})` +
+    `(?:(?:${ANCHOR_SEPARATOR}|\\s+${ALTERNATE_SOURCE_SEPARATOR}\\s+|\\s+${MARKDOWN_SOURCE_SEPARATOR}\\s+)` +
+    `([A-Za-z0-9_-]+))?`,
+    "g"
+);

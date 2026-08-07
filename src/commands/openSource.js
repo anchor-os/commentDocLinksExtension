@@ -12,12 +12,14 @@ import {
 
 import {
     revealSourceComment
-} from "../services/sourceNavigation.js";
+} from "../navigation/sourceNavigation.js";
+
+import { COMMANDS } from "../constants.js";
 
 export function registerOpenSourceCommand(context) {
     context.subscriptions.push(
         vscode.commands.registerCommand(
-            "commentDocLinks.openSource",
+            COMMANDS.OPEN_SOURCE,
 
             /**
              * @param {string} source

@@ -1,7 +1,13 @@
 .vscode/**
+.vscode-test/**
+.vscode-test.mjs
 .git/**
+.gitignore
+jsconfig.json
 node_modules/**
 out/**
 test/**
 .github
-.vscode
+*.vsix
+*.tgz
+repomix-output.xml
