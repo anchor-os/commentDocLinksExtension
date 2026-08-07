@@ -23,14 +23,15 @@ export function extractDocFileAfterHash(text) {
 }
 
 /**
- * When a Markdown heading line up to the cursor ends with ` — `,
- * return the source file so its anchors can be suggested.
+ * When a Markdown heading line up to the cursor ends with ` — ` (or the
+ * legacy ` - ` separator, with or without a trailing space), return the
+ * source file so its anchors can be suggested.
  *
  * @param {string} text
  * @returns {{ source: string } | null}
  */
 export function extractHeadingSourceBeforeDash(text) {
-    const match = text.match(/^#{2,}\s+(.+?)\s+—\s+$/);
+    const match = text.match(/^#{2,}\s+(.+?)\s+[—\-]\s*$/);
 
     if (!match) {
         return null;

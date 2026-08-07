@@ -64,6 +64,20 @@ test("extractHeadingSourceBeforeDash matches em-dash prefix", () => {
     );
 });
 
+test("extractHeadingSourceBeforeDash matches em-dash without trailing space", () => {
+    assert.deepEqual(
+        extractHeadingSourceBeforeDash("## src/util/foo.js —"),
+        { source: "src/util/foo.js" }
+    );
+});
+
+test("extractHeadingSourceBeforeDash matches legacy hyphen separator", () => {
+    assert.deepEqual(
+        extractHeadingSourceBeforeDash("## src/util/foo.js -"),
+        { source: "src/util/foo.js" }
+    );
+});
+
 test("extractHeadingSourceBeforeDash returns null without dash", () => {
     assert.equal(
         extractHeadingSourceBeforeDash("## src/util/foo.js"),

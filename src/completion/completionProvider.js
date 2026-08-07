@@ -228,7 +228,22 @@ export class MarkdownCompletionProvider {
             )
         );
 
-        return anchors.map(anchorCompletionItem);
+        const needsLeadingSpace = !/\s$/.test(prefix);
+
+        return anchors.map((anchor) => {
+            const item = anchorCompletionItem(anchor);
+
+            if (needsLeadingSpace) {
+                item.insertText = ` ${anchor}`;
+
+                item.range = new vscode.Range(
+                    position,
+                    position
+                );
+            }
+
+            return item;
+        });
     }
 
 }

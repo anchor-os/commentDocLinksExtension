@@ -25,6 +25,14 @@ import {
     revealSourceComment
 } from "../../src/navigation/sourceNavigation.js";
 
+import {
+    openDocumentationFile
+} from "../../src/commands/openDocumentation.js";
+
+import {
+    openSourceFile
+} from "../../src/commands/openSource.js";
+
 const FIXTURE_ROOT = path.join(
     path.dirname(fileURLToPath(import.meta.url)),
     "..",
@@ -37,12 +45,36 @@ function fixturePath(...parts) {
 }
 
 async function openFixtureWorkspace() {
-    const current = vscode.workspace.workspaceFolders?.length ?? 0;
+    const folder = vscode.Uri.file(FIXTURE_ROOT);
 
-    await vscode.workspace.updateWorkspaceFolders(
-        0,
-        current,
-        { uri: vscode.Uri.file(FIXTURE_ROOT) }
+    const deadline = Date.now() + 10000;
+
+    let updateInProgress = false;
+
+    while (Date.now() < deadline) {
+        if (vscode.workspace.getWorkspaceFolder(folder)) {
+            return;
+        }
+
+        if (!updateInProgress) {
+            const current =
+                vscode.workspace.workspaceFolders?.length ?? 0;
+
+            updateInProgress = vscode.workspace
+                .updateWorkspaceFolders(
+                    current,
+                    0,
+                    { uri: folder }
+                );
+        }
+
+        await new Promise((resolve) =>
+            setTimeout(resolve, 200)
+        );
+    }
+
+    throw new Error(
+        "Failed to open the fixture workspace folder"
     );
 }
 
@@ -184,6 +216,121 @@ suite("Comment Doc Links extension", () => {
         assert.ok(
             messages.includes("missing.md"),
             `expected a missing-file diagnostic, got: ${messages}`
+        );
+    });
+
+    test("openDocumentation command reveals the anchored heading", async () => {
+        const editor = await openDocumentationFile(
+            "documentation/foo.md",
+            "reconciliation-guarantee"
+        );
+
+        assert.ok(editor, "expected an editor");
+
+        assert.ok(
+            editor.document.uri.fsPath.endsWith(
+                path.join("documentation", "foo.md")
+            ),
+            "expected foo.md to be open"
+        );
+
+        const line = editor.document
+            .lineAt(editor.selection.active.line)
+            .text;
+
+        assert.ok(
+            line.includes("reconciliation-guarantee"),
+            `expected the cursor on the heading, got: ${line}`
+        );
+    });
+
+    test("openDocumentation command opens the file without an anchor", async () => {
+        const editor = await openDocumentationFile(
+            "documentation/foo.md",
+            null
+        );
+
+        assert.ok(
+            editor?.document.uri.fsPath.endsWith(
+                path.join("documentation", "foo.md")
+            ),
+            "expected foo.md to be open despite the missing anchor"
+        );
+    });
+
+    test("openSource command opens the file when the anchor is missing", async () => {
+        const editor = await openSourceFile(
+            "src/util/foo.js",
+            "missing-anchor",
+            "documentation/foo.md"
+        );
+
+        assert.ok(editor, "expected an editor");
+
+        assert.ok(
+            editor.document.uri.fsPath.endsWith(
+                path.join("src", "util", "foo.js")
+            ),
+            "expected foo.js to be open despite the missing anchor"
+        );
+
+        const line = editor.document
+            .lineAt(editor.selection.active.line)
+            .text;
+
+        assert.ok(
+            line.includes("documentation/foo.md") &&
+                !line.includes("#"),
+            `expected the anchorless reference to be revealed, got: ${line}`
+        );
+    });
+
+    test("commands are registered and do not throw", async () => {
+        const openDocumentation =
+            "commentDocLinks.openDocumentation";
+
+        const openSource = "commentDocLinks.openSource";
+
+        await assert.doesNotReject(
+            vscode.commands.executeCommand(
+                openDocumentation,
+                "documentation/foo.md",
+                null
+            )
+        );
+
+        await assert.doesNotReject(
+            vscode.commands.executeCommand(
+                openSource,
+                "src/util/foo.js",
+                null,
+                null
+            )
+        );
+
+        await assert.doesNotReject(
+            vscode.commands.executeCommand(
+                openDocumentation,
+                null,
+                null
+            )
+        );
+
+        await assert.doesNotReject(
+            vscode.commands.executeCommand(
+                openSource,
+                null,
+                null,
+                null
+            )
+        );
+
+        await assert.doesNotReject(
+            vscode.commands.executeCommand(openDocumentation)
+        );
+
+        await assert.doesNotReject(
+            vscode.commands.executeCommand(openSource)
         );
     });
 
