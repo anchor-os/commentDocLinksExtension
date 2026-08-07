@@ -22,6 +22,10 @@ export function registerOpenDocumentationCommand(context) {
              * @param {string|null} anchor
              */
             async (relativePath, anchor) => {
+                if (typeof relativePath !== "string") {
+                    return;
+                }
+
                 const fullPath =
                     resolveWorkspacePath(relativePath);
 

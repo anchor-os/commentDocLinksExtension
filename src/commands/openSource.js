@@ -31,6 +31,10 @@ export function registerOpenSourceCommand(context) {
                 anchor,
                 documentationFile
             ) => {
+                if (typeof source !== "string") {
+                    return;
+                }
+
                 const file = resolveWorkspacePath(source);
 
                 if (!file) {

@@ -187,4 +187,79 @@ suite("Comment Doc Links extension", () => {
         );
     });
 
+    test("openDocumentation command reveals the anchored heading", async () => {
+        await vscode.commands.executeCommand(
+            "commentDocLinks.openDocumentation",
+            "documentation/foo.md",
+            "reconciliation-guarantee"
+        );
+
+        const editor = vscode.window.activeTextEditor;
+
+        assert.ok(editor, "expected an active editor");
+
+        assert.ok(
+            editor.document.uri.fsPath.endsWith(
+                path.join("documentation", "foo.md")
+            ),
+            "expected foo.md to be open"
+        );
+
+        const line = editor.document
+            .lineAt(editor.selection.active.line)
+            .text;
+
+        assert.ok(
+            line.includes("reconciliation-guarantee"),
+            `expected the cursor on the heading, got: ${line}`
+        );
+    });
+
+    test("openDocumentation command opens the file without an anchor", async () => {
+        await vscode.commands.executeCommand(
+            "commentDocLinks.openDocumentation",
+            "documentation/foo.md",
+            null
+        );
+
+        const editor = vscode.window.activeTextEditor;
+
+        assert.ok(
+            editor?.document.uri.fsPath.endsWith(
+                path.join("documentation", "foo.md")
+            ),
+            "expected foo.md to be open despite the missing anchor"
+        );
+    });
+
+    test("openSource command opens the file when the anchor is missing", async () => {
+        await vscode.commands.executeCommand(
+            "commentDocLinks.openSource",
+            "src/util/foo.js",
+            "missing-anchor",
+            "documentation/foo.md"
+        );
+
+        const editor = vscode.window.activeTextEditor;
+
+        assert.ok(editor, "expected an active editor");
+
+        assert.ok(
+            editor.document.uri.fsPath.endsWith(
+                path.join("src", "util", "foo.js")
+            ),
+            "expected foo.js to be open despite the missing anchor"
+        );
+
+        const line = editor.document
+            .lineAt(editor.selection.active.line)
+            .text;
+
+        assert.ok(
+            line.includes("documentation/foo.md") &&
+                !line.includes("#"),
+            `expected the anchorless reference to be revealed, got: ${line}`
+        );
+    });
+
 });

@@ -87,6 +87,23 @@ test("existing file with matching anchor is not reported", () => {
     assert.deepEqual(broken, []);
 });
 
+test("CRLF target with matching anchor is not reported", () => {
+    const document = makeDocument([
+        "// see documentation/a.md#real-anchor"
+    ]);
+
+    const broken = collectBrokenReferences(
+        document,
+        makeFileSystem({
+            "documentation/a.md":
+                "## src/util/foo.js — real-anchor\r\n"
+        }),
+        ""
+    );
+
+    assert.deepEqual(broken, []);
+});
+
 test("existing file without anchor is not reported", () => {
     const document = makeDocument([
         "// see documentation/a.md"
