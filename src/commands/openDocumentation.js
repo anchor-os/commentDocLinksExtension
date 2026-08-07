@@ -41,6 +41,8 @@ export function registerOpenDocumentationCommand(context) {
                     const editor = await openFile(fullPath);
 
                     revealAnchor(editor, anchor);
+
+                    return editor;
                 } catch (error) {
                     console.error(error);
 

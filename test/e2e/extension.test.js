@@ -188,15 +188,13 @@ suite("Comment Doc Links extension", () => {
     });
 
     test("openDocumentation command reveals the anchored heading", async () => {
-        await vscode.commands.executeCommand(
+        const editor = await vscode.commands.executeCommand(
             "commentDocLinks.openDocumentation",
             "documentation/foo.md",
             "reconciliation-guarantee"
         );
 
-        const editor = vscode.window.activeTextEditor;
-
-        assert.ok(editor, "expected an active editor");
+        assert.ok(editor, "expected an editor from the command");
 
         assert.ok(
             editor.document.uri.fsPath.endsWith(
@@ -216,13 +214,11 @@ suite("Comment Doc Links extension", () => {
     });
 
     test("openDocumentation command opens the file without an anchor", async () => {
-        await vscode.commands.executeCommand(
+        const editor = await vscode.commands.executeCommand(
             "commentDocLinks.openDocumentation",
             "documentation/foo.md",
             null
         );
-
-        const editor = vscode.window.activeTextEditor;
 
         assert.ok(
             editor?.document.uri.fsPath.endsWith(
@@ -233,16 +229,14 @@ suite("Comment Doc Links extension", () => {
     });
 
     test("openSource command opens the file when the anchor is missing", async () => {
-        await vscode.commands.executeCommand(
+        const editor = await vscode.commands.executeCommand(
             "commentDocLinks.openSource",
             "src/util/foo.js",
             "missing-anchor",
             "documentation/foo.md"
         );
 
-        const editor = vscode.window.activeTextEditor;
-
-        assert.ok(editor, "expected an active editor");
+        assert.ok(editor, "expected an editor from the command");
 
         assert.ok(
             editor.document.uri.fsPath.endsWith(

@@ -48,15 +48,15 @@ export function registerOpenSourceCommand(context) {
                 try {
                     const editor = await openFile(file);
 
-                    if (!documentationFile) {
-                        return;
+                    if (documentationFile) {
+                        revealSourceComment(
+                            editor,
+                            documentationFile,
+                            anchor
+                        );
                     }
 
-                    revealSourceComment(
-                        editor,
-                        documentationFile,
-                        anchor
-                    );
+                    return editor;
                 } catch (error) {
                     console.error(error);
 
