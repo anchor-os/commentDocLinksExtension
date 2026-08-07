@@ -41,7 +41,7 @@ import {
  */
 
 export function documentFromText(text, languageId) {
-    const lines = text.split(/\r?\n/);
+    const lines = text.split(/\r\n|\r|\n/);
 
     return {
         languageId,
