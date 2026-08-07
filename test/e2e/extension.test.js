@@ -49,20 +49,23 @@ async function openFixtureWorkspace() {
 
     const deadline = Date.now() + 10000;
 
+    let updateInProgress = false;
+
     while (Date.now() < deadline) {
         if (vscode.workspace.getWorkspaceFolder(folder)) {
             return;
         }
 
-        const current =
-            vscode.workspace.workspaceFolders?.length ?? 0;
+        if (!updateInProgress) {
+            const current =
+                vscode.workspace.workspaceFolders?.length ?? 0;
 
-        if (vscode.workspace.updateWorkspaceFolders(
-            current,
-            0,
-            { uri: folder }
-        )) {
-            return;
+            updateInProgress = vscode.workspace
+                .updateWorkspaceFolders(
+                    current,
+                    0,
+                    { uri: folder }
+                );
         }
 
         await new Promise((resolve) =>
@@ -283,9 +286,14 @@ suite("Comment Doc Links extension", () => {
     });
 
     test("commands are registered and do not throw", async () => {
+        const openDocumentation =
+            "commentDocLinks.openDocumentation";
+
+        const openSource = "commentDocLinks.openSource";
+
         await assert.doesNotReject(
             vscode.commands.executeCommand(
-                "commentDocLinks.openDocumentation",
+                openDocumentation,
                 "documentation/foo.md",
                 null
             )
@@ -293,11 +301,36 @@ suite("Comment Doc Links extension", () => {
 
         await assert.doesNotReject(
             vscode.commands.executeCommand(
-                "commentDocLinks.openSource",
+                openSource,
                 "src/util/foo.js",
                 null,
                 null
             )
+        );
+
+        await assert.doesNotReject(
+            vscode.commands.executeCommand(
+                openDocumentation,
+                null,
+                null
+            )
+        );
+
+        await assert.doesNotReject(
+            vscode.commands.executeCommand(
+                openSource,
+                null,
+                null,
+                null
+            )
+        );
+
+        await assert.doesNotReject(
+            vscode.commands.executeCommand(openDocumentation)
+        );
+
+        await assert.doesNotReject(
+            vscode.commands.executeCommand(openSource)
         );
     });
 
