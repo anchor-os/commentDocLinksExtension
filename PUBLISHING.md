@@ -6,14 +6,14 @@ trusted publishing** — no Personal Access Token (PAT) is stored anywhere.
 
 ## How it works
 
-```
+```text
 GitHub Release published
       │  (tag v0.1.0, ...)
       ▼
-.github/workflows/publish.yml   permissions: contents: read + id-token: write
-      │
+.github/workflows/publish.yml   build job: contents: read
+      │  publish job: contents: read + id-token: write
       ▼
-npx @vscode/vsce@next publish --oidc
+npx @vscode/vsce@3.9.3-4 publish --oidc
       │  requests a GitHub Actions OIDC token
       │  audience = marketplace.visualstudio.com
       ▼
@@ -24,8 +24,10 @@ configured trusted publishing policy and returns a short-lived credential
 - The GitHub Actions OIDC token is exchanged directly for a short-lived
   Marketplace credential. `vsce` does **not** fall back to a PAT if the token
   exchange fails.
-- Because `id-token: write` is only granted on the `publish` job of this
-  workflow, no other workflow in this repository can impersonate the publisher.
+- The Marketplace trusted-publishing policy restricts publishing to the
+  intended repository (`anchor-os/commentDocLinksExtension`) and workflow
+  (`publish.yml`). The `id-token: write` permission on the publish job lets
+  GitHub mint the OIDC token; it is not itself the authorization mechanism.
 - No repository secrets (`VSCE_PAT`, `AZURE_DEVOPS_PAT`, client secrets) are
   used.
 
@@ -54,27 +56,21 @@ matches it). Once configured, publishing is fully automated.
    VSIX packaging).
 4. Create a tag matching the package version, e.g. `v0.1.1`.
 5. Create a GitHub Release from that tag (any title/notes).
-6. `publish.yml` triggers on `release: published`, re-runs the checks, verifies
-   the tag matches `package.json`, packages the VSIX, and publishes it to the
-   Marketplace.
+6. `publish.yml` triggers on `release: published`. The non-privileged `build`
+   job re-runs the checks, verifies the tag matches `package.json`, packages
+   the VSIX, and uploads it as an artifact. The `publish` job then downloads
+   the artifact and publishes it to the Marketplace.
 
 The workflow refuses to publish when the release tag does not match the
 `package.json` version, and `vsce` refuses to republish a version that already
 exists on the Marketplace (no `--skip-duplicate`).
 
-## Manual trigger
-
-The workflow also accepts `workflow_dispatch`. A manual run skips the
-tag/version consistency check and publishes the current `package.json` version.
-This is useful for testing after the trust policy is configured, and for
-re-publishing an unpublish step or a Marketplace rollback.
-
 ## Requirements and notes
 
-- `--oidc` currently ships on the `@vscode/vsce@next` dist-tag only; `latest`
-  (3.9.x) still requires `--pat` or `--azure-credential`. The workflow pins
-  `@vscode/vsce@next` until `--oidc` reaches `latest`, then the pin can be
-  dropped.
+- `--oidc` ships on `@vscode/vsce@3.9.3-4` only; `latest` (3.9.x) still
+  requires `--pat` or `--azure-credential`. The publish job pins the exact
+  `@vscode/vsce@3.9.3-4` version until `--oidc` reaches `latest`, then the pin
+  can be relaxed.
 - Requires Node.js >= 22.
 - `--azure-credential` (Entra ID workload identity federation) is the
   alternative PAT-free path documented by Microsoft, but it is aimed at Azure

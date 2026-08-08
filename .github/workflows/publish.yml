@@ -3,7 +3,6 @@ name: Publish to VS Code Marketplace
 on:
   release:
     types: [published]
-  workflow_dispatch:
 
 concurrency:
   group: publish
@@ -11,11 +10,10 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
-  publish:
-    name: Publish extension
+  build:
+    name: Build, test and package
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -27,7 +25,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
 
       - name: Install dependencies
         run: npm ci
@@ -42,7 +39,6 @@ jobs:
         run: xvfb-run --auto-servernum npm run test:e2e
 
       - name: Verify release tag matches package version
-        if: github.event_name == 'release'
         run: |
           version="$(node --input-type=commonjs -e "console.log(require('./package.json').version)")"
           expected="v${version}"
@@ -51,14 +47,38 @@ jobs:
             echo "::error::Release tag '${actual}' does not match package.json version '${version}' (expected '${expected}')."
             exit 1
           fi
-          echo "Publishing ${actual} (${version}) via OIDC trusted publishing."
+          echo "Release tag '${actual}' matches package.json version '${version}'."
 
       - name: Package VSIX
         run: npm run package -- --no-dependencies -o extension.vsix
 
+      - name: Upload VSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: comment-doc-links-vsix
+          path: extension.vsix
+          if-no-files-found: error
+
+  publish:
+    name: Publish to VS Code Marketplace
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Download VSIX artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: comment-doc-links-vsix
+
       - name: Publish to VS Code Marketplace (OIDC trusted publishing)
         # OIDC trusted publishing exchanges the GitHub Actions OIDC token for a
         # short-lived Marketplace credential. No PAT or secret is required.
-        # NOTE: --oidc ships on @vscode/vsce@next only; drop the @next pin once
-        # it lands on the latest dist-tag (https://github.com/microsoft/vscode-vsce).
-        run: npx --yes @vscode/vsce@next publish --oidc --packagePath extension.vsix
+        # Pinned to the exact version that ships --oidc (not on latest yet).
+        run: npx --yes @vscode/vsce@3.9.3-4 publish --oidc --packagePath extension.vsix
