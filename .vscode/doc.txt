@@ -1,0 +1,413 @@
+code --install-extension ./comment-doc-links-0.1.0.vsix
+
+If you don't know the exact filename:
+
+code --install-extension "$(ls *.vsix | head -1)"
+
+Then verify:
+
+code --list-extensions | grep comment
+
+
+==================
+GitHub main
+    ↓
+git pull
+    ↓
+npm ci
+    ↓
+npm run lint
+    ↓
+npm test
+    ↓
+npm run test:e2e
+    ↓
+npm run package
+    ↓
+comment-doc-links-0.1.0.vsix
+    ↓
+Install VSIX into normal VS Code
+    ↓
+Test against your real repository
+    ↓
+npx vsce ls
+    ↓
+Inspect VSIX contents
+    ↓
+Verify publisher account
+    ↓
+ONLY THEN
+    ↓
+vsce publish
+
+===============================================
+So we're no longer looking at the earlier 0.1.0 state. The latest main includes the additional CRLF/CR handling, command guards, completion fixes, and the expanded E2E coverage.
+
+Current state
+
+I would now consider the extension technically ready for a Marketplace release candidate.
+
+The important pieces are all present:
+
+Two-way source ↔ Markdown navigation.
+Exact anchor resolution.
+Missing anchor does not prevent opening the target file.
+Completion for source and Markdown references.
+Diagnostics for provably broken references.
+Workspace path traversal protection.
+Block-comment handling.
+CRLF and bare-CR handling.
+Command-palette safety when commands receive invalid/missing arguments.
+Unit + VS Code E2E tests.
+VSIX packaging.
+GitHub Actions CI on Node 20/22.
+Marketplace metadata, icon, README, CHANGELOG and MIT license.
+
+The final audit PR reports:
+
+npm run lint       ✓
+npm test           ✓ 66 unit tests
+npm run test:e2e   ✓ 9 E2E tests
+npm run package    ✓ VSIX builds
+
+So the project has moved from prototype → release candidate.
+
+One thing I would verify before publishing
+
+There is one documentation/syntax detail worth consciously deciding.
+
+The current implementation deliberately tolerates legacy Markdown forms:
+
+## src/util/foo.js - anchor
+
+and:
+
+## src/util/foo.js#anchor
+
+while the canonical syntax remains:
+
+## src/util/foo.js — anchor
+
+That tolerance is documented in the README/CHANGELOG and tested, so I would leave it as compatibility behavior, not remove it now. The current project has made that an intentional compatibility feature.
+
+What remains
+
+At this point I would not add more architecture or functionality.
+
+The next phase is operational:
+
+CURRENT
+  │
+  ├── Code ✓
+  ├── Tests ✓
+  ├── E2E ✓
+  ├── CI ✓
+  ├── VSIX ✓
+  ├── README ✓
+  ├── LICENSE ✓
+  └── Marketplace metadata ✓
+          │
+          ▼
+     RELEASE CANDIDATE
+          │
+          ├── Install generated VSIX locally
+          ├── Test against your real production repo
+          ├── Verify Marketplace metadata
+          ├── Create GitHub release/tag
+          └── Publish to VS Code Marketplace
+
+One important distinction: the GitHub CI proves the automated test suite and packaging work, but it does not prove the extension behaves exactly as you expect inside your real repository. So I would make the next step a manual VSIX installation test against one of your actual repos before publishing.
+
+Current GitHub main branch
+
+where it is Install generated VSIX locally and how to install and how to Verify Marketplace metadata
+
+Yes. These are two separate things:
+
+Install the .vsix locally → test exactly what you're about to publish.
+Verify Marketplace metadata → make sure package.json and the packaged extension will appear correctly in the VS Code Marketplace.
+1. Where is the generated VSIX?
+
+Your GitHub CI generates it here:
+
+npx vsce package --no-dependencies
+
+and uploads it as a GitHub Actions artifact named:
+
+comment-doc-links-vsix
+
+So the CI-generated .vsix is not currently committed to GitHub. It's an Actions artifact.
+
+For local testing, I recommend generating one yourself.
+
+From the extension repository:
+
+npm ci
+npm run lint
+npm test
+npm run test:e2e
+npm run package
+
+The last command:
+
+npm run package
+
+runs:
+
+vsce package
+
+and creates something like:
+
+comment-doc-links-0.1.0.vsix
+
+in the root of the extension repository.
+
+Check:
+
+ls -lh *.vsix
+2. Install the VSIX into VS Code
+
+You have two easy options.
+
+Option A — VS Code UI
+
+Open VS Code.
+
+Go to:
+
+Extensions
+
+Then click the:
+
+...
+
+menu near the Extensions view.
+
+Choose:
+
+Install from VSIX...
+
+Select:
+
+comment-doc-links-0.1.0.vsix
+
+VS Code will install it.
+
+Then reload VS Code if prompted.
+
+Option B — command line
+
+From your extension repository:
+
+code --install-extension ./comment-doc-links-0.1.0.vsix
+
+If you don't know the exact filename:
+
+code --install-extension "$(ls *.vsix | head -1)"
+
+Then verify:
+
+code --list-extensions | grep comment
+
+You should see something corresponding to:
+
+manish-sharma-getanchorio.comment-doc-links
+
+The exact extension ID comes from:
+
+publisher.name
+
+Your current package.json has:
+
+"name": "comment-doc-links",
+"publisher": "manish-sharma-getanchorio"
+
+so the expected ID is:
+
+manish-sharma-getanchorio.comment-doc-links
+3. Test the actual installed extension
+
+This is important.
+
+Don't test only inside the extension-development window.
+
+Open one of your real application repositories in normal VS Code.
+
+Then test:
+
+Source → Markdown
+// See documentation/claude/comments/ENC-74995.md#reconciliation-guarantee
+
+Cmd/Ctrl-click it.
+
+Expected:
+
+ENC-74995.md
+        ↓
+reconciliation-guarantee
+Markdown → source
+## src/util/foo.js — reconciliation-guarantee
+
+Cmd/Ctrl-click.
+
+Expected:
+
+foo.js
+   ↓
+matching source comment
+Missing anchor
+
+This is particularly important:
+
+## src/util/foo.js — missing-anchor
+
+If foo.js exists but missing-anchor doesn't:
+
+Expected:
+
+foo.js opens
+
+not:
+
+nothing happens
+Missing file
+## src/util/does-not-exist.js — anything
+
+Expected:
+
+diagnostic appears
+navigation cannot open a nonexistent file.
+4. Verify Marketplace metadata
+
+There are actually two levels of verification.
+
+Level 1 — Verify package.json
+
+Your current metadata already contains the important Marketplace fields:
+
+{
+  "name": "comment-doc-links",
+  "displayName": "Comment Doc Links",
+  "description": "Navigate between source comments and markdown documentation with two-way links.",
+  "version": "0.1.0",
+  "publisher": "manish-sharma-getanchorio",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anchor-os/commentDocLinksExtension"
+  },
+  "homepage": "https://github.com/anchor-os/commentDocLinksExtension",
+  "bugs": {
+    "url": "https://github.com/anchor-os/commentDocLinksExtension/issues"
+  },
+  "keywords": [...],
+  "icon": "icon.png"
+}
+
+That's good.
+
+5. Let vsce validate the package
+
+This is the most useful local metadata check.
+
+Run:
+
+npx vsce ls
+
+This shows what will actually be included in the VSIX.
+
+Then:
+
+npx vsce package
+
+If vsce finds a packaging/manifest problem, it will report it.
+
+You can also run:
+
+npx vsce package --no-dependencies
+
+which matches your CI packaging command.
+
+6. Inspect the actual VSIX
+
+A .vsix is basically a ZIP file.
+
+Run:
+
+unzip -l comment-doc-links-0.1.0.vsix
+
+You should see important things such as:
+
+extension/package.json
+extension/README.md
+extension/CHANGELOG.md
+extension/LICENSE
+extension/icon.png
+extension/src/...
+
+And you should not see things you don't want shipped, such as:
+
+.git/
+.github/
+node_modules/
+test fixtures/
+.vscode/
+
+depending on what your .vscodeignore excludes.
+
+This is one of the best final checks before publishing.
+
+7. Verify the Marketplace listing itself
+
+You don't have a Marketplace listing until you publish it.
+
+So you cannot currently verify the final public Marketplace page.
+
+Before publishing, you can verify everything that will populate that page from package.json:
+
+Marketplace field	Current source
+Name	displayName
+Description	description
+Version	version
+Publisher	publisher
+Icon	icon
+Categories	categories
+Keywords	keywords
+Repository	repository
+Homepage	homepage
+Issues	bugs
+README	README.md
+License	license
+Changelog	CHANGELOG.md
+
+Your current package.json has those core fields.
+
+8. One thing we need before Marketplace publishing
+
+You have:
+
+"publisher": "manish-sharma-getanchorio"
+
+That means the Marketplace publisher needs to exist and you need permission to publish under it.
+
+If you haven't created the VS Code Marketplace publisher yet, you'll need to do that through the Visual Studio Marketplace publisher/account process.
+
+Then you authenticate vsce and publish.
+
+Don't run vsce publish yet.
+
+First do:
+
+npm run package
+
+then:
+
+code --install-extension ./comment-doc-links-0.1.0.vsix
+
+test it against your real repo, and inspect:
+
+npx vsce ls
+
+and:
+
+unzip -l comment-doc-links-0.1.0.vsix
