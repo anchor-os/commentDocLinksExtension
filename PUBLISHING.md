@@ -71,7 +71,7 @@ exists on the Marketplace (no `--skip-duplicate`).
   requires `--pat` or `--azure-credential`. The publish job pins the exact
   `@vscode/vsce@3.9.3-4` version until `--oidc` reaches `latest`, then the pin
   can be relaxed.
-- Requires Node.js >= 22.
+- Requires Node.js 26.4.0 (also satisfies vsce's Node >= 22 requirement).
 - `--azure-credential` (Entra ID workload identity federation) is the
   alternative PAT-free path documented by Microsoft, but it is aimed at Azure
   Pipelines and fails for GitHub Actions against personally-owned publishers

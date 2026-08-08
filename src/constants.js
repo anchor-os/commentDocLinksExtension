@@ -22,7 +22,7 @@ export const DOCUMENT_EXTENSIONS = [
 /**
  * Separator between a documentation file and its anchor in source comments:
  *
- *   see documentation/claude/comments/ENC-74995.md#reconciliation-guarantee
+ *   see docs/user-guide/checkout.md#checkout-flow
  */
 export const ANCHOR_SEPARATOR = "#";
 
@@ -30,13 +30,13 @@ export const ANCHOR_SEPARATOR = "#";
  * Canonical separator between a source file and its anchor in Markdown
  * headings:
  *
- *   ## src/util/foo.js — reconciliation-guarantee
+ *   ## src/checkout/cart.js — checkout-flow
  */
 export const MARKDOWN_SOURCE_SEPARATOR = "—";
 
 /**
  * Alternate heading separator that is tolerated when parsing existing
- * Markdown documents (`## src/util/foo.js - anchor`).
+ * Markdown documents (`## src/checkout/cart.js - anchor`).
  */
 export const ALTERNATE_SOURCE_SEPARATOR = "-";
 

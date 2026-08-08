@@ -236,7 +236,7 @@ Open one of your real application repositories in normal VS Code.
 Then test:
 
 Source → Markdown
-// See documentation/claude/comments/ENC-74995.md#reconciliation-guarantee
+// See documentation/claude/comments/test.md#test-guarantee
 
 Cmd/Ctrl-click it.
 

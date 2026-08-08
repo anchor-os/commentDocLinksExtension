@@ -9,9 +9,9 @@ import {
 /**
  * Matches a documentation heading:
  *
- *   ## src/util/foo.js — anchor
- *   ## src/util/foo.js - anchor
- *   ## src/util/foo.js#anchor
+ *   ## src/checkout/cart.js — anchor
+ *   ## src/checkout/cart.js - anchor
+ *   ## src/checkout/cart.js#anchor
  *
  * The em dash is the canonical separator; `#` and ` - ` are tolerated so
  * existing documents keep working.
@@ -27,7 +27,7 @@ const MARKDOWN_HEADING_REGEX = new RegExp(
  *
  * Example:
  *
- * ## scripts/local/localGraphqlWorkerPool.js — timeout-exempt-keys
+ * ## src/checkout/cart.js — checkout-flow
  *
  * @param {string} line
  * @returns {{

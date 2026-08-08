@@ -15,12 +15,12 @@ Write the documentation file path in a comment. Add an anchor to link to a
 specific section.
 
 ```javascript
-// See documentation/claude/comments/ENC-74995.md#reconciliation-guarantee
-function reconcileOrders(orders) { ... }
+// See docs/user-guide/checkout.md#checkout-flow
+function placeOrder(items) { ... }
 ```
 
 The anchored part is shown as a link. Clicking it opens
-`documentation/claude/comments/ENC-74995.md` and reveals the matching section.
+`docs/user-guide/checkout.md` and reveals the matching section.
 Without an anchor, the documentation file is opened at its top.
 
 ### Markdown heading → Source comment
@@ -29,21 +29,21 @@ Use a heading whose text names a source file, followed by the em dash and the
 anchor used in the source comment.
 
 ```markdown
-## src/util/foo.js — reconciliation-guarantee
+## src/checkout/cart.js — checkout-flow
 ```
 
-Clicking the source file part opens `src/util/foo.js` and reveals the comment
-that references `documentation/...md#reconciliation-guarantee`. If the anchor
+Clicking the source file part opens `src/checkout/cart.js` and reveals the comment
+that references `docs/...md#checkout-flow`. If the anchor
 cannot be found, the source file is still opened.
 
 ## Features
 
 - Two-way navigation: comments → documentation and documentation → comments.
 - Anchors are optional — a missing anchor never blocks opening the target file.
-- Exact anchor matching: `reconciliation` never resolves to
-  `reconciliation-guarantee`.
+- Exact anchor matching: `checkout` never resolves to
+  `checkout-flow`.
 - Tolerates legacy separators when parsing existing documents:
-  `## src/util/foo.js - anchor` and `## src/util/foo.js#anchor`.
+  `## src/checkout/cart.js - anchor` and `## src/checkout/cart.js#anchor`.
 - Diagnostics highlight references to missing documentation files and anchors
   (conservative — only provably broken references are flagged).
 - Completion suggests anchors after `file.md#` in comments and source anchors

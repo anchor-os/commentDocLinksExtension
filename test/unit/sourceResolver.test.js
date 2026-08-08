@@ -15,7 +15,7 @@ test("exact anchor match wins over earlier loose reference", () => {
     const document = makeDocument([
         "// see documentation/a.md",
         "const x = 1;",
-        "// see documentation/a.md#reconciliation-guarantee",
+        "// see documentation/a.md#checkout-flow",
         "// see documentation/a.md - alt-anchor"
     ]);
 
@@ -23,7 +23,7 @@ test("exact anchor match wins over earlier loose reference", () => {
         resolveSourceReference(
             document,
             "documentation/a.md",
-            "reconciliation-guarantee"
+            "checkout-flow"
         ),
         { line: 2, character: 0, anchorFound: true }
     );
