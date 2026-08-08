@@ -1,7 +1,7 @@
 # Comment Doc Links
 
 Navigate between source comments and Markdown documentation with two-way links.
-
+[getanchor.io](https://getanchor.io)
 In a source file, a comment can point at a specific section of a Markdown
 document. In the Markdown document, a heading can point back at the source
 comment. Click the link in either place and the extension opens the target
@@ -69,10 +69,10 @@ None. The extension works automatically on the languages listed above.
 
 ## Commands
 
-| Command | Title | Invoked by |
-| --- | --- | --- |
-| `commentDocLinks.openDocumentation` | Open Documentation | Clicking a `file.md[#anchor]` link in a source comment |
-| `commentDocLinks.openSource` | Open Source | Clicking a `## src/file.js — anchor` heading link in Markdown |
+| Command                             | Title              | Invoked by                                                    |
+| ----------------------------------- | ------------------ | ------------------------------------------------------------- |
+| `commentDocLinks.openDocumentation` | Open Documentation | Clicking a `file.md[#anchor]` link in a source comment        |
+| `commentDocLinks.openSource`        | Open Source        | Clicking a `## src/file.js — anchor` heading link in Markdown |
 
 ## Known limitations
 
