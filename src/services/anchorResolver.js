@@ -22,13 +22,13 @@ import { parseMarkdownHeading } from "../parsers/markdownParser.js";
  *
  * 1. Documentation headings:
  *
- *    ## src/util/foo.js — reconciliation-guarantee
+ *    ## src/checkout/cart.js — checkout-flow
  *
  * 2. HTML anchors:
  *
- *    <a id="reconciliation-guarantee"></a>
+ *    <a id="checkout-flow"></a>
  *
- * Matching is exact — `foo` never resolves to `foo-bar`.
+ * Matching is exact — `checkout` never resolves to `checkout-flow`.
  *
  * @param {DocumentLike} document
  * @param {string} anchor

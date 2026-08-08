@@ -1,8 +1,8 @@
 # Foo documentation
 
-## src/util/foo.js — reconciliation-guarantee
+## src/util/foo.js — checkout-flow
 
-Reconciliation guarantees that orders are settled exactly once.
+Checkout settles the order exactly once.
 
 ## src/util/foo.js — missing-anchor
 

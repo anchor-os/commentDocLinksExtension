@@ -13,14 +13,14 @@ import {
 
 test("exact anchor match returns true", () => {
     const document = makeDocument([
-        "// see documentation/a.md#reconciliation-guarantee"
+        "// see documentation/a.md#checkout-flow"
     ]);
 
     assert.equal(
         hasExactSourceReference(
             document,
             "documentation/a.md",
-            "reconciliation-guarantee"
+            "checkout-flow"
         ),
         true
     );
@@ -35,7 +35,7 @@ test("different anchor returns false", () => {
         hasExactSourceReference(
             document,
             "documentation/a.md",
-            "reconciliation-guarantee"
+            "checkout-flow"
         ),
         false
     );
@@ -43,14 +43,14 @@ test("different anchor returns false", () => {
 
 test("different file returns false", () => {
     const document = makeDocument([
-        "// see documentation/b.md#reconciliation-guarantee"
+        "// see documentation/b.md#checkout-flow"
     ]);
 
     assert.equal(
         hasExactSourceReference(
             document,
             "documentation/a.md",
-            "reconciliation-guarantee"
+            "checkout-flow"
         ),
         false
     );

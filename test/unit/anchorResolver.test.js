@@ -13,7 +13,7 @@ import {
 } from "./helpers.js";
 
 const DOCUMENT = makeDocument([
-    "## src/util/foo.js — reconciliation-guarantee",
+    "## src/util/foo.js — checkout-flow",
     "<a id=\"legacy-anchor\"></a>",
     "## src/util/foo.js - alt-anchor",
     "plain prose"
@@ -21,7 +21,7 @@ const DOCUMENT = makeDocument([
 
 test("resolves a heading anchor", () => {
     assert.deepEqual(
-        resolveAnchor(DOCUMENT, "reconciliation-guarantee"),
+        resolveAnchor(DOCUMENT, "checkout-flow"),
         { line: 0, character: 0 }
     );
 });
@@ -49,7 +49,7 @@ test("missing anchor returns null", () => {
 
 test("matching is exact, not a prefix match", () => {
     assert.equal(
-        resolveAnchor(DOCUMENT, "reconciliation"),
+        resolveAnchor(DOCUMENT, "checkout"),
         null
     );
 
@@ -69,7 +69,7 @@ test("empty anchor returns null", () => {
 test("listAnchors returns every defined anchor", () => {
     assert.deepEqual(
         listAnchors(DOCUMENT),
-        ["reconciliation-guarantee", "legacy-anchor", "alt-anchor"]
+        ["checkout-flow", "legacy-anchor", "alt-anchor"]
     );
 });
 

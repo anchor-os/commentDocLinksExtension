@@ -94,7 +94,7 @@ suite("Comment Doc Links extension", () => {
 
         const matching = links.filter((link) =>
             link.target.toString().includes("openDocumentation") &&
-            link.target.toString().includes("reconciliation-guarantee")
+            link.target.toString().includes("checkout-flow")
         );
 
         assert.equal(
@@ -104,7 +104,7 @@ suite("Comment Doc Links extension", () => {
         );
 
         const anchoredOnly = links.filter((link) =>
-            link.target.toString().includes("reconciliation-guarantee")
+            link.target.toString().includes("checkout-flow")
         );
 
         assert.equal(
@@ -124,7 +124,7 @@ suite("Comment Doc Links extension", () => {
 
         const matching = links.filter((link) =>
             link.target.toString().includes("openSource") &&
-            link.target.toString().includes("reconciliation-guarantee")
+            link.target.toString().includes("checkout-flow")
         );
 
         assert.equal(
@@ -139,14 +139,14 @@ suite("Comment Doc Links extension", () => {
             fixturePath("documentation", "foo.md")
         );
 
-        revealAnchor(editor, "reconciliation-guarantee");
+        revealAnchor(editor, "checkout-flow");
 
         const line = editor.document
             .lineAt(editor.selection.active.line)
             .text;
 
         assert.ok(
-            line.includes("reconciliation-guarantee"),
+            line.includes("checkout-flow"),
             `expected the revealed line to be the heading, got: ${line}`
         );
     });
@@ -159,7 +159,7 @@ suite("Comment Doc Links extension", () => {
         revealSourceComment(
             editor,
             "documentation/foo.md",
-            "reconciliation-guarantee"
+            "checkout-flow"
         );
 
         const line = editor.document
@@ -167,7 +167,7 @@ suite("Comment Doc Links extension", () => {
             .text;
 
         assert.ok(
-            line.includes("reconciliation-guarantee"),
+            line.includes("checkout-flow"),
             `expected the revealed line to be the comment, got: ${line}`
         );
     });
@@ -222,7 +222,7 @@ suite("Comment Doc Links extension", () => {
     test("openDocumentation command reveals the anchored heading", async () => {
         const editor = await openDocumentationFile(
             "documentation/foo.md",
-            "reconciliation-guarantee"
+            "checkout-flow"
         );
 
         assert.ok(editor, "expected an editor");
@@ -239,7 +239,7 @@ suite("Comment Doc Links extension", () => {
             .text;
 
         assert.ok(
-            line.includes("reconciliation-guarantee"),
+            line.includes("checkout-flow"),
             `expected the cursor on the heading, got: ${line}`
         );
     });

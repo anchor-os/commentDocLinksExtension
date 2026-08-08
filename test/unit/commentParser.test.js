@@ -24,35 +24,35 @@ test("plain file reference parses with null anchor", () => {
 
 test("hash-anchored reference parses", () => {
     const matches = parseComment(
-        "documentation/file.md#reconciliation-guarantee",
+        "documentation/file.md#checkout-flow",
         0
     );
 
     assert.equal(matches.length, 1);
     assert.equal(matches[0].file, "documentation/file.md");
-    assert.equal(matches[0].anchor, "reconciliation-guarantee");
+    assert.equal(matches[0].anchor, "checkout-flow");
 });
 
 test("space-hyphen anchored reference parses", () => {
     const matches = parseComment(
-        "documentation/file.md - reconciliation-guarantee",
+        "documentation/file.md - checkout-flow",
         0
     );
 
     assert.equal(matches.length, 1);
     assert.equal(matches[0].file, "documentation/file.md");
-    assert.equal(matches[0].anchor, "reconciliation-guarantee");
+    assert.equal(matches[0].anchor, "checkout-flow");
 });
 
 test("em-dash anchored reference parses", () => {
     const matches = parseComment(
-        "documentation/file.md — reconciliation-guarantee",
+        "documentation/file.md — checkout-flow",
         0
     );
 
     assert.equal(matches.length, 1);
     assert.equal(matches[0].file, "documentation/file.md");
-    assert.equal(matches[0].anchor, "reconciliation-guarantee");
+    assert.equal(matches[0].anchor, "checkout-flow");
 });
 
 test("multiple references in one comment parse in order", () => {
