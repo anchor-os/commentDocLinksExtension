@@ -1,0 +1,64 @@
+name: Publish to VS Code Marketplace
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish extension
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Extension integration tests
+        run: xvfb-run --auto-servernum npm run test:e2e
+
+      - name: Verify release tag matches package version
+        if: github.event_name == 'release'
+        run: |
+          version="$(node --input-type=commonjs -e "console.log(require('./package.json').version)")"
+          expected="v${version}"
+          actual="${GITHUB_REF_NAME}"
+          if [ "${actual}" != "${expected}" ]; then
+            echo "::error::Release tag '${actual}' does not match package.json version '${version}' (expected '${expected}')."
+            exit 1
+          fi
+          echo "Publishing ${actual} (${version}) via OIDC trusted publishing."
+
+      - name: Package VSIX
+        run: npm run package -- --no-dependencies -o extension.vsix
+
+      - name: Publish to VS Code Marketplace (OIDC trusted publishing)
+        # OIDC trusted publishing exchanges the GitHub Actions OIDC token for a
+        # short-lived Marketplace credential. No PAT or secret is required.
+        # NOTE: --oidc ships on @vscode/vsce@next only; drop the @next pin once
+        # it lands on the latest dist-tag (https://github.com/microsoft/vscode-vsce).
+        run: npx --yes @vscode/vsce@next publish --oidc --packagePath extension.vsix

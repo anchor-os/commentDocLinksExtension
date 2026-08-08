@@ -82,7 +82,8 @@ None. The extension works automatically on the languages listed above.
 
 ## Release Notes
 
-See [CHANGELOG.md](CHANGELOG.md).
+See [CHANGELOG.md](CHANGELOG.md). Publishing is automated via OIDC trusted
+publishing — see [PUBLISHING.md](PUBLISHING.md).
 
 ## License
 
