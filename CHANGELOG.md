@@ -6,7 +6,7 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.0] - 2026-08-08
 
 ### Added
 
@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Completion for anchors after `file.md#` in comments and after
   `## src/file.js —` in Markdown headings.
 - Legacy heading separators tolerated when parsing existing documents:
-  ` - ` and `#`.
+  `-` and `#`.
 - Unit tests for parsers, resolvers, diagnostics and suggestions.
 - Language support for `.mjs`, `.cjs`, `.mts` and `.cts` module extensions.
 
