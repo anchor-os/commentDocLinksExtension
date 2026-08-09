@@ -1,0 +1,94 @@
+# Azure Pipelines definition for publishing to the VS Code Marketplace with
+# Microsoft Entra ID workload identity federation (the official VS Code docs
+# flow): an Azure Resource Manager service connection with Workload Identity
+# Federation exchanges Azure DevOps' OIDC token for an Entra ID token on the
+# user-assigned managed identity, and `vsce publish --azure-credential` uses it.
+#
+# No PAT and no client secret are involved.
+
+name: publish
+
+trigger:
+  branches:
+    include:
+      - main
+  tags:
+    include:
+      - "v*"
+
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
+
+stages:
+  - stage: Build
+    displayName: Build, test and package
+    jobs:
+      - job: build
+        displayName: Build, test and package
+        steps:
+          - checkout: self
+            persistCredentials: false
+
+          - task: UseNode@1
+            displayName: Set up Node 26.4
+            inputs:
+              version: 26.4.0
+
+          - script: npm ci
+            displayName: Install dependencies
+
+          - script: npm run lint
+            displayName: Lint
+
+          - script: npm test
+            displayName: Unit tests
+
+          - script: xvfb-run --auto-servernum npm run test:e2e
+            displayName: Extension integration tests
+
+          - script: |
+              version="$(node --input-type=commonjs -e "console.log(require('./package.json').version)")"
+              expected="v${version}"
+              ref="${BUILD_SOURCEBRANCH}"
+              if [[ "${ref}" == refs/tags/* ]]; then
+                if [ "${ref}" != "refs/tags/${expected}" ]; then
+                  echo "##vso[task.logissue type=error]Tag '${ref}' does not match package.json version '${version}' (expected '${expected}')."
+                  exit 1
+                fi
+                echo "Tag '${ref}' matches package.json version '${version}'."
+              else
+                echo "Not a tag build (${ref}); skipping tag check."
+              fi
+            displayName: Verify release tag matches package version
+
+          - script: npm run package -- --no-dependencies -o extension.vsix
+            displayName: Package VSIX
+
+          - publish: extension.vsix
+            artifact: comment-doc-links-vsix
+            displayName: Upload VSIX artifact
+
+  - stage: Publish
+    displayName: Publish to VS Code Marketplace
+    dependsOn: Build
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/tags/'))
+    jobs:
+      - job: publish
+        displayName: Publish using managed identity
+        steps:
+          - download: current
+            artifact: comment-doc-links-vsix
+
+          - task: AzureCLI@2
+            displayName: Publish using managed identity
+            inputs:
+              # Name of the Azure Resource Manager service connection created
+              # with Workload Identity Federation (manual). See PUBLISHING.md.
+              azureSubscription: comment-doc-links-marketplace
+              scriptType: pscore
+              scriptLocation: inlineScript
+              inlineScript: |
+                cd "$(Pipeline.Workspace)/comment-doc-links-vsix"
+                npx --yes @vscode/vsce@3.9.2 publish --azure-credential --packagePath extension.vsix
