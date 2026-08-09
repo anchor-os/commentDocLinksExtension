@@ -63,6 +63,7 @@ jobs:
     name: Publish to VS Code Marketplace
     runs-on: ubuntu-latest
     needs: build
+    environment: marketplace-publish
     permissions:
       contents: read
       id-token: write
@@ -77,8 +78,20 @@ jobs:
         with:
           name: comment-doc-links-vsix
 
-      - name: Publish to VS Code Marketplace (OIDC trusted publishing)
-        # OIDC trusted publishing exchanges the GitHub Actions OIDC token for a
-        # short-lived Marketplace credential. No PAT or secret is required.
-        # Pinned to the exact version that ships --oidc (not on latest yet).
-        run: npx --yes @vscode/vsce@3.9.3-4 publish --oidc --packagePath extension.vsix
+      - name: Azure login (workload identity federation)
+        # Exchanges the GitHub Actions OIDC token for an Entra ID token using
+        # the federated credential on the user-assigned managed identity. No
+        # client secret or PAT is involved. The managed identity is a member of
+        # the publisher, so no Azure subscription access is required.
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
+
+      - name: Publish to VS Code Marketplace (Entra ID managed identity)
+        # --azure-credential picks up the Entra ID token via vsce's credential
+        # chain from the environment azure/login@v2 set (AZURE_CLIENT_ID,
+        # AZURE_TENANT_ID, AZURE_FEDERATED_TOKEN_FILE). No VSCE_PAT.
+        # Pinned to the current stable release.
+        run: npx --yes @vscode/vsce@3.9.2 publish --azure-credential --packagePath extension.vsix
