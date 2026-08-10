@@ -1,40 +1,43 @@
 # Publishing to the VS Code Marketplace and Open VSX
 
 This repository publishes the **Comment Doc Links** extension to the [VS Code
-Marketplace](https://marketplace.visualstudio.com) with **OpenID Connect (OIDC)
-trusted publishing** — no Personal Access Token (PAT) is stored anywhere — and
-to [Open VSX](https://open-vsx.org) from GitHub Actions using an `OVSX_PAT`
-token stored as a GitHub Actions environment secret.
+Marketplace](https://marketplace.visualstudio.com) and
+[Open VSX](https://open-vsx.org) using **two separate GitHub Actions
+workflows**, so each registry can be published independently:
+
+- `.github/workflows/publish.yml` — VS Code Marketplace, using **OpenID Connect
+  (OIDC) trusted publishing** (no Personal Access Token stored anywhere).
+- `.github/workflows/publish-openvsx.yml` — Open VSX, using an `OVSX_PAT` token
+  stored as a GitHub Actions environment secret. This workflow can be triggered
+  on its own.
 
 ## How it works
 
 ```text
 GitHub Release published
       │  (tag v0.1.1, ...)
-      ▼
-.github/workflows/publish.yml   build job: contents: read
-      │
-      ├───────────────┬────────────────────────────┐
-      ▼               ▼                            ▼
-   build           publish                     publish-openvsx
-   job             (Marketplace)               (Open VSX)
-      │               │                            │
-      ▼               ▼                            ▼
-extension.vsix    vsce --oidc                  ovsx publish extension.vsix
-   uploads           │  GitHub Actions OIDC       │  OVSX_PAT from the
-   artifact          │  token, audience =         │  marketplace-publish
-      │              │  marketplace.visualstudio  │  environment secret
-      ▼              ▼  .com                      ▼
-      └──────▶ VS Code Marketplace         Open VSX Registry
-                  (_apis/gallery/token)
+      ├──────────────────────────────────────┬───────────────────────────────┐
+      ▼                                      ▼                               │
+┌─────────────────────────┐   ┌──────────────────────────┐                  │
+│ publish.yml             │   │ publish-openvsx.yml      │   manual "Run    │
+│ VS Code Marketplace     │   │ Open VSX                 │   workflow"      │
+├─────────────────────────┤   ├──────────────────────────┤   (Open VSX      │
+│ build job:              │   │ build+package, then      │   only)          │
+│  lint, tests, tag       │   │ ovsx publish             │                  │
+│  check, package vsix    │   │ extension.vsix           │                  │
+│  → publish job:         │   │   OVSX_PAT from the      │                  │
+│  vsce --oidc            │   │   marketplace-publish    │                  │
+└────────────┬────────────┘   │   environment secret     │                  │
+             │                └────────────┬─────────────┘                  │
+             ▼                             ▼                                │
+   VS Code Marketplace              Open VSX Registry                        │
 ```
 
-- Both publishing jobs run **independently** after the build job and publish the
-  **same `extension.vsix`** artifact produced by the build job. The Open VSX job
-  never repackages the extension.
-- The VS Code Marketplace job (OIDC trusted publishing) and the Open VSX job do
-  not depend on each other, so Open VSX publishing continues even if the
-  Marketplace token-exchange endpoint is unavailable.
+- The two workflows are **fully independent**: a release triggers both, and the
+  Open VSX workflow can also be run **manually** (Actions → "Publish to Open
+  VSX" → **Run workflow**) to publish Open VSX on its own.
+- Each workflow builds and publishes its own `extension.vsix`; neither depends
+  on the other's build artifact.
 
 - The GitHub Actions OIDC token is exchanged directly for a short-lived
   Marketplace credential. `vsce` does **not** fall back to a PAT if the token
@@ -65,33 +68,39 @@ matches it). Once configured, publishing is fully automated.
 
 ## Open VSX publishing
 
-The **`publish-openvsx`** job publishes the exact `extension.vsix` produced by
-the build job to the [Open VSX Registry](https://open-vsx.org) using the
-official [ovsx](https://www.npmjs.com/package/ovsx) CLI, pinned to `ovsx@1.1.1`
-in the committed tooling manifest `.github/openvsx-publish` (`package.json` +
-`package-lock.json`). The workflow installs it with `npm ci --ignore-scripts` in
-a step that does not expose `OVSX_PAT`; the publish step then runs the installed
+Open VSX publishing lives in its own workflow,
+[`.github/workflows/publish-openvsx.yml`](.github/workflows/publish-openvsx.yml),
+so it can run independently of the Marketplace workflow. It is triggered:
+
+- **Automatically** on every published release (`release: published`), in
+  parallel with the Marketplace workflow.
+- **Manually** at any time (Actions → "Publish to Open VSX" → **Run
+  workflow**), to publish Open VSX on its own — for example when the
+  Marketplace OIDC endpoint is unavailable or the Marketplace flow is not yet
+  configured.
+
+The workflow checks out the code, runs lint and unit tests, verifies the
+release tag matches `package.json` (release trigger only), packages
+`extension.vsix` with `npm run package`, and publishes it to the
+[Open VSX Registry](https://open-vsx.org) using the official
+[ovsx](https://www.npmjs.com/package/ovsx) CLI, pinned to `ovsx@1.1.1` in the
+committed tooling manifest `.github/openvsx-publish` (`package.json` +
+`package-lock.json`). The CLI is installed with `npm ci --ignore-scripts` in a
+step that does not expose `OVSX_PAT`; the publish step then runs the installed
 binary with the token in the environment.
 
-- The same VSIX artifact is used for both registries: build → `extension.vsix`
-  → upload artifact → download artifact → `ovsx publish extension.vsix`. The
-  Open VSX job does **not** run `npm run package` again.
-- Publishing happens from GitHub Actions in the `publish.yml` workflow, on
-  `release: published` only — never on push, pull requests, or `main` pushes.
-- Open VSX authenticates with the **`OVSX_PAT`** access token. The token is a
-  GitHub Actions **environment secret** on the existing `marketplace-publish`
-  environment and is available only to the Open VSX publishing job. It never
-  appears in workflow files, `package.json`, `.env`, repository files,
-  command-line arguments, or logs. Eclipse account credentials and passwords are
-  never stored in GitHub.
-- Open VSX publishing is independent of Marketplace publishing: `publish-openvsx`
-  depends only on `build`, so it is not blocked if the Marketplace OIDC endpoint
-  is unavailable.
+- Open VSX authenticates with the **`OVSX_PAT`** access token, stored as a
+  GitHub Actions **environment secret** on the `marketplace-publish`
+  environment. It never appears in workflow files, `package.json`, `.env`,
+  repository files, command-line arguments, or logs. Eclipse account
+  credentials and passwords are never stored in GitHub.
+- Publishing happens on `release: published` and on manual dispatch only —
+  never on push, pull requests, or `main` pushes.
 - **Duplicate versions fail loudly.** `ovsx publish` rejects an
-  already-published version, and the job deliberately does **not** pass
-  `--skip-duplicate`, so re-publishing an existing version fails the release
-  instead of silently doing nothing. This matches the VS Code Marketplace job,
-  which also refuses to republish an existing version.
+  already-published version, and the workflow deliberately does **not** pass
+  `--skip-duplicate`, so re-publishing an existing version fails instead of
+  silently doing nothing. This matches the VS Code Marketplace workflow, which
+  also refuses to republish an existing version.
 
 ### One-time setup (required before the first Open VSX publish)
 
@@ -133,12 +142,14 @@ Do not store the token value in this document or anywhere in the repository.
    VSIX packaging).
 4. Create a tag matching the package version, e.g. `v0.1.1`.
 5. Create a GitHub Release from that tag (any title/notes).
-6. `publish.yml` triggers on `release: published`. The non-privileged `build`
-   job re-runs the checks, verifies the tag matches `package.json`, packages
-   the VSIX, and uploads it as an artifact. The `publish` job then downloads
-   the artifact and publishes it to the VS Code Marketplace, and the
-   `publish-openvsx` job downloads the same artifact and publishes it to Open
-   VSX. The two publish jobs run independently of each other.
+6. A published release triggers **both** workflows in parallel:
+   - `publish.yml` re-runs the checks, verifies the tag matches `package.json`,
+     packages the VSIX, and publishes it to the VS Code Marketplace with
+     `vsce --oidc`.
+   - `publish-openvsx.yml` re-runs the checks, packages the VSIX, and publishes
+     it to Open VSX with `ovsx`.
+   To publish **only** Open VSX (without the Marketplace), use the manual **Run
+   workflow** button on `publish-openvsx.yml` instead of creating a release.
 
 The workflow refuses to publish when the release tag does not match the
 `package.json` version, and `vsce` refuses to republish a version that already
@@ -151,10 +162,11 @@ already-published version.
   requires `--pat` or `--azure-credential`. The publish job pins the exact
   `@vscode/vsce@3.9.3-4` version until `--oidc` reaches `latest`, then the pin
   can be relaxed.
-- The Open VSX job pins `ovsx@1.1.1` (current stable) in the committed tooling
-  manifest `.github/openvsx-publish` (`package.json` + `package-lock.json`) and
-  installs with `npm ci --ignore-scripts` in a step without `OVSX_PAT`; it
-  requires Node >= 20, satisfied by the Node 26.4.0 setup step.
+- The Open VSX workflow pins `ovsx@1.1.1` (current stable) in the committed
+  tooling manifest `.github/openvsx-publish` (`package.json` +
+  `package-lock.json`) and installs with `npm ci --ignore-scripts` in a step
+  without `OVSX_PAT`; it requires Node >= 20, satisfied by the Node 26.4.0
+  setup step.
 - Requires Node.js 26.4.0 (also satisfies vsce's Node >= 22 requirement).
 - `--azure-credential` (Entra ID workload identity federation) is the
   alternative PAT-free path documented by Microsoft, but it is aimed at Azure

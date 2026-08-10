@@ -1,0 +1,73 @@
+name: Publish to Open VSX
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+concurrency:
+  group: publish-openvsx
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish-openvsx:
+    name: Publish to Open VSX
+    runs-on: ubuntu-latest
+    environment: marketplace-publish
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Node 26.4
+        uses: actions/setup-node@v4
+        with:
+          node-version: "26.4.0"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Verify release tag matches package version
+        if: github.event_name == 'release'
+        run: |
+          version="$(node --input-type=commonjs -e "console.log(require('./package.json').version)")"
+          expected="v${version}"
+          actual="${GITHUB_REF_NAME}"
+          if [ "${actual}" != "${expected}" ]; then
+            echo "::error::Release tag '${actual}' does not match package.json version '${version}' (expected '${expected}')."
+            exit 1
+          fi
+          echo "Release tag '${actual}' matches package.json version '${version}'."
+
+      - name: Package VSIX
+        run: npm run package -- --no-dependencies -o extension.vsix
+
+      - name: Install pinned ovsx CLI
+        # Installs from the committed manifest + lockfile with lifecycle scripts
+        # disabled and no secret in the environment, so the dependency graph is
+        # reproducible and no install-time script can read OVSX_PAT. The publish
+        # step below invokes this exact installed binary.
+        working-directory: .github/openvsx-publish
+        run: npm ci --ignore-scripts
+
+      - name: Publish to Open VSX
+        # The token comes only from the OVSX_PAT secret in the
+        # marketplace-publish environment, never from repository files or logs.
+        # --skip-duplicate is intentionally NOT used: an already-published
+        # version fails the job loudly instead of silently skipping.
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          ".github/openvsx-publish/node_modules/.bin/ovsx" publish extension.vsix
