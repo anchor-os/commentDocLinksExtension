@@ -2,6 +2,10 @@ name: Publish to Open VSX
 
 on:
   workflow_dispatch:
+    inputs:
+      release_ref:
+        description: Release tag to publish (e.g. v0.1.1)
+        required: true
   release:
     types: [published]
 
@@ -23,6 +27,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.release_ref || github.ref }}
           persist-credentials: false
 
       - name: Set up Node 26.4
@@ -39,17 +44,20 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Verify release tag matches package version
-        if: github.event_name == 'release'
+      - name: Verify selected ref matches package version
         run: |
           version="$(node --input-type=commonjs -e "console.log(require('./package.json').version)")"
           expected="v${version}"
-          actual="${GITHUB_REF_NAME}"
+          if [ "${{ github.event_name }}" = "release" ]; then
+            actual="${GITHUB_REF_NAME}"
+          else
+            actual="${{ inputs.release_ref }}"
+          fi
           if [ "${actual}" != "${expected}" ]; then
-            echo "::error::Release tag '${actual}' does not match package.json version '${version}' (expected '${expected}')."
+            echo "::error::Selected ref '${actual}' does not match package.json version '${version}' (expected '${expected}')."
             exit 1
           fi
-          echo "Release tag '${actual}' matches package.json version '${version}'."
+          echo "Selected ref '${actual}' matches package.json version '${version}'."
 
       - name: Package VSIX
         run: npm run package -- --no-dependencies -o extension.vsix

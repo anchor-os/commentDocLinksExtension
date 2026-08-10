@@ -77,10 +77,14 @@ so it can run independently of the Marketplace workflow. It is triggered:
 - **Manually** at any time (Actions → "Publish to Open VSX" → **Run
   workflow**), to publish Open VSX on its own — for example when the
   Marketplace OIDC endpoint is unavailable or the Marketplace flow is not yet
-  configured.
+  configured. Manual runs **require** the `release_ref` input: enter the
+  release tag (e.g. `v0.1.1`) that you want to publish. The workflow checks out
+  that exact tag and refuses to publish unless it matches the `package.json`
+  version.
 
 The workflow checks out the code, runs lint and unit tests, verifies the
-release tag matches `package.json` (release trigger only), packages
+selected ref (the release tag, or the `release_ref` input on manual runs)
+matches the `package.json` version, packages
 `extension.vsix` with `npm run package`, and publishes it to the
 [Open VSX Registry](https://open-vsx.org) using the official
 [ovsx](https://www.npmjs.com/package/ovsx) CLI, pinned to `ovsx@1.1.1` in the
@@ -149,10 +153,12 @@ Do not store the token value in this document or anywhere in the repository.
    - `publish-openvsx.yml` re-runs the checks, packages the VSIX, and publishes
      it to Open VSX with `ovsx`.
    To publish **only** Open VSX (without the Marketplace), use the manual **Run
-   workflow** button on `publish-openvsx.yml` instead of creating a release.
+   workflow** button on `publish-openvsx.yml` instead of creating a release and
+   enter the release tag you want to publish in the `release_ref` input.
 
-The workflow refuses to publish when the release tag does not match the
-`package.json` version, and `vsce` refuses to republish a version that already
+The workflow refuses to publish when the selected ref (the release tag, or the
+`release_ref` input on manual runs) does not match the `package.json` version,
+and `vsce` refuses to republish a version that already
 exists on the Marketplace (no `--skip-duplicate`). Open VSX likewise rejects an
 already-published version.
 
@@ -184,4 +190,4 @@ already-published version.
 | Open VSX publish fails with "namespace not found" | The namespace must exist on Open VSX before the first publish; create it per step 3 of the one-time setup above. |
 | Open VSX publish fails with "version already exists" | The version was already published to Open VSX; bump `package.json` or delete the version via **Profile > Settings > Extensions** on open-vsx.org. Deletion is permanent and cannot be undone. If self-service deletion is unavailable, file an issue with the Open VSX project. The job intentionally does not use `--skip-duplicate`. |
 | VS Code Marketplace publish fails with `Version ... already exists` | The version was already published on the VS Code Marketplace; bump `package.json` or remove the version via the Marketplace publisher management page. The job intentionally does not use `--skip-duplicate`. |
-| Release tag mismatch error | The release tag must equal `v<package.json version>`. |
+| Release tag mismatch error | The selected ref (the release tag, or the `release_ref` input on manual runs) must equal `v<package.json version>`. |
