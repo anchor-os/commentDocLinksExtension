@@ -67,8 +67,10 @@ matches it). Once configured, publishing is fully automated.
 
 The **`publish-openvsx`** job publishes the exact `extension.vsix` produced by
 the build job to the [Open VSX Registry](https://open-vsx.org) using the
-official [ovsx](https://www.npmjs.com/package/ovsx) CLI, pinned to `ovsx@1.1.1`
-via `npx`.
+official [ovsx](https://www.npmjs.com/package/ovsx) CLI, pinned to `ovsx@1.1.1`.
+The CLI is installed with lifecycle scripts disabled (`--ignore-scripts`) in a
+step that does not expose `OVSX_PAT`; the publish step then runs the installed
+binary with the token in the environment.
 
 - The same VSIX artifact is used for both registries: build → `extension.vsix`
   → upload artifact → download artifact → `ovsx publish extension.vsix`. The
@@ -92,15 +94,24 @@ via `npx`.
 
 ### One-time setup (required before the first Open VSX publish)
 
-1. Create or sign the required **Open VSX Publisher Agreement** for the account
-   that will own the namespace. This is separate from the Eclipse Contributor
-   Agreement.
-2. Create the Open VSX namespace that corresponds to the extension publisher in
-   `package.json` (`manish-sharma-getanchorio`):
-   `ovsx create-namespace manish-sharma-getanchorio`
-3. Create an Open VSX publishing **access token** (personal access token) in
-   the Open VSX user settings.
-4. Add the token to GitHub under the existing `marketplace-publish` environment:
+1. Create an Open VSX account and log in to the
+   [Open VSX Registry](https://open-vsx.org).
+2. Create an Open VSX **access token** (personal access token) in the Open VSX
+   user settings. This token is required both to create the namespace and to
+   publish.
+3. Create the Open VSX namespace that corresponds to the extension publisher in
+   `package.json` (`manish-sharma-getanchorio`). Set the token as the
+   `OVSX_PAT` environment variable and run:
+   `npx --yes ovsx@1.1.1 create-namespace manish-sharma-getanchorio`
+4. Sign the required **Open VSX Publisher Agreement** (this is separate from
+   the Eclipse Contributor Agreement) and **claim ownership** of the namespace
+   by opening a GitHub issue in
+   [EclipseFdn/open-vsx.org](https://github.com/EclipseFdn/open-vsx.org), per
+   the
+   [Namespace Access wiki](https://github.com/eclipse-openvsx/openvsx/wiki/Namespace-Access).
+   Until ownership is granted, any user can publish under the namespace — do
+   **not** publish the first release before Open VSX grants ownership.
+5. Add the token to GitHub under the existing `marketplace-publish` environment:
    - Environment: `marketplace-publish`
    - Secret name: `OVSX_PAT`
 
@@ -132,7 +143,8 @@ already-published version.
   requires `--pat` or `--azure-credential`. The publish job pins the exact
   `@vscode/vsce@3.9.3-4` version until `--oidc` reaches `latest`, then the pin
   can be relaxed.
-- The Open VSX job pins `ovsx@1.1.1` (current stable) via `npx`; it requires
+- The Open VSX job pins `ovsx@1.1.1` (current stable), installed with
+  `npm install --ignore-scripts` in a step without `OVSX_PAT`; it requires
   Node >= 20, satisfied by the Node 26.4.0 setup step.
 - Requires Node.js 26.4.0 (also satisfies vsce's Node >= 22 requirement).
 - `--azure-credential` (Entra ID workload identity federation) is the
@@ -149,6 +161,6 @@ already-published version.
 | `No supported OIDC provider was detected` | `--oidc` requires a GitHub Actions environment with `permissions: id-token: write`. |
 | Open VSX publish fails with an authorization error | `OVSX_PAT` is missing, expired, or not scoped to the `manish-sharma-getanchorio` namespace. Check the secret on the `marketplace-publish` environment. |
 | Open VSX publish fails with "namespace not found" | The namespace must exist on Open VSX (`ovsx create-namespace manish-sharma-getanchorio`) before the first publish. |
-| Open VSX publish fails with "version already exists" | The version was already published to Open VSX; bump `package.json` or remove the old version. The job intentionally does not use `--skip-duplicate`. |
+| Open VSX publish fails with "version already exists" | The version was already published to Open VSX; bump `package.json` or delete the version via **Profile > Settings > Extensions** on open-vsx.org. Deletion is permanent and cannot be undone. If self-service deletion is unavailable, file an issue with the Open VSX project. The job intentionally does not use `--skip-duplicate`. |
 | `Version ... already exists` | The version was already published; bump `package.json` or unpublish the old one. |
 | Release tag mismatch error | The release tag must equal `v<package.json version>`. |
