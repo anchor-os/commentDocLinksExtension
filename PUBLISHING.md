@@ -103,9 +103,14 @@ binary with the token in the environment.
 3. Create the Open VSX namespace that corresponds to the extension publisher in
    `package.json` (`manish-sharma-getanchorio`). First install the pinned CLI
    with lifecycle scripts disabled and `OVSX_PAT` **unset**:
-   `npm ci --ignore-scripts` (in `.github/openvsx-publish`), then create the
-   namespace with the installed binary and the token set as `OVSX_PAT`:
-   `OVSX_PAT=<token> ./.github/openvsx-publish/node_modules/.bin/ovsx create-namespace manish-sharma-getanchorio`
+   `(cd .github/openvsx-publish && npm ci --ignore-scripts)`, then create the
+   namespace from the repository root with the installed binary. Supply the
+   token without placing it in the shell command or shell history — for
+   example via a secure prompt or your secret manager:
+   `read -r -s OVSX_PAT`
+   `export OVSX_PAT`
+   `./.github/openvsx-publish/node_modules/.bin/ovsx create-namespace manish-sharma-getanchorio`
+   `unset OVSX_PAT`
 4. Sign the required **Open VSX Publisher Agreement** (this is separate from
    the Eclipse Contributor Agreement) and **claim ownership** of the namespace
    by opening a GitHub issue in
@@ -166,5 +171,5 @@ already-published version.
 | Open VSX publish fails with an authorization error | `OVSX_PAT` is missing, revoked, or deleted, or the token owner is not a member of the `manish-sharma-getanchorio` namespace (the token must belong to a namespace member, not necessarily the owner). Check the secret on the `marketplace-publish` environment. |
 | Open VSX publish fails with "namespace not found" | The namespace must exist on Open VSX before the first publish; create it per step 3 of the one-time setup above. |
 | Open VSX publish fails with "version already exists" | The version was already published to Open VSX; bump `package.json` or delete the version via **Profile > Settings > Extensions** on open-vsx.org. Deletion is permanent and cannot be undone. If self-service deletion is unavailable, file an issue with the Open VSX project. The job intentionally does not use `--skip-duplicate`. |
-| `Version ... already exists` | The version was already published; bump `package.json` or unpublish the old one. |
+| VS Code Marketplace publish fails with `Version ... already exists` | The version was already published on the VS Code Marketplace; bump `package.json` or remove the version via the Marketplace publisher management page. The job intentionally does not use `--skip-duplicate`. |
 | Release tag mismatch error | The release tag must equal `v<package.json version>`. |
