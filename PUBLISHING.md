@@ -1,25 +1,40 @@
-# Publishing to the VS Code Marketplace
+# Publishing to the VS Code Marketplace and Open VSX
 
 This repository publishes the **Comment Doc Links** extension to the [VS Code
 Marketplace](https://marketplace.visualstudio.com) with **OpenID Connect (OIDC)
-trusted publishing** — no Personal Access Token (PAT) is stored anywhere.
+trusted publishing** — no Personal Access Token (PAT) is stored anywhere — and
+to [Open VSX](https://open-vsx.org) from GitHub Actions using an `OVSX_PAT`
+token stored as a GitHub Actions environment secret.
 
 ## How it works
 
 ```text
 GitHub Release published
-      │  (tag v0.1.0, ...)
+      │  (tag v0.1.1, ...)
       ▼
 .github/workflows/publish.yml   build job: contents: read
-      │  publish job: contents: read + id-token: write
-      ▼
-npx @vscode/vsce@3.9.3-4 publish --oidc
-      │  requests a GitHub Actions OIDC token
-      │  audience = marketplace.visualstudio.com
-      ▼
-VS Code Marketplace (_apis/gallery/token) validates the token against the
-configured trusted publishing policy and returns a short-lived credential
+      │
+      ├───────────────┬────────────────────────────┐
+      ▼               ▼                            ▼
+   build           publish                     publish-openvsx
+   job             (Marketplace)               (Open VSX)
+      │               │                            │
+      ▼               ▼                            ▼
+extension.vsix    vsce --oidc                  ovsx publish extension.vsix
+   uploads           │  GitHub Actions OIDC       │  OVSX_PAT from the
+   artifact          │  token, audience =         │  marketplace-publish
+      │              │  marketplace.visualstudio  │  environment secret
+      ▼              ▼  .com                      ▼
+      └──────▶ VS Code Marketplace         Open VSX Registry
+                  (_apis/gallery/token)
 ```
+
+- Both publishing jobs run **independently** after the build job and publish the
+  **same `extension.vsix`** artifact produced by the build job. The Open VSX job
+  never repackages the extension.
+- The VS Code Marketplace job (OIDC trusted publishing) and the Open VSX job do
+  not depend on each other, so Open VSX publishing continues even if the
+  Marketplace token-exchange endpoint is unavailable.
 
 - The GitHub Actions OIDC token is exchanged directly for a short-lived
   Marketplace credential. `vsce` does **not** fall back to a PAT if the token
@@ -48,6 +63,49 @@ Until this policy exists, the publish job fails with an error from the
 Marketplace token-exchange endpoint (the token is valid, but no trust policy
 matches it). Once configured, publishing is fully automated.
 
+## Open VSX publishing
+
+The **`publish-openvsx`** job publishes the exact `extension.vsix` produced by
+the build job to the [Open VSX Registry](https://open-vsx.org) using the
+official [ovsx](https://www.npmjs.com/package/ovsx) CLI, pinned to `ovsx@1.1.1`
+via `npx`.
+
+- The same VSIX artifact is used for both registries: build → `extension.vsix`
+  → upload artifact → download artifact → `ovsx publish extension.vsix`. The
+  Open VSX job does **not** run `npm run package` again.
+- Publishing happens from GitHub Actions in the `publish.yml` workflow, on
+  `release: published` only — never on push, pull requests, or `main` pushes.
+- Open VSX authenticates with the **`OVSX_PAT`** access token. The token is a
+  GitHub Actions **environment secret** on the existing `marketplace-publish`
+  environment and is available only to the Open VSX publishing job. It never
+  appears in workflow files, `package.json`, `.env`, repository files,
+  command-line arguments, or logs. Eclipse account credentials and passwords are
+  never stored in GitHub.
+- Open VSX publishing is independent of Marketplace publishing: `publish-openvsx`
+  depends only on `build`, so it is not blocked if the Marketplace OIDC endpoint
+  is unavailable.
+- **Duplicate versions fail loudly.** `ovsx publish` rejects an
+  already-published version, and the job deliberately does **not** pass
+  `--skip-duplicate`, so re-publishing an existing version fails the release
+  instead of silently doing nothing. This matches the VS Code Marketplace job,
+  which also refuses to republish an existing version.
+
+### One-time setup (required before the first Open VSX publish)
+
+1. Create or sign the required **Open VSX Publisher Agreement** for the account
+   that will own the namespace. This is separate from the Eclipse Contributor
+   Agreement.
+2. Create the Open VSX namespace that corresponds to the extension publisher in
+   `package.json` (`manish-sharma-getanchorio`):
+   `ovsx create-namespace manish-sharma-getanchorio`
+3. Create an Open VSX publishing **access token** (personal access token) in
+   the Open VSX user settings.
+4. Add the token to GitHub under the existing `marketplace-publish` environment:
+   - Environment: `marketplace-publish`
+   - Secret name: `OVSX_PAT`
+
+Do not store the token value in this document or anywhere in the repository.
+
 ## Publishing a release
 
 1. Bump the version in `package.json` (SemVer).
@@ -59,11 +117,14 @@ matches it). Once configured, publishing is fully automated.
 6. `publish.yml` triggers on `release: published`. The non-privileged `build`
    job re-runs the checks, verifies the tag matches `package.json`, packages
    the VSIX, and uploads it as an artifact. The `publish` job then downloads
-   the artifact and publishes it to the Marketplace.
+   the artifact and publishes it to the VS Code Marketplace, and the
+   `publish-openvsx` job downloads the same artifact and publishes it to Open
+   VSX. The two publish jobs run independently of each other.
 
 The workflow refuses to publish when the release tag does not match the
 `package.json` version, and `vsce` refuses to republish a version that already
-exists on the Marketplace (no `--skip-duplicate`).
+exists on the Marketplace (no `--skip-duplicate`). Open VSX likewise rejects an
+already-published version.
 
 ## Requirements and notes
 
@@ -71,6 +132,8 @@ exists on the Marketplace (no `--skip-duplicate`).
   requires `--pat` or `--azure-credential`. The publish job pins the exact
   `@vscode/vsce@3.9.3-4` version until `--oidc` reaches `latest`, then the pin
   can be relaxed.
+- The Open VSX job pins `ovsx@1.1.1` (current stable) via `npx`; it requires
+  Node >= 20, satisfied by the Node 26.4.0 setup step.
 - Requires Node.js 26.4.0 (also satisfies vsce's Node >= 22 requirement).
 - `--azure-credential` (Entra ID workload identity federation) is the
   alternative PAT-free path documented by Microsoft, but it is aimed at Azure
@@ -84,5 +147,8 @@ exists on the Marketplace (no `--skip-duplicate`).
 | --- | --- |
 | Publish fails on `/_apis/gallery/token` | Trusted publishing policy not configured for this repo+workflow. Complete the one-time setup above. |
 | `No supported OIDC provider was detected` | `--oidc` requires a GitHub Actions environment with `permissions: id-token: write`. |
+| Open VSX publish fails with an authorization error | `OVSX_PAT` is missing, expired, or not scoped to the `manish-sharma-getanchorio` namespace. Check the secret on the `marketplace-publish` environment. |
+| Open VSX publish fails with "namespace not found" | The namespace must exist on Open VSX (`ovsx create-namespace manish-sharma-getanchorio`) before the first publish. |
+| Open VSX publish fails with "version already exists" | The version was already published to Open VSX; bump `package.json` or remove the old version. The job intentionally does not use `--skip-duplicate`. |
 | `Version ... already exists` | The version was already published; bump `package.json` or unpublish the old one. |
 | Release tag mismatch error | The release tag must equal `v<package.json version>`. |
