@@ -102,10 +102,12 @@ jobs:
           name: comment-doc-links-vsix
 
       - name: Install pinned ovsx CLI
-        # Installs with lifecycle scripts disabled and no secret in the
-        # environment, so no install-time script can read OVSX_PAT. The publish
+        # Installs from the committed manifest + lockfile with lifecycle scripts
+        # disabled and no secret in the environment, so the dependency graph is
+        # reproducible and no install-time script can read OVSX_PAT. The publish
         # step below invokes this exact installed binary.
-        run: npm install --prefix "$RUNNER_TEMP/ovsx" --ignore-scripts ovsx@1.1.1
+        working-directory: .github/openvsx-publish
+        run: npm ci --ignore-scripts
 
       - name: Publish to Open VSX
         # Publishes the exact extension.vsix produced by the build job; no
@@ -116,4 +118,4 @@ jobs:
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
         run: |
-          "$RUNNER_TEMP/ovsx/node_modules/.bin/ovsx" publish extension.vsix
+          ".github/openvsx-publish/node_modules/.bin/ovsx" publish extension.vsix
