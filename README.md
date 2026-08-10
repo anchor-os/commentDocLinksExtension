@@ -82,8 +82,9 @@ None. The extension works automatically on the languages listed above.
 
 ## Release Notes
 
-See [CHANGELOG.md](CHANGELOG.md). Publishing is automated via OIDC trusted
-publishing — see [PUBLISHING.md](PUBLISHING.md).
+See [CHANGELOG.md](CHANGELOG.md). The GitHub Actions release workflow
+publishes to the VS Code Marketplace and Open VSX — see
+[PUBLISHING.md](PUBLISHING.md).
 
 ## License
 

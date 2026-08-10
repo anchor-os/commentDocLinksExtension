@@ -1,0 +1,9 @@
+{
+  "name": "openvsx-publish-cli",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Committed manifest and lockfile for the pinned ovsx CLI used by the release workflow.",
+  "devDependencies": {
+    "ovsx": "1.1.1"
+  }
+}
