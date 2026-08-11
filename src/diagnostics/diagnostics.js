@@ -12,7 +12,8 @@ import {
 } from "./brokenReferenceScanner.js";
 
 import {
-    resolveWorkspacePath
+    resolveWorkspacePath,
+    workspaceRelativePath
 } from "../services/workspace.js";
 
 /**
@@ -45,7 +46,8 @@ export class DiagnosticsManager {
             exists(relativePath) {
                 const absolute = resolveWorkspacePath(
                     relativePath,
-                    workspaceFolder
+                    workspaceFolder,
+                    document.uri.fsPath
                 );
 
                 return (
@@ -57,7 +59,8 @@ export class DiagnosticsManager {
             readText(relativePath) {
                 const absolute = resolveWorkspacePath(
                     relativePath,
-                    workspaceFolder
+                    workspaceFolder,
+                    document.uri.fsPath
                 );
 
                 if (absolute === null) {
@@ -85,9 +88,9 @@ export class DiagnosticsManager {
         const broken = collectBrokenReferences(
             document,
             fsLike,
-            vscode.workspace.asRelativePath(
-                document.uri,
-                false
+            workspaceRelativePath(
+                document.uri.fsPath,
+                workspaceFolder
             )
         );
 

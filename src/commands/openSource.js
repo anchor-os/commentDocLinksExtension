@@ -23,15 +23,29 @@ import { COMMANDS } from "../constants.js";
  * @param {string} source
  * @param {string|null} anchor
  * @param {string|null} documentationFile
+ * @param {string} [sourceDocumentPath]
+ *   File system path of the Markdown document that references the
+ *   source file.
  * @returns {Promise<vscode.TextEditor|null>}
  */
 export async function openSourceFile(
     source,
     anchor,
-    documentationFile
+    documentationFile,
+    sourceDocumentPath
 ) {
 
-    const file = resolveWorkspacePath(source);
+    const workspaceFolder = sourceDocumentPath
+        ? vscode.workspace.getWorkspaceFolder(
+              vscode.Uri.file(sourceDocumentPath)
+          )
+        : undefined;
+
+    const file = resolveWorkspacePath(
+        source,
+        workspaceFolder,
+        sourceDocumentPath
+    );
 
     if (!file) {
         return null;
@@ -60,11 +74,13 @@ export function registerOpenSourceCommand(context) {
              * @param {string} source
              * @param {string|null} anchor
              * @param {string|null} documentationFile
+             * @param {string} [sourceDocumentPath]
              */
             async (
                 source,
                 anchor,
-                documentationFile
+                documentationFile,
+                sourceDocumentPath
             ) => {
                 if (typeof source !== "string") {
                     return;
@@ -74,7 +90,8 @@ export function registerOpenSourceCommand(context) {
                     const editor = await openSourceFile(
                         source,
                         anchor,
-                        documentationFile
+                        documentationFile,
+                        sourceDocumentPath
                     );
 
                     if (editor === null) {

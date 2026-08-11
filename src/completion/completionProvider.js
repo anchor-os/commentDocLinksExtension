@@ -27,7 +27,8 @@ import {
 } from "./suggestions.js";
 
 import {
-    resolveWorkspacePath
+    resolveWorkspacePath,
+    workspaceRelativePath
 } from "../services/workspace.js";
 
 /**
@@ -135,7 +136,8 @@ export class CommentCompletionProvider {
 
         const absolute = resolveWorkspacePath(
             reference.file,
-            vscode.workspace.getWorkspaceFolder(document.uri)
+            vscode.workspace.getWorkspaceFolder(document.uri),
+            document.uri.fsPath
         );
 
         if (
@@ -198,7 +200,8 @@ export class MarkdownCompletionProvider {
 
         const absolute = resolveWorkspacePath(
             heading.source,
-            vscode.workspace.getWorkspaceFolder(document.uri)
+            vscode.workspace.getWorkspaceFolder(document.uri),
+            document.uri.fsPath
         );
 
         if (
@@ -222,9 +225,9 @@ export class MarkdownCompletionProvider {
 
         const anchors = listSourceAnchors(
             sourceDocument,
-            vscode.workspace.asRelativePath(
-                document.uri,
-                false
+            workspaceRelativePath(
+                document.uri.fsPath,
+                vscode.workspace.getWorkspaceFolder(document.uri)
             )
         );
 

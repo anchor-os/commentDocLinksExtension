@@ -17,11 +17,28 @@ import { COMMANDS } from "../constants.js";
  *
  * @param {string} relativePath
  * @param {string|null} anchor
+ * @param {string} [sourceDocumentPath]
+ *   File system path of the source document that references the
+ *   documentation file.
  * @returns {Promise<vscode.TextEditor|null>}
  */
-export async function openDocumentationFile(relativePath, anchor) {
+export async function openDocumentationFile(
+    relativePath,
+    anchor,
+    sourceDocumentPath
+) {
 
-    const fullPath = resolveWorkspacePath(relativePath);
+    const workspaceFolder = sourceDocumentPath
+        ? vscode.workspace.getWorkspaceFolder(
+              vscode.Uri.file(sourceDocumentPath)
+          )
+        : undefined;
+
+    const fullPath = resolveWorkspacePath(
+        relativePath,
+        workspaceFolder,
+        sourceDocumentPath
+    );
 
     if (!fullPath) {
         return null;
@@ -43,8 +60,13 @@ export function registerOpenDocumentationCommand(context) {
             /**
              * @param {string} relativePath
              * @param {string|null} anchor
+             * @param {string} [sourceDocumentPath]
              */
-            async (relativePath, anchor) => {
+            async (
+                relativePath,
+                anchor,
+                sourceDocumentPath
+            ) => {
                 if (typeof relativePath !== "string") {
                     return;
                 }
@@ -52,7 +74,8 @@ export function registerOpenDocumentationCommand(context) {
                 try {
                     const editor = await openDocumentationFile(
                         relativePath,
-                        anchor
+                        anchor,
+                        sourceDocumentPath
                     );
 
                     if (editor === null) {

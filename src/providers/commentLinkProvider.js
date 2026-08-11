@@ -68,7 +68,8 @@ export class CommentLinkProvider {
                     const target = createCommandUri(
                         COMMANDS.OPEN_DOCUMENTATION,
                         match.file,
-                        match.anchor
+                        match.anchor,
+                        document.uri.fsPath
                     );
 
                     links.push(

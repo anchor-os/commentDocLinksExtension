@@ -2,6 +2,7 @@
 
 import * as vscode from "vscode";
 import * as path from "node:path";
+import fs from "node:fs";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 
@@ -78,10 +79,29 @@ async function openFixtureWorkspace() {
     );
 }
 
+const WORKTREE_ROOT = fixturePath(
+    "worktrees",
+    "feature"
+);
+
+async function ensureWorktreeMarker() {
+    const marker = path.join(WORKTREE_ROOT, ".git");
+
+    if (fs.existsSync(marker)) {
+        return;
+    }
+
+    fs.writeFileSync(
+        marker,
+        `gitdir: ${path.join(FIXTURE_ROOT, ".git", "worktrees", "feature")}\n`
+    );
+}
+
 suite("Comment Doc Links extension", () => {
 
     suiteSetup(async () => {
         await openFixtureWorkspace();
+        await ensureWorktreeMarker();
     });
 
     test("source comment provides a documentation link", async () => {
@@ -282,6 +302,78 @@ suite("Comment Doc Links extension", () => {
             line.includes("documentation/foo.md") &&
                 !line.includes("#"),
             `expected the anchorless reference to be revealed, got: ${line}`
+        );
+    });
+
+    test("openDocumentation resolves links into a nested worktree", async () => {
+        const sourcePath = fixturePath(
+            "worktrees",
+            "feature",
+            "src",
+            "util",
+            "foo.js"
+        );
+
+        const editor = await openDocumentationFile(
+            "documentation/foo.md",
+            "worktree-flow",
+            sourcePath
+        );
+
+        assert.ok(editor, "expected an editor");
+
+        assert.ok(
+            editor.document.uri.fsPath.endsWith(
+                path.join(
+                    "worktrees",
+                    "feature",
+                    "documentation",
+                    "foo.md"
+                )
+            ),
+            "expected the worktree copy of foo.md to be open, got: " +
+                editor.document.uri.fsPath
+        );
+
+        const line = editor.document
+            .lineAt(editor.selection.active.line)
+            .text;
+
+        assert.ok(
+            line.includes("worktree-flow"),
+            `expected the worktree heading to be revealed, got: ${line}`
+        );
+    });
+
+    test("openSource resolves links into a nested worktree", async () => {
+        const documentationPath = fixturePath(
+            "worktrees",
+            "feature",
+            "documentation",
+            "foo.md"
+        );
+
+        const editor = await openSourceFile(
+            "src/util/foo.js",
+            "worktree-flow",
+            "documentation/foo.md",
+            documentationPath
+        );
+
+        assert.ok(editor, "expected an editor");
+
+        assert.ok(
+            editor.document.uri.fsPath.endsWith(
+                path.join(
+                    "worktrees",
+                    "feature",
+                    "src",
+                    "util",
+                    "foo.js"
+                )
+            ),
+            "expected the worktree copy of foo.js to be open, got: " +
+                editor.document.uri.fsPath
         );
     });
 
