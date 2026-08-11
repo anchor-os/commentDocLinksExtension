@@ -1,4 +1,4 @@
-name: Publish to VS Code Marketplace and Open VSX
+name: Publish to VS Code Marketplace
 
 on:
   release:
@@ -82,40 +82,3 @@ jobs:
         # short-lived Marketplace credential. No PAT or secret is required.
         # Pinned to the exact version that ships --oidc (not on latest yet).
         run: npx --yes @vscode/vsce@3.9.3-4 publish --oidc --packagePath extension.vsix
-
-  publish-openvsx:
-    name: Publish to Open VSX
-    runs-on: ubuntu-latest
-    needs: build
-    environment: marketplace-publish
-    permissions:
-      contents: read
-    steps:
-      - name: Set up Node 26.4
-        uses: actions/setup-node@v4
-        with:
-          node-version: "26.4.0"
-
-      - name: Download VSIX artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: comment-doc-links-vsix
-
-      - name: Install pinned ovsx CLI
-        # Installs from the committed manifest + lockfile with lifecycle scripts
-        # disabled and no secret in the environment, so the dependency graph is
-        # reproducible and no install-time script can read OVSX_PAT. The publish
-        # step below invokes this exact installed binary.
-        working-directory: .github/openvsx-publish
-        run: npm ci --ignore-scripts
-
-      - name: Publish to Open VSX
-        # Publishes the exact extension.vsix produced by the build job; no
-        # re-packaging. The token comes only from the OVSX_PAT secret in the
-        # marketplace-publish environment, never from repository files or logs.
-        # --skip-duplicate is intentionally NOT used: an already-published
-        # version fails the job loudly instead of silently skipping.
-        env:
-          OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: |
-          ".github/openvsx-publish/node_modules/.bin/ovsx" publish extension.vsix

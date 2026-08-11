@@ -1,0 +1,120 @@
+name: Publish to Open VSX
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_ref:
+        description: Release tag to publish (e.g. v0.1.1)
+        required: true
+  release:
+    types: [published]
+
+concurrency:
+  group: publish-openvsx
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish-openvsx:
+    name: Publish to Open VSX
+    runs-on: ubuntu-latest
+    environment: marketplace-publish
+    permissions:
+      contents: read
+    steps:
+      - name: Require release_ref to match selected branch/tag
+        # Manual runs must publish exactly the ref selected in the Run-workflow
+        # Branch dropdown (GITHUB_REF_NAME) — the environment policy was
+        # evaluated against it. Failing here, before checkout, keeps the
+        # published tag and the evaluated ref identical. Release-triggered runs
+        # skip this: GITHUB_REF_NAME is already the tag.
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+        run: |
+          if [ "${RELEASE_REF}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::release_ref '${RELEASE_REF}' must match the Branch/Tag selected in the Run workflow dialog ('${GITHUB_REF_NAME}')."
+            exit 1
+          fi
+          echo "release_ref '${RELEASE_REF}' matches the selected ref '${GITHUB_REF_NAME}'."
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_ref || github.ref }}
+          persist-credentials: false
+
+      - name: Validate release ref (manual dispatch)
+        # Runs before any repository code (npm ci / lint / tests). For manual
+        # runs the caller supplies release_ref, so require the exact v<semver>
+        # shape and an existing tag on the origin remote before anything else
+        # executes. Release-triggered runs skip this: GITHUB_REF is already a
+        # real tag and is checked against package.json below.
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+        run: |
+          if [[ ! "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::release_ref must be a version tag (e.g. v0.1.1), got '${RELEASE_REF}'."
+            exit 1
+          fi
+          if ! git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_REF}" >/dev/null 2>&1; then
+            echo "::error::Tag '${RELEASE_REF}' does not exist on the origin remote."
+            exit 1
+          fi
+          echo "release_ref '${RELEASE_REF}' is a valid version tag."
+
+      - name: Set up Node 26.4
+        uses: actions/setup-node@v4
+        with:
+          node-version: "26.4.0"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Verify selected ref matches package version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_REF: ${{ inputs.release_ref }}
+        run: |
+          version="$(node --input-type=commonjs -e "console.log(require('./package.json').version)")"
+          expected="v${version}"
+          if [ "$EVENT_NAME" = "release" ]; then
+            actual="${GITHUB_REF_NAME}"
+          else
+            actual="$RELEASE_REF"
+          fi
+          if [ "${actual}" != "${expected}" ]; then
+            echo "::error::Selected ref '${actual}' does not match package.json version '${version}' (expected '${expected}')."
+            exit 1
+          fi
+          echo "Selected ref '${actual}' matches package.json version '${version}'."
+
+      - name: Package VSIX
+        run: npm run package -- --no-dependencies -o extension.vsix
+
+      - name: Install pinned ovsx CLI
+        # Installs from the committed manifest + lockfile with lifecycle scripts
+        # disabled and no secret in the environment, so the dependency graph is
+        # reproducible and no install-time script can read OVSX_PAT. The publish
+        # step below invokes this exact installed binary.
+        working-directory: .github/openvsx-publish
+        run: npm ci --ignore-scripts
+
+      - name: Publish to Open VSX
+        # The token comes only from the OVSX_PAT secret in the
+        # marketplace-publish environment, never from repository files or logs.
+        # --skip-duplicate is intentionally NOT used: an already-published
+        # version fails the job loudly instead of silently skipping.
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          ".github/openvsx-publish/node_modules/.bin/ovsx" publish extension.vsix
