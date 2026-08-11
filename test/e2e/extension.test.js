@@ -178,12 +178,12 @@ suite("Comment Doc Links extension", () => {
         );
 
         const hasColonLine = encodedArgs.some((target) =>
-            target.includes("%5B%22documentation%2Ffoo.md%22%2Cnull%2C5%5D") ||
+            target.includes("%5B%22documentation%2Ffoo.md%22%2Cnull%2C5%2C") ||
             target.includes('"documentation/foo.md",null,5')
         );
 
         const hasHashLine = encodedArgs.some((target) =>
-            target.includes("%5B%22documentation%2Ffoo.md%22%2Cnull%2C7%5D") ||
+            target.includes("%5B%22documentation%2Ffoo.md%22%2Cnull%2C7%2C") ||
             target.includes('"documentation/foo.md",null,7')
         );
 
