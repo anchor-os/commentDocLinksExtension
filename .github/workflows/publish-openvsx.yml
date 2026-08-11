@@ -30,6 +30,26 @@ jobs:
           ref: ${{ inputs.release_ref || github.ref }}
           persist-credentials: false
 
+      - name: Validate release ref (manual dispatch)
+        # Runs before any repository code (npm ci / lint / tests). For manual
+        # runs the caller supplies release_ref, so require the exact v<semver>
+        # shape and an existing tag on the origin remote before anything else
+        # executes. Release-triggered runs skip this: GITHUB_REF is already a
+        # real tag and is checked against package.json below.
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+        run: |
+          if [[ ! "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::release_ref must be a version tag (e.g. v0.1.1), got '${RELEASE_REF}'."
+            exit 1
+          fi
+          if ! git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_REF}" >/dev/null 2>&1; then
+            echo "::error::Tag '${RELEASE_REF}' does not exist on the origin remote."
+            exit 1
+          fi
+          echo "release_ref '${RELEASE_REF}' is a valid version tag."
+
       - name: Set up Node 26.4
         uses: actions/setup-node@v4
         with:
@@ -45,13 +65,16 @@ jobs:
         run: npm test
 
       - name: Verify selected ref matches package version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_REF: ${{ inputs.release_ref }}
         run: |
           version="$(node --input-type=commonjs -e "console.log(require('./package.json').version)")"
           expected="v${version}"
-          if [ "${{ github.event_name }}" = "release" ]; then
+          if [ "$EVENT_NAME" = "release" ]; then
             actual="${GITHUB_REF_NAME}"
           else
-            actual="${{ inputs.release_ref }}"
+            actual="$RELEASE_REF"
           fi
           if [ "${actual}" != "${expected}" ]; then
             echo "::error::Selected ref '${actual}' does not match package.json version '${version}' (expected '${expected}')."

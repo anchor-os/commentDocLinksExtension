@@ -77,10 +77,18 @@ so it can run independently of the Marketplace workflow. It is triggered:
 - **Manually** at any time (Actions → "Publish to Open VSX" → **Run
   workflow**), to publish Open VSX on its own — for example when the
   Marketplace OIDC endpoint is unavailable or the Marketplace flow is not yet
-  configured. Manual runs **require** the `release_ref` input: enter the
-  release tag (e.g. `v0.1.1`) that you want to publish. The workflow checks out
-  that exact tag and refuses to publish unless it matches the `package.json`
-  version.
+  configured. Manual runs publish a specific release **tag**: select that tag
+  (e.g. `v0.1.1`) in the **Branch** dropdown of the Run workflow dialog, and
+  enter the same tag in the required `release_ref` input. The workflow checks
+  out that exact tag and refuses to publish unless it matches the
+  `package.json` version.
+
+  The Branch dropdown must point at the **tag**, not `main`: the
+  `marketplace-publish` environment only allows deployment from `v*` tags, so a
+  manual run dispatched from a branch is blocked before any step runs (GitHub
+  evaluates the environment policy against the run's ref, not the checkout
+  ref). The tag itself points to the tagged commit on `main` — publishing never
+  cuts or uses a working branch.
 
 The workflow checks out the code, runs lint and unit tests, verifies the
 selected ref (the release tag, or the `release_ref` input on manual runs)
@@ -153,8 +161,9 @@ Do not store the token value in this document or anywhere in the repository.
    - `publish-openvsx.yml` re-runs the checks, packages the VSIX, and publishes
      it to Open VSX with `ovsx`.
    To publish **only** Open VSX (without the Marketplace), use the manual **Run
-   workflow** button on `publish-openvsx.yml` instead of creating a release and
-   enter the release tag you want to publish in the `release_ref` input.
+   workflow** button on `publish-openvsx.yml` instead of creating a release:
+   select the release tag in the **Branch** dropdown and enter the same tag in
+   the `release_ref` input.
 
 The workflow refuses to publish when the selected ref (the release tag, or the
 `release_ref` input on manual runs) does not match the `package.json` version,
@@ -191,3 +200,5 @@ already-published version.
 | Open VSX publish fails with "version already exists" | The version was already published to Open VSX; bump `package.json` or delete the version via **Profile > Settings > Extensions** on open-vsx.org. Deletion is permanent and cannot be undone. If self-service deletion is unavailable, file an issue with the Open VSX project. The job intentionally does not use `--skip-duplicate`. |
 | VS Code Marketplace publish fails with `Version ... already exists` | The version was already published on the VS Code Marketplace; bump `package.json` or remove the version via the Marketplace publisher management page. The job intentionally does not use `--skip-duplicate`. |
 | Release tag mismatch error | The selected ref (the release tag, or the `release_ref` input on manual runs) must equal `v<package.json version>`. |
+| Manual Open VSX run is blocked before any step runs | The **Branch** dropdown selected `main` (a branch); the `marketplace-publish` environment only allows `v*` tags. Re-run selecting the release tag in the **Branch** dropdown and matching `release_ref`. |
+| Manual Open VSX run fails with `release_ref` validation error | `release_ref` must be exactly `v<package.json version>` and must exist as a tag in the repository. |
