@@ -69,6 +69,7 @@ export class CommentLinkProvider {
                         COMMANDS.OPEN_DOCUMENTATION,
                         match.file,
                         match.anchor,
+                        match.line,
                         document.uri.fsPath
                     );
 

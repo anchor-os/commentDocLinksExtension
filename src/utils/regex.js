@@ -17,10 +17,14 @@ const escapedExtension =
  *   documentation/file.md#anchor
  *   documentation/file.md - anchor
  *   documentation/file.md — anchor
+ *   documentation/file.md:42
+ *   documentation/file.md#L42
  */
 export const DOCUMENT_LINK_REGEX = new RegExp(
     `([A-Za-z0-9_./-]+${escapedExtension})` +
-    `(?:(?:${ANCHOR_SEPARATOR}|\\s+${ALTERNATE_SOURCE_SEPARATOR}\\s+|\\s+${MARKDOWN_SOURCE_SEPARATOR}\\s+)` +
+    `(?:(?::(\\d+))|` +
+    `(?:${ANCHOR_SEPARATOR}[Ll](\\d+))|` +
+    `(?:${ANCHOR_SEPARATOR}|\\s+${ALTERNATE_SOURCE_SEPARATOR}\\s+|\\s+${MARKDOWN_SOURCE_SEPARATOR}\\s+)` +
     `([A-Za-z0-9_-]+))?`,
     "g"
 );

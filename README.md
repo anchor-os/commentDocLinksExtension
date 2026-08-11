@@ -12,15 +12,17 @@ file and reveals the exact line.
 ### Source comment → Markdown documentation
 
 Write the documentation file path in a comment. Add an anchor to link to a
-specific section.
+specific section, or a line number to jump to a specific line.
 
 ```javascript
 // See docs/user-guide/checkout.md#checkout-flow
+// See docs/user-guide/checkout.md#L42
+// See docs/user-guide/checkout.md:42
 function placeOrder(items) { ... }
 ```
 
-The anchored part is shown as a link. Clicking it opens
-`docs/user-guide/checkout.md` and reveals the matching section.
+The reference is shown as a link. Clicking it opens
+`docs/user-guide/checkout.md` and reveals the matching section or line.
 Without an anchor, the documentation file is opened at its top.
 
 ### Markdown heading → Source comment
@@ -71,7 +73,7 @@ None. The extension works automatically on the languages listed above.
 
 | Command                             | Title              | Invoked by                                                    |
 | ----------------------------------- | ------------------ | ------------------------------------------------------------- |
-| `commentDocLinks.openDocumentation` | Open Documentation | Clicking a `file.md[#anchor]` link in a source comment        |
+| `commentDocLinks.openDocumentation` | Open Documentation | Clicking a `file.md[#anchor]` or `file.md[:42]` link in a source comment |
 | `commentDocLinks.openSource`        | Open Source        | Clicking a `## src/file.js — anchor` heading link in Markdown |
 
 ## Known limitations

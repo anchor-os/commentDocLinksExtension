@@ -154,6 +154,93 @@ suite("Comment Doc Links extension", () => {
         );
     });
 
+    test("block comment provides line-number documentation links", async () => {
+        const document = await vscode.workspace.openTextDocument(
+            vscode.Uri.file(fixturePath("src", "util", "multiline.js"))
+        );
+
+        const links = new CommentLinkProvider()
+            .provideDocumentLinks(document);
+
+        const lineLinks = links.filter((link) =>
+            link.target.toString().includes("openDocumentation") &&
+            link.target.toString().includes("foo.md")
+        );
+
+        assert.equal(
+            lineLinks.length,
+            2,
+            "expected two line-number documentation links in the block comment"
+        );
+
+        const encodedArgs = lineLinks.map((link) =>
+            link.target.toString()
+        );
+
+        const hasColonLine = encodedArgs.some((target) =>
+            target.includes("%5B%22documentation%2Ffoo.md%22%2Cnull%2C5%2C") ||
+            target.includes('"documentation/foo.md",null,5')
+        );
+
+        const hasHashLine = encodedArgs.some((target) =>
+            target.includes("%5B%22documentation%2Ffoo.md%22%2Cnull%2C7%2C") ||
+            target.includes('"documentation/foo.md",null,7')
+        );
+
+        assert.ok(
+            hasColonLine,
+            `expected a :5 link, got: ${encodedArgs.join(" | ")}`
+        );
+
+        assert.ok(
+            hasHashLine,
+            `expected a #L7 link, got: ${encodedArgs.join(" | ")}`
+        );
+    });
+
+    test("openDocumentation command reveals the requested line", async () => {
+        const editor = await openDocumentationFile(
+            "documentation/foo.md",
+            null,
+            5
+        );
+
+        assert.ok(editor, "expected an editor");
+
+        assert.ok(
+            editor.document.uri.fsPath.endsWith(
+                path.join("documentation", "foo.md")
+            ),
+            "expected foo.md to be open"
+        );
+
+        const line = editor.document
+            .lineAt(editor.selection.active.line)
+            .text;
+
+        assert.ok(
+            line.includes("Checkout settles"),
+            `expected the cursor on line 5, got: ${line}`
+        );
+    });
+
+    test("revealAnchor moves the cursor to the requested line", async () => {
+        const editor = await openFile(
+            fixturePath("documentation", "foo.md")
+        );
+
+        revealAnchor(editor, null, 7);
+
+        const line = editor.document
+            .lineAt(editor.selection.active.line)
+            .text;
+
+        assert.ok(
+            line.includes("missing-anchor"),
+            `expected the cursor on line 7, got: ${line}`
+        );
+    });
+
     test("revealAnchor moves the cursor to the anchored section", async () => {
         const editor = await openFile(
             fixturePath("documentation", "foo.md")
@@ -317,6 +404,7 @@ suite("Comment Doc Links extension", () => {
         const editor = await openDocumentationFile(
             "documentation/foo.md",
             "worktree-flow",
+            null,
             sourcePath
         );
 

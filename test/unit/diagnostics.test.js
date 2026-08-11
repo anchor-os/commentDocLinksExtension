@@ -137,6 +137,64 @@ test("existing file without anchor is not reported", () => {
     assert.deepEqual(broken, []);
 });
 
+test("line reference beyond the file is reported", () => {
+    const line = "// see documentation/a.md:99";
+    const document = makeDocument([line]);
+
+    const broken = collectBrokenReferences(
+        document,
+        makeFileSystem({
+            "documentation/a.md": "# title\n## src/util/foo.js — a\n"
+        }),
+        ""
+    );
+
+    const start = line.indexOf("documentation");
+
+    assert.deepEqual(broken, [{
+        line: 0,
+        start,
+        end: start + "documentation/a.md:99".length,
+        message: "Documentation line out of range: 99"
+    }]);
+});
+
+test("line reference within the file is not reported", () => {
+    const document = makeDocument([
+        "// see documentation/a.md#L2"
+    ]);
+
+    const broken = collectBrokenReferences(
+        document,
+        makeFileSystem({
+            "documentation/a.md": "# title\n## src/util/foo.js — a\n"
+        }),
+        ""
+    );
+
+    assert.deepEqual(broken, []);
+});
+
+test("line reference to a missing file is reported as missing", () => {
+    const line = "// see documentation/missing.md:5";
+    const document = makeDocument([line]);
+
+    const broken = collectBrokenReferences(
+        document,
+        makeFileSystem({}),
+        ""
+    );
+
+    const start = line.indexOf("documentation");
+
+    assert.deepEqual(broken, [{
+        line: 0,
+        start,
+        end: start + "documentation/missing.md:5".length,
+        message: "Documentation file not found: documentation/missing.md"
+    }]);
+});
+
 test("unreadable target file is skipped, not reported", () => {
     const document = makeDocument([
         "// see documentation/a.md#anything"
