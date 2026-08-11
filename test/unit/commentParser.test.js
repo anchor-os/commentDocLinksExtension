@@ -15,9 +15,11 @@ test("plain file reference parses with null anchor", () => {
 
     assert.deepEqual(matches, [{
         type: "documentation",
+        raw: "documentation/file.md",
         file: "documentation/file.md",
         anchor: null,
         line: null,
+        identifier: null,
         start: 0,
         end: "documentation/file.md".length
     }]);

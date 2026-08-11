@@ -18,7 +18,7 @@ import {
 
 import {
     documentFromText
-} from "../diagnostics/brokenReferenceScanner.js";
+} from "../references/document.js";
 
 import {
     extractDocFileAfterHash,
@@ -30,6 +30,10 @@ import {
     resolveWorkspacePath,
     workspaceRelativePath
 } from "../services/workspace.js";
+
+import {
+    getConfiguration
+} from "../config/configuration.js";
 
 /**
  * @param {string} text
@@ -53,10 +57,10 @@ function anchorCompletionItem(text) {
  * @param {vscode.TextDocument} document
  * @param {number} lineIndex
  * @param {string} languageId
- * @returns {{ inBlockComment: boolean }}
+ * @returns {{ inBlockComment: boolean, inString: string|null }}
  */
 function commentStateBefore(document, lineIndex, languageId) {
-    const state = { inBlockComment: false };
+    const state = { inBlockComment: false, inString: null };
 
     for (let i = 0; i < lineIndex; i++) {
         getCommentRanges(
@@ -73,7 +77,7 @@ function commentStateBefore(document, lineIndex, languageId) {
  * @param {string} line
  * @param {number} character
  * @param {string} languageId
- * @param {{ inBlockComment: boolean }} state
+ * @param {{ inBlockComment: boolean, inString: string|null }} state
  * @returns {{ text: string, offset: number }|null}
  *   The comment text up to the cursor plus the character offset where the
  *   comment starts on the line.
@@ -109,6 +113,10 @@ export class CommentCompletionProvider {
      * @param {vscode.Position} position
      */
     provideCompletionItems(document, position) {
+        if (!getConfiguration().enableCompletion) {
+            return [];
+        }
+
         const line = document.lineAt(position.line).text;
 
         const comment = commentTextUpTo(
@@ -188,6 +196,10 @@ export class MarkdownCompletionProvider {
      * @param {vscode.Position} position
      */
     provideCompletionItems(document, position) {
+        if (!getConfiguration().enableCompletion) {
+            return [];
+        }
+
         const line = document.lineAt(position.line).text;
 
         const prefix = line.slice(0, position.character);

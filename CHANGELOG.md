@@ -14,6 +14,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   source comments now jump to the referenced line in the documentation file.
 - Diagnostics flag documentation line references that fall outside the target
   file.
+- Issue references (`#123`), documentation ticket references (`DOC-123`) and
+  API references (`API:Foo`) in comments are recognized, decorated, and
+  explained on hover.
+- A unified `commentDocLinks.openReference` command handles navigation for all
+  reference types.
+- Hover provider shows the resolution status of every recognized reference.
+- Theme-aware highlighting of references via a new decoration provider.
+- Markdown anchors now also resolve to GitHub-style slugs of plain headings
+  (for example `## Checkout Flow` → `checkout-flow`).
+- Expanded language support: Python, Java, Go, Rust, C, C++, C#, PHP, Ruby,
+  Kotlin and Swift.
+- Configurable settings: `enableDecorations`, `linkColor`, `linkUnderline`,
+  `enableDiagnostics` and `enableCompletion`.
+- Shared reference architecture under `src/references/` used by navigation,
+  hover, decorations, diagnostics and completion.
+
+### Changed
+
+- Comment detection is now string-aware: comment markers inside string
+  literals are not treated as comment starts.
+- Documentation references no longer match inside URLs or absolute paths.
+- Diagnostics and decorations validate through the single shared resolver.
+
+### Removed
+
+- The dedicated documentation-link regex module (`src/utils/regex.js`),
+  replaced by the shared reference parser.
 
 ## [0.1.0] - 2026-08-08
 

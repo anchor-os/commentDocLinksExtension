@@ -1,7 +1,10 @@
 // @ts-check
 
 import * as vscode from "vscode";
-import fs from "node:fs";
+
+import {
+    getConfiguration
+} from "../config/configuration.js";
 
 import {
     supportsLanguage
@@ -12,12 +15,14 @@ import {
 } from "./brokenReferenceScanner.js";
 
 import {
-    resolveWorkspacePath,
     workspaceRelativePath
 } from "../services/workspace.js";
 
+import { createReferenceContext }
+    from "../references/vscodeContext.js";
+
 /**
- * Reports broken documentation references as editor diagnostics.
+ * Reports broken references as editor diagnostics.
  */
 export class DiagnosticsManager {
 
@@ -34,60 +39,20 @@ export class DiagnosticsManager {
      * @param {vscode.TextDocument} document
      */
     update(document) {
-        if (!supportsLanguage(document.languageId)) {
+        if (
+            !supportsLanguage(document.languageId) ||
+            !getConfiguration().enableDiagnostics
+        ) {
+            this.collection.delete(document.uri);
             return;
         }
 
         const workspaceFolder =
             vscode.workspace.getWorkspaceFolder(document.uri);
 
-        const fsLike = {
-
-            exists(relativePath) {
-                const absolute = resolveWorkspacePath(
-                    relativePath,
-                    workspaceFolder,
-                    document.uri.fsPath
-                );
-
-                return (
-                    absolute !== null &&
-                    fs.existsSync(absolute)
-                );
-            },
-
-            readText(relativePath) {
-                const absolute = resolveWorkspacePath(
-                    relativePath,
-                    workspaceFolder,
-                    document.uri.fsPath
-                );
-
-                if (absolute === null) {
-                    return null;
-                }
-
-                const open = vscode.workspace.textDocuments.find(
-                    (candidate) =>
-                        candidate.uri.fsPath === absolute
-                );
-
-                if (open) {
-                    return open.getText();
-                }
-
-                try {
-                    return fs.readFileSync(absolute, "utf8");
-                } catch {
-                    return null;
-                }
-            }
-
-        };
-
         const broken = collectBrokenReferences(
             document,
-            fsLike,
+            createReferenceContext(document.uri.fsPath),
             workspaceRelativePath(
                 document.uri.fsPath,
                 workspaceFolder

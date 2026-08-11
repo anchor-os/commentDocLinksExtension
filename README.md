@@ -12,12 +12,14 @@ file and reveals the exact line.
 ### Source comment → Markdown documentation
 
 Write the documentation file path in a comment. Add an anchor to link to a
-specific section, or a line number to jump to a specific line.
+specific section, a line number to jump to a specific line, or a GitHub-style
+heading slug.
 
 ```javascript
 // See docs/user-guide/checkout.md#checkout-flow
 // See docs/user-guide/checkout.md#L42
 // See docs/user-guide/checkout.md:42
+// See docs/user-guide/checkout.md#checkout-flow  (GitHub-style slug)
 function placeOrder(items) { ... }
 ```
 
@@ -38,18 +40,40 @@ Clicking the source file part opens `src/checkout/cart.js` and reveals the comme
 that references `docs/...md#checkout-flow`. If the anchor
 cannot be found, the source file is still opened.
 
+### Issue, ticket and API references
+
+Recognized references that have no local target are still detected, decorated
+and explained on hover:
+
+```javascript
+// Fixes #123          — issue reference
+// See DOC-567         — documentation ticket
+// Uses API:Checkout   — API reference
+```
+
+These links open an informational panel explaining that the target is tracked
+by an external system.
+
 ## Features
 
 - Two-way navigation: comments → documentation and documentation → comments.
 - Anchors are optional — a missing anchor never blocks opening the target file.
 - Exact anchor matching: `checkout` never resolves to
   `checkout-flow`.
+- Anchors resolve to explicit documentation headings, HTML anchors
+  (`<a id="anchor"></a>`), and GitHub-style slugs of plain Markdown headings.
 - Tolerates legacy separators when parsing existing documents:
   `## src/checkout/cart.js - anchor` and `## src/checkout/cart.js#anchor`.
-- Diagnostics highlight references to missing documentation files and anchors
-  (conservative — only provably broken references are flagged).
+- Hover shows the resolution status of every recognized reference.
+- Theme-aware highlighting: valid references use VS Code's link color, broken
+  ones use the theme's error/warning colors. Fully configurable.
+- Diagnostics highlight references to missing documentation files, missing
+  anchors and out-of-range lines (conservative — only provably broken
+  references are flagged).
 - Completion suggests anchors after `file.md#` in comments and source anchors
   after `## src/file.js —` in Markdown headings.
+- References resolve against the nearest git checkout root, so links work
+  inside linked git worktrees.
 
 ## Supported languages
 
@@ -60,6 +84,17 @@ cannot be found, the source file is still opened.
 - YAML
 - Velocity
 - Markdown
+- Python
+- Java
+- Go
+- Rust
+- C
+- C++
+- C#
+- PHP
+- Ruby
+- Kotlin
+- Swift
 
 ## Requirements
 
@@ -67,13 +102,22 @@ cannot be found, the source file is still opened.
 
 ## Extension Settings
 
-None. The extension works automatically on the languages listed above.
+This extension contributes the following settings:
+
+| Setting                                 | Default | Description                                          |
+| --------------------------------------- | ------- | ---------------------------------------------------- |
+| `commentDocLinks.enableDecorations`     | `true`  | Highlight recognized references in the editor.       |
+| `commentDocLinks.linkColor`             | `theme` | Color of valid references: `theme` or any CSS color. |
+| `commentDocLinks.linkUnderline`         | `true`  | Underline valid reference highlights.                |
+| `commentDocLinks.enableDiagnostics`     | `true`  | Report broken references as editor warnings.         |
+| `commentDocLinks.enableCompletion`      | `true`  | Suggest anchors while typing.                        |
 
 ## Commands
 
 | Command                             | Title              | Invoked by                                                    |
 | ----------------------------------- | ------------------ | ------------------------------------------------------------- |
-| `commentDocLinks.openDocumentation` | Open Documentation | Clicking a `file.md[#anchor]` or `file.md[:42]` link in a source comment |
+| `commentDocLinks.openReference`     | Open Reference     | Clicking any recognized reference in a source comment         |
+| `commentDocLinks.openDocumentation` | Open Documentation | Legacy: clicking a `file.md[#anchor]` or `file.md[:42]` link  |
 | `commentDocLinks.openSource`        | Open Source        | Clicking a `## src/file.js — anchor` heading link in Markdown |
 
 ## Known limitations
@@ -81,6 +125,8 @@ None. The extension works automatically on the languages listed above.
 - Multi-root workspaces use the first workspace folder for path resolution.
 - Source anchors in Markdown headings are validated only for supported
   languages with a known file extension.
+- Issue, ticket and API references are recognized and explained, but are not
+  linked to any external system.
 
 ## Release Notes
 

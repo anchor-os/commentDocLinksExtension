@@ -43,7 +43,7 @@ export function resolveSourceReference(
     documentationFile,
     anchor
 ) {
-    const state = { inBlockComment: false };
+    const state = { inBlockComment: false, inString: null };
 
     let fallback = null;
 
@@ -123,7 +123,7 @@ export function hasExactSourceReference(
         return false;
     }
 
-    const state = { inBlockComment: false };
+    const state = { inBlockComment: false, inString: null };
 
     for (let line = 0; line < document.lineCount; line++) {
         const lineText = document.lineAt(line).text;
@@ -173,7 +173,7 @@ export function listSourceAnchors(
 ) {
     const anchors = new Set();
 
-    const state = { inBlockComment: false };
+    const state = { inBlockComment: false, inString: null };
 
     for (let line = 0; line < document.lineCount; line++) {
         const lineText = document.lineAt(line).text;

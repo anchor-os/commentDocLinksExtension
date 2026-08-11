@@ -3,20 +3,21 @@
 import * as vscode from "vscode";
 
 import {
-    getCommentRanges,
     supportsLanguage
 } from "../parsers/languageSupport.js";
 
 import {
-    parseComment
-} from "../parsers/commentParser.js";
+    scanDocumentForReferences
+} from "../references/documentScanner.js";
 
-import {
-    createCommandUri
-} from "../utils/commandUri.js";
+import { createCommandUri }
+    from "../utils/commandUri.js";
 
 import { COMMANDS } from "../constants.js";
 
+/**
+ * @implements {vscode.DocumentLinkProvider}
+ */
 export class CommentLinkProvider {
 
     /**
@@ -29,55 +30,24 @@ export class CommentLinkProvider {
 
         const links = [];
 
-        const state = {
-            inBlockComment: false
-        };
-
-        for (
-            let lineNumber = 0;
-            lineNumber < document.lineCount;
-            lineNumber++
-        ) {
-            const line = document.lineAt(lineNumber);
-
-            const commentRanges = getCommentRanges(
-                document.languageId,
-                line.text,
-                state
+        for (const { reference, line } of
+            scanDocumentForReferences(document)) {
+            const range = new vscode.Range(
+                line,
+                reference.start,
+                line,
+                reference.end
             );
 
-            for (const commentRange of commentRanges) {
-                const commentText = line.text.slice(
-                    commentRange.start,
-                    commentRange.end
-                );
+            const target = createCommandUri(
+                COMMANDS.OPEN_REFERENCE,
+                reference,
+                document.uri.fsPath
+            );
 
-                const matches = parseComment(
-                    commentText,
-                    commentRange.start
-                );
-
-                for (const match of matches) {
-                    const range = new vscode.Range(
-                        lineNumber,
-                        match.start,
-                        lineNumber,
-                        match.end
-                    );
-
-                    const target = createCommandUri(
-                        COMMANDS.OPEN_DOCUMENTATION,
-                        match.file,
-                        match.anchor,
-                        match.line,
-                        document.uri.fsPath
-                    );
-
-                    links.push(
-                        new vscode.DocumentLink(range, target)
-                    );
-                }
-            }
+            links.push(
+                new vscode.DocumentLink(range, target)
+            );
         }
 
         return links;

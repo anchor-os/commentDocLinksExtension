@@ -5,7 +5,8 @@ import assert from "node:assert/strict";
 
 import {
     resolveAnchor,
-    listAnchors
+    listAnchors,
+    markdownSlug
 } from "../../src/services/anchorResolver.js";
 
 import {
@@ -82,5 +83,61 @@ test("listAnchors deduplicates repeated anchors", () => {
     assert.deepEqual(
         listAnchors(document),
         ["repeated-anchor"]
+    );
+});
+
+test("markdownSlug trims surrounding whitespace", () => {
+    assert.equal(
+        markdownSlug("   Checkout Flow   "),
+        "checkout-flow"
+    );
+});
+
+test("duplicate headings get unique numeric suffixes", () => {
+    const document = makeDocument([
+        "## Setup",
+        "## Setup",
+        "## Setup"
+    ]);
+
+    assert.deepEqual(
+        listAnchors(document),
+        ["setup", "setup-1", "setup-2"]
+    );
+});
+
+test("resolves a suffixed duplicate heading anchor", () => {
+    const document = makeDocument([
+        "## Setup",
+        "## Setup"
+    ]);
+
+    assert.deepEqual(
+        resolveAnchor(document, "setup-1"),
+        { line: 1, character: 0 }
+    );
+});
+
+test("generated suffixes avoid a heading literally named with the suffix", () => {
+    const document = makeDocument([
+        "## Foo-1",
+        "## Foo",
+        "## Foo"
+    ]);
+
+    assert.deepEqual(
+        listAnchors(document),
+        ["foo-1", "foo", "foo-2"]
+    );
+});
+
+test("heading whitespace does not leak into the slug", () => {
+    const document = makeDocument([
+        "##   Setup   "
+    ]);
+
+    assert.deepEqual(
+        listAnchors(document),
+        ["setup"]
     );
 });

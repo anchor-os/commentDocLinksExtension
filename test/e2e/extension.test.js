@@ -45,6 +45,16 @@ function fixturePath(...parts) {
     return path.join(FIXTURE_ROOT, ...parts);
 }
 
+/**
+ * Decode the arguments a command URI was built with.
+ *
+ * @param {vscode.Uri} uri
+ * @returns {unknown[]}
+ */
+function commandUriArguments(uri) {
+    return JSON.parse(uri.query);
+}
+
 async function openFixtureWorkspace() {
     const folder = vscode.Uri.file(FIXTURE_ROOT);
 
@@ -113,7 +123,7 @@ suite("Comment Doc Links extension", () => {
             .provideDocumentLinks(document);
 
         const matching = links.filter((link) =>
-            link.target.toString().includes("openDocumentation") &&
+            link.target.toString().includes("openReference") &&
             link.target.toString().includes("checkout-flow")
         );
 
@@ -163,7 +173,7 @@ suite("Comment Doc Links extension", () => {
             .provideDocumentLinks(document);
 
         const lineLinks = links.filter((link) =>
-            link.target.toString().includes("openDocumentation") &&
+            link.target.toString().includes("openReference") &&
             link.target.toString().includes("foo.md")
         );
 
@@ -173,28 +183,18 @@ suite("Comment Doc Links extension", () => {
             "expected two line-number documentation links in the block comment"
         );
 
-        const encodedArgs = lineLinks.map((link) =>
-            link.target.toString()
-        );
-
-        const hasColonLine = encodedArgs.some((target) =>
-            target.includes("%5B%22documentation%2Ffoo.md%22%2Cnull%2C5%2C") ||
-            target.includes('"documentation/foo.md",null,5')
-        );
-
-        const hasHashLine = encodedArgs.some((target) =>
-            target.includes("%5B%22documentation%2Ffoo.md%22%2Cnull%2C7%2C") ||
-            target.includes('"documentation/foo.md",null,7')
+        const lineNumbers = lineLinks.map((link) =>
+            commandUriArguments(link.target)[0].line
         );
 
         assert.ok(
-            hasColonLine,
-            `expected a :5 link, got: ${encodedArgs.join(" | ")}`
+            lineNumbers.includes(5),
+            `expected a :5 link, got: ${lineNumbers.join(" | ")}`
         );
 
         assert.ok(
-            hasHashLine,
-            `expected a #L7 link, got: ${encodedArgs.join(" | ")}`
+            lineNumbers.includes(7),
+            `expected a #L7 link, got: ${lineNumbers.join(" | ")}`
         );
     });
 
