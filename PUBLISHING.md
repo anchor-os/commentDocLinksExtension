@@ -202,3 +202,4 @@ already-published version.
 | Release tag mismatch error | The selected ref (the release tag, or the `release_ref` input on manual runs) must equal `v<package.json version>`. |
 | Manual Open VSX run is blocked before any step runs | The **Branch** dropdown selected `main` (a branch); the `marketplace-publish` environment only allows `v*` tags. Re-run selecting the release tag in the **Branch** dropdown and matching `release_ref`. |
 | Manual Open VSX run fails with `release_ref` validation error | `release_ref` must be exactly `v<package.json version>` and must exist as a tag in the repository. |
+| Manual Open VSX run fails because `release_ref` does not match the selected ref | The **Branch** dropdown tag and the `release_ref` input must be identical (e.g. both `v0.1.1`). The workflow refuses to publish a tag that differs from the one selected in the Run-workflow dialog. |

@@ -24,6 +24,22 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Require release_ref to match selected branch/tag
+        # Manual runs must publish exactly the ref selected in the Run-workflow
+        # Branch dropdown (GITHUB_REF_NAME) — the environment policy was
+        # evaluated against it. Failing here, before checkout, keeps the
+        # published tag and the evaluated ref identical. Release-triggered runs
+        # skip this: GITHUB_REF_NAME is already the tag.
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+        run: |
+          if [ "${RELEASE_REF}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::release_ref '${RELEASE_REF}' must match the Branch/Tag selected in the Run workflow dialog ('${GITHUB_REF_NAME}')."
+            exit 1
+          fi
+          echo "release_ref '${RELEASE_REF}' matches the selected ref '${GITHUB_REF_NAME}'."
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
