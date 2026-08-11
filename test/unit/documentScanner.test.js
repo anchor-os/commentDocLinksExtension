@@ -113,3 +113,76 @@ test("php HTML apostrophes do not hide later comments", () => {
     assert.equal(scanned[0].line, 2);
     assert.equal(scanned[0].reference.file, "documentation/a.md");
 });
+
+test("yaml strings and block scalars are not scanned as references", () => {
+    const scanned = scanDocumentForReferences(
+        makeDocument([
+            "description: |",
+            "  see documentation/a.md #123",
+            'title: "#b.md"',
+            "key: value#c.md",
+            "# see documentation/d.md"
+        ], "yaml")
+    );
+
+    assert.equal(scanned.length, 1);
+    assert.equal(scanned[0].line, 4);
+    assert.equal(scanned[0].reference.file, "documentation/d.md");
+});
+
+test("terraform strings and heredocs are not scanned as references", () => {
+    const scanned = scanDocumentForReferences(
+        makeDocument([
+            "# see documentation/a.md",
+            'resource "x" {',
+            '  description = "#123"',
+            "  body = <<EOT",
+            "see documentation/b.md #456",
+            "EOT",
+            "}",
+            "// see documentation/c.md"
+        ], "terraform")
+    );
+
+    assert.equal(scanned.length, 2);
+    assert.equal(scanned[0].line, 0);
+    assert.equal(scanned[0].reference.file, "documentation/a.md");
+    assert.equal(scanned[1].line, 7);
+    assert.equal(scanned[1].reference.file, "documentation/c.md");
+});
+
+test("graphql strings are not scanned as references", () => {
+    const scanned = scanDocumentForReferences(
+        makeDocument([
+            "# see documentation/a.md",
+            "type Query {",
+            '  field(arg: "#b.md")',
+            "}",
+            '"""see documentation/c.md #123',
+            'still inside # not a comment"""',
+            "}"
+        ], "graphql")
+    );
+
+    assert.equal(scanned.length, 1);
+    assert.equal(scanned[0].line, 0);
+    assert.equal(scanned[0].reference.file, "documentation/a.md");
+});
+
+test("velocity strings and directives are not scanned as references", () => {
+    const scanned = scanDocumentForReferences(
+        makeDocument([
+            "## see documentation/a.md",
+            '#set($msg = "see documentation/b.md ##c")',
+            "#if($x)",
+            "$value ## see documentation/d.md",
+            "#end"
+        ], "velocity")
+    );
+
+    assert.equal(scanned.length, 2);
+    assert.equal(scanned[0].line, 0);
+    assert.equal(scanned[0].reference.file, "documentation/a.md");
+    assert.equal(scanned[1].line, 3);
+    assert.equal(scanned[1].reference.file, "documentation/d.md");
+});

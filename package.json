@@ -33,7 +33,8 @@
   },
   "categories": [
     "Other",
-    "Programming Languages"
+    "Programming Languages",
+    "Documentation"
   ],
   "activationEvents": [
     "onStartupFinished"

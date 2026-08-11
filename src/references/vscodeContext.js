@@ -44,7 +44,13 @@ export function createReferenceContext(sourceDocumentPath) {
 export function createFileSystem() {
     return {
         exists(targetPath) {
-            return fs.existsSync(targetPath);
+            return (
+                vscode.workspace.textDocuments.some(
+                    (candidate) =>
+                        candidate.uri.fsPath === targetPath
+                ) ||
+                fs.existsSync(targetPath)
+            );
         },
 
         readText(targetPath) {

@@ -16,7 +16,6 @@ import {
 } from "../references/resolver.js";
 
 import {
-    REFERENCE_TYPE,
     RESOLUTION_STATUS
 } from "../references/referenceTypes.js";
 
@@ -29,8 +28,10 @@ import { COMMANDS } from "../constants.js";
  *
  *  - Documentation references open the target file and reveal the anchor
  *    or line.
- *  - Issue and API references have no local target; an informational
- *    message is shown instead.
+ *  - Issue, API and DOC ticket references have no local target; an
+ *    informational message is shown instead. DOC tickets parse as
+ *    documentation references with a null file, so the shared
+ *    `EXTERNAL` resolution status decides all three uniformly.
  *
  * @param {object} reference A parsed reference (see `parseReference`).
  * @param {string} [sourceDocumentPath]
@@ -47,19 +48,12 @@ export async function openReference(
 
     const result = validateReference(reference, context);
 
-    if (
-        reference.type === REFERENCE_TYPE.ISSUE ||
-        reference.type === REFERENCE_TYPE.API
-    ) {
+    if (result.status === RESOLUTION_STATUS.EXTERNAL) {
         vscode.window.showInformationMessage(
             "This reference has no local target — " +
             "it is tracked by an external system."
         );
 
-        return null;
-    }
-
-    if (result.status === RESOLUTION_STATUS.EXTERNAL) {
         return null;
     }
 

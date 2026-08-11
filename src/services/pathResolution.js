@@ -60,6 +60,16 @@ export function findCheckoutRoot(directory, hasEntry) {
  * Resolve a relative path against a root, rejecting paths that escape
  * the root.
  *
+ * The check is two-fold: the path must stay inside the root lexically,
+ * and — once symbolic links are followed — it must stay inside the
+ * root physically. A symlink inside the workspace that points outside
+ * (for example `node_modules` → `/etc`) therefore cannot be used to
+ * reach files beyond the root.
+ *
+ * Paths that do not exist yet are allowed: the deepest existing ancestor
+ * is resolved physically and the remainder is appended lexically, so
+ * completion and diagnostics on not-yet-created files keep working.
+ *
  * @param {string} root
  * @param {string} relativePath
  * @returns {string|null}
@@ -78,7 +88,54 @@ export function resolveInRoot(root, relativePath) {
         return null;
     }
 
-    return resolved;
+    const rootReal = realpathPrefix(normalizedRoot);
+    const targetReal = realpathPrefix(resolved);
+
+    if (rootReal === null || targetReal === null) {
+        return null;
+    }
+
+    const physical = path.relative(rootReal.path, targetReal.path);
+
+    if (
+        physical === ".." ||
+        physical.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(physical)
+    ) {
+        return null;
+    }
+
+    return path.join(targetReal.path, ...targetReal.suffix);
+}
+
+/**
+ * Real path of the deepest existing ancestor of `candidate`, plus the
+ * non-existing path components below it.
+ *
+ * @param {string} candidate
+ * @returns {{ path: string, suffix: string[] }|null}
+ */
+function realpathPrefix(candidate) {
+    let current = candidate;
+    const suffix = [];
+
+    for (;;) {
+        try {
+            return {
+                path: fs.realpathSync(current),
+                suffix
+            };
+        } catch {
+            const parent = path.dirname(current);
+
+            if (parent === current) {
+                return null;
+            }
+
+            suffix.unshift(path.basename(current));
+            current = parent;
+        }
+    }
 }
 
 /**

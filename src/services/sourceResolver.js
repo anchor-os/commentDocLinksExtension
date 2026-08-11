@@ -1,14 +1,8 @@
 // @ts-check
 
-import { getCommentRanges } from "../parsers/languageSupport.js";
-import { parseComment } from "../parsers/commentParser.js";
-
-/**
- * @typedef {object} DocumentLike
- * @property {string} languageId
- * @property {number} lineCount
- * @property {(index: number) => { text: string }} lineAt
- */
+import {
+    scanDocumentForReferences
+} from "../references/documentScanner.js";
 
 /**
  * @typedef {object} SourceReference
@@ -18,6 +12,18 @@ import { parseComment } from "../parsers/commentParser.js";
  *   True when the requested anchor was matched exactly. When false the
  *   position still points at the best available location.
  */
+
+/**
+ * Compare documentation file paths ignoring a leading `./`, so a source
+ * comment that writes `./docs/guide.md` still round-trips with reverse
+ * navigation, which produces `docs/guide.md`.
+ *
+ * @param {string} file
+ * @returns {string}
+ */
+function normalizedFile(file) {
+    return file.startsWith("./") ? file.slice(2) : file;
+}
 
 /**
  * Find the source comment that references a documentation file.
@@ -33,7 +39,11 @@ import { parseComment } from "../parsers/commentParser.js";
  * The source file is assumed to be open (callers resolve existence
  * separately); this resolver never returns null for a valid document.
  *
- * @param {DocumentLike} document
+ * Comment detection is shared with every other feature via
+ * `scanDocumentForReferences`, so block comments and multiline strings are
+ * handled exactly once.
+ *
+ * @param {import("../references/documentScanner.js").DocumentLike} document
  * @param {string} documentationFile
  * @param {string|null} anchor
  * @returns {SourceReference}
@@ -43,54 +53,31 @@ export function resolveSourceReference(
     documentationFile,
     anchor
 ) {
-    const state = { inBlockComment: false, inString: null };
-
     let fallback = null;
 
-    for (let line = 0; line < document.lineCount; line++) {
-        const lineText = document.lineAt(line).text;
+    for (const { reference, line } of
+        scanDocumentForReferences(document)) {
+        if (normalizedFile(reference.file) !== normalizedFile(documentationFile)) {
+            continue;
+        }
 
-        const commentRanges = getCommentRanges(
-            document.languageId,
-            lineText,
-            state
-        );
+        if (anchor && reference.anchor === anchor) {
+            return {
+                line,
+                character: 0,
+                anchorFound: true
+            };
+        }
 
-        for (const range of commentRanges) {
-            const commentText = lineText.slice(
-                range.start,
-                range.end
-            );
-
-            const matches = parseComment(
-                commentText,
-                range.start
-            );
-
-            for (const match of matches) {
-                if (match.file !== documentationFile) {
-                    continue;
-                }
-
-                if (anchor && match.anchor === anchor) {
-                    return {
-                        line,
-                        character: 0,
-                        anchorFound: true
-                    };
-                }
-
-                if (
-                    match.anchor === null &&
-                    fallback === null
-                ) {
-                    fallback = {
-                        line,
-                        character: 0,
-                        anchorFound: false
-                    };
-                }
-            }
+        if (
+            reference.anchor === null &&
+            fallback === null
+        ) {
+            fallback = {
+                line,
+                character: 0,
+                anchorFound: false
+            };
         }
     }
 
@@ -109,7 +96,7 @@ export function resolveSourceReference(
  * True when the source document contains a comment that references the
  * documentation file with the exact anchor.
  *
- * @param {DocumentLike} document
+ * @param {import("../references/documentScanner.js").DocumentLike} document
  * @param {string} documentationFile
  * @param {string} anchor
  * @returns {boolean}
@@ -123,36 +110,13 @@ export function hasExactSourceReference(
         return false;
     }
 
-    const state = { inBlockComment: false, inString: null };
-
-    for (let line = 0; line < document.lineCount; line++) {
-        const lineText = document.lineAt(line).text;
-
-        const commentRanges = getCommentRanges(
-            document.languageId,
-            lineText,
-            state
-        );
-
-        for (const range of commentRanges) {
-            const commentText = lineText.slice(
-                range.start,
-                range.end
-            );
-
-            const matches = parseComment(
-                commentText,
-                range.start
-            );
-
-            for (const match of matches) {
-                if (
-                    match.file === documentationFile &&
-                    match.anchor === anchor
-                ) {
-                    return true;
-                }
-            }
+    for (const { reference } of
+        scanDocumentForReferences(document)) {
+        if (
+            normalizedFile(reference.file) === normalizedFile(documentationFile) &&
+            reference.anchor === anchor
+        ) {
+            return true;
         }
     }
 
@@ -163,7 +127,7 @@ export function hasExactSourceReference(
  * List every anchor referenced by comments in the source document that
  * point at the given documentation file.
  *
- * @param {DocumentLike} document
+ * @param {import("../references/documentScanner.js").DocumentLike} document
  * @param {string} documentationFile
  * @returns {string[]}
  */
@@ -173,36 +137,13 @@ export function listSourceAnchors(
 ) {
     const anchors = new Set();
 
-    const state = { inBlockComment: false, inString: null };
-
-    for (let line = 0; line < document.lineCount; line++) {
-        const lineText = document.lineAt(line).text;
-
-        const commentRanges = getCommentRanges(
-            document.languageId,
-            lineText,
-            state
-        );
-
-        for (const range of commentRanges) {
-            const commentText = lineText.slice(
-                range.start,
-                range.end
-            );
-
-            const matches = parseComment(
-                commentText,
-                range.start
-            );
-
-            for (const match of matches) {
-                if (
-                    match.file === documentationFile &&
-                    match.anchor !== null
-                ) {
-                    anchors.add(match.anchor);
-                }
-            }
+    for (const { reference } of
+        scanDocumentForReferences(document)) {
+        if (
+            normalizedFile(reference.file) === normalizedFile(documentationFile) &&
+            reference.anchor !== null
+        ) {
+            anchors.add(reference.anchor);
         }
     }
 

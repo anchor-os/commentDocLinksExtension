@@ -113,7 +113,10 @@ export function activate(context) {
             updateDiagnostics
         ),
         vscode.workspace.onDidChangeTextDocument(
-            updateAllDiagnostics
+            (event) => updateDiagnostics(event.document)
+        ),
+        vscode.workspace.onDidCloseTextDocument(
+            (document) => diagnosticsManager.clear(document.uri)
         ),
         vscode.workspace.onDidChangeConfiguration(
             (event) => {
