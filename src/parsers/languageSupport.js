@@ -866,7 +866,7 @@ function getTerraformCommentRanges(line, state) {
 
         if (char === '"') {
             quote = char;
-            state.inString = char;
+            state.inString = null;
             i++;
             continue;
         }
@@ -1028,7 +1028,7 @@ function getVelocityCommentRanges(line, state) {
 
         if (char === '"' || char === "'") {
             quote = char;
-            state.inString = char;
+            state.inString = null;
             i++;
             continue;
         }

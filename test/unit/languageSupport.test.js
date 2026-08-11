@@ -329,6 +329,28 @@ test("terraform quoted string is not a comment", () => {
     assert.deepEqual(ranges, []);
 });
 
+test("terraform unmatched quote does not hide later comments", () => {
+    const state = { inBlockComment: false, inString: null };
+
+    const quoted = getCommentRanges(
+        "terraform",
+        'description = "unterminated',
+        state
+    );
+
+    assert.deepEqual(quoted, []);
+
+    const comment = getCommentRanges(
+        "terraform",
+        "# see documentation/file.md",
+        state
+    );
+
+    assert.equal(comment.length, 1);
+    assert.equal(comment[0].start, 0);
+    assert.equal(state.inString, null);
+});
+
 test("terraform heredoc body hides # and // across lines", () => {
     const state = { inBlockComment: false, inString: null };
 
@@ -517,6 +539,28 @@ test("velocity strings hide ## and #*", () => {
     );
 
     assert.deepEqual(single, []);
+});
+
+test("velocity unmatched quote does not hide later comments", () => {
+    const state = { inBlockComment: false, inString: null };
+
+    const quoted = getCommentRanges(
+        "velocity",
+        "#set($msg = 'unterminated",
+        state
+    );
+
+    assert.deepEqual(quoted, []);
+
+    const comment = getCommentRanges(
+        "velocity",
+        "## see documentation/file.md",
+        state
+    );
+
+    assert.equal(comment.length, 1);
+    assert.equal(comment[0].start, 0);
+    assert.equal(state.inString, null);
 });
 
 test("velocity block comments span lines and hide #", () => {

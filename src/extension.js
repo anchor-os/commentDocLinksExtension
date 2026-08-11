@@ -113,7 +113,12 @@ export function activate(context) {
             updateDiagnostics
         ),
         vscode.workspace.onDidChangeTextDocument(
-            (event) => updateDiagnostics(event.document)
+            // Editing a referenced document can invalidate the diagnostics
+            // of documents that link to it (missing file, anchor or line),
+            // so refresh every open document rather than only the changed
+            // one. The change handler already runs per document and the
+            // number of open documents is small in practice.
+            updateAllDiagnostics
         ),
         vscode.workspace.onDidCloseTextDocument(
             (document) => diagnosticsManager.clear(document.uri)
