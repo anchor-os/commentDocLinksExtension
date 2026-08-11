@@ -24,26 +24,31 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Require release_ref to match selected branch/tag
-        # Manual runs must publish exactly the ref selected in the Run-workflow
-        # Branch dropdown (GITHUB_REF_NAME) — the environment policy was
-        # evaluated against it. Failing here, before checkout, keeps the
-        # published tag and the evaluated ref identical. Release-triggered runs
-        # skip this: GITHUB_REF_NAME is already the tag.
-        if: github.event_name == 'workflow_dispatch'
+      - name: Require release_ref to match selected tag
+        # Only applies when the Run-workflow dialog selected a tag
+        # (refs/tags/*): release_ref must equal it, since the environment
+        # policy was evaluated against that ref. Manual runs dispatched from the
+        # main branch (refs/heads/main) skip this — release_ref is then
+        # validated independently by the "Validate release ref" and "Verify
+        # selected ref" steps below. Release-triggered runs also skip this:
+        # GITHUB_REF_NAME is already the tag.
+        if: github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/')
         env:
           RELEASE_REF: ${{ inputs.release_ref }}
         run: |
           if [ "${RELEASE_REF}" != "${GITHUB_REF_NAME}" ]; then
-            echo "::error::release_ref '${RELEASE_REF}' must match the Branch/Tag selected in the Run workflow dialog ('${GITHUB_REF_NAME}')."
+            echo "::error::release_ref '${RELEASE_REF}' must match the tag selected in the Run workflow dialog ('${GITHUB_REF_NAME}')."
             exit 1
           fi
-          echo "release_ref '${RELEASE_REF}' matches the selected ref '${GITHUB_REF_NAME}'."
+          echo "release_ref '${RELEASE_REF}' matches the selected tag '${GITHUB_REF_NAME}'."
 
       - name: Checkout
+        # Manual runs always check out refs/tags/<release_ref> (fully qualified)
+        # so a same-named branch can never shadow the intended tag. Release
+        # runs use github.ref, which is already refs/tags/<tag>.
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_ref || github.ref }}
+          ref: ${{ github.event_name == 'release' && github.ref || format('refs/tags/{0}', inputs.release_ref) }}
           persist-credentials: false
 
       - name: Validate release ref (manual dispatch)
