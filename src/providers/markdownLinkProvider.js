@@ -8,6 +8,9 @@ import { parseMarkdownHeading }
 import { createCommandUri }
     from "../utils/commandUri.js";
 
+import { workspaceRelativePath }
+    from "../services/workspace.js";
+
 import { COMMANDS } from "../constants.js";
 
 /**
@@ -19,10 +22,13 @@ export class MarkdownLinkProvider {
 
         const links = [];
 
+        const workspaceFolder =
+            vscode.workspace.getWorkspaceFolder(document.uri);
+
         const documentationFile =
-            vscode.workspace.asRelativePath(
-                document.uri,
-                false
+            workspaceRelativePath(
+                document.uri.fsPath,
+                workspaceFolder
             );
 
         for (let i = 0; i < document.lineCount; i++) {
@@ -52,7 +58,8 @@ export class MarkdownLinkProvider {
                 COMMANDS.OPEN_SOURCE,
                 parsed.source,
                 parsed.anchor,
-                documentationFile
+                documentationFile,
+                document.uri.fsPath
             );
 
             links.push(
