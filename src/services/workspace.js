@@ -98,16 +98,15 @@ export function workspaceRelativePath(fsPath, workspaceFolder) {
     );
 
     if (root) {
-        const relative = path
-            .relative(root, fsPath)
-            .replace(/\\/g, "/");
+        const relative = path.relative(root, fsPath);
 
         if (
             relative !== "" &&
-            !relative.startsWith("..") &&
+            relative !== ".." &&
+            !relative.startsWith(`..${path.sep}`) &&
             !path.isAbsolute(relative)
         ) {
-            return relative;
+            return relative.replace(/\\/g, "/");
         }
     }
 
