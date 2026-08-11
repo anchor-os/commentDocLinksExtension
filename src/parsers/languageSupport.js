@@ -58,9 +58,15 @@ const COMMENT_STYLE = {
     slash: ["javascript", "javascriptreact", "typescript",
         "typescriptreact", "java", "go", "rust", "c", "cpp",
         "csharp", "kotlin", "swift"],
-    /** `#` line comments. */
-    hash: ["graphql", "terraform", "yaml", "python", "ruby"],
-    /** `##` line comments plus `#* … *#` block comments. */
+    /** `#` line comments (Python, Ruby). */
+    hash: ["python", "ruby"],
+    /** YAML `#` comments with quoted-string and block-scalar awareness. */
+    yaml: ["yaml"],
+    /** Terraform `#`, `//` and `/* *​*​/` comments with heredoc awareness. */
+    terraform: ["terraform"],
+    /** GraphQL `#` comments with string and block-string awareness. */
+    graphql: ["graphql"],
+    /** `##` line comments plus `#* … *#` block comments, string-aware. */
     velocity: ["velocity"],
     /** Whole line (Markdown prose). */
     wholeLine: ["markdown"],
@@ -136,11 +142,12 @@ export function getLanguageIdFromExtension(filename) {
  * This function is stateful: pass an object carrying `inBlockComment` and
  * `inString` and reuse it across lines of the same document so block
  * comments and multiline strings opened on an earlier line are still
- * recognized. PHP additionally tracks the active region in `inPhp`.
+ * recognized. PHP additionally tracks the active region in `inPhp` and YAML
+ * tracks the active block scalar in `inBlockScalar`.
  *
  * @param {string} languageId
  * @param {string} line
- * @param {{ inBlockComment: boolean, inString: string|null, inPhp?: boolean }} state
+ * @param {{ inBlockComment: boolean, inString: string|null, inPhp?: boolean, inBlockScalar?: number|null }} state
  * @returns {Array<{start: number, end: number}>}
  */
 export function getCommentRanges(languageId, line, state) {
@@ -150,6 +157,15 @@ export function getCommentRanges(languageId, line, state) {
 
         case "hash":
             return getHashCommentRanges(line, state);
+
+        case "yaml":
+            return getYamlCommentRanges(line, state);
+
+        case "terraform":
+            return getTerraformCommentRanges(line, state);
+
+        case "graphql":
+            return getGraphqlCommentRanges(line, state);
 
         case "velocity":
             return getVelocityCommentRanges(line, state);
@@ -561,10 +577,408 @@ function getHashCommentRanges(line, state) {
 }
 
 /**
+ * YAML `#` comments.
+ *
+ * A `#` only starts a comment at the start of a line or when preceded by
+ * white space (per the YAML spec), so `value#123` stays part of a plain
+ * scalar. Single and double quoted strings are skipped (single-quoted
+ * strings escape `'` by doubling it), and block scalar headers
+ * (`description: |`, `description: >`) open a state in which every
+ * following line indented deeper than the header is literal content that is
+ * never scanned for comments.
+ *
+ * @param {string} line
+ * @param {{ inBlockComment: boolean, inString: string|null, inBlockScalar?: number|null }} state
+ */
+function getYamlCommentRanges(line, state) {
+    if (state.inBlockScalar === undefined) {
+        state.inBlockScalar = null;
+    }
+
+    if (state.inBlockScalar !== null) {
+        const indent = leadingWhitespace(line);
+
+        if (indent > state.inBlockScalar || line.trim() === "") {
+            return [];
+        }
+
+        state.inBlockScalar = null;
+    }
+
+    if (state.inBlockScalar === null) {
+        state.inBlockScalar = yamlBlockScalarHeaderIndent(line);
+    }
+
+    let quote = state.inString;
+    let escaped = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (quote) {
+            if (
+                quote === "'" &&
+                char === "'" &&
+                line[i + 1] === "'"
+            ) {
+                i++;
+                continue;
+            }
+
+            if (escaped) {
+                escaped = false;
+            } else if (char === "\\" && quote === '"') {
+                escaped = true;
+            } else if (char === quote) {
+                quote = null;
+                state.inString = null;
+            }
+
+            continue;
+        }
+
+        if (char === '"' || char === "'") {
+            quote = char;
+            state.inString = null;
+            continue;
+        }
+
+        if (
+            char === "#" &&
+            (i === 0 || /[ \t]/.test(line[i - 1]))
+        ) {
+            return [{
+                start: i,
+                end: line.length
+            }];
+        }
+    }
+
+    return [];
+}
+
+/**
+ * Length in columns of the leading white space on `line`.
+ *
+ * @param {string} line
+ * @returns {number}
+ */
+function leadingWhitespace(line) {
+    return line.match(/^[ \t]*/)[0].length;
+}
+
+/**
+ * Indentation of a YAML block scalar header line (`description: |`), or
+ * null when the line does not open a block scalar.
+ *
+ * Handles chomping and indentation indicators (`|+`, `>2-`), a trailing `#`
+ * comment and sequence items that are themselves block scalars (`- |`).
+ * Quoted content is skipped so `"key: |"` never looks like a header and
+ * URLs such as `https://…` are not misread as key separators.
+ *
+ * @param {string} line
+ * @returns {number|null}
+ */
+function yamlBlockScalarHeaderIndent(line) {
+    let quote = null;
+
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (quote) {
+            if (
+                quote === "'" &&
+                char === "'" &&
+                line[i + 1] === "'"
+            ) {
+                i++;
+                continue;
+            }
+
+            if (char === quote) {
+                quote = null;
+            }
+
+            continue;
+        }
+
+        if (char === '"' || char === "'") {
+            quote = char;
+            continue;
+        }
+
+        if (char === "#") {
+            break;
+        }
+
+        const opensScalar =
+            char === ":" &&
+            yamlBlockScalarValue(line, i + 1) !== -1;
+
+        const opensSequenceScalar =
+            char === "-" &&
+            (i === 0 || /[ \t]/.test(line[i - 1])) &&
+            /[ \t]/.test(line[i + 1] ?? "") &&
+            yamlBlockScalarValue(line, i + 1) !== -1;
+
+        if (opensScalar || opensSequenceScalar) {
+            return leadingWhitespace(line);
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Whether the text after a YAML key/value separator (`:` or sequence `-`)
+ * is a block scalar header indicator (`|` or `>` with optional chomping/
+ * indentation suffix), followed by nothing but white space or a comment.
+ *
+ * @param {string} line
+ * @param {number} index Position just past the separator.
+ * @returns {number} The index after a valid indicator, or -1.
+ */
+function yamlBlockScalarValue(line, index) {
+    let j = index;
+
+    while (line[j] === " " || line[j] === "\t") {
+        j++;
+    }
+
+    if (line[j] !== "|" && line[j] !== ">") {
+        return -1;
+    }
+
+    let k = j + 1;
+
+    while (
+        line[k] === "+" ||
+        line[k] === "-" ||
+        (line[k] >= "1" && line[k] <= "9")
+    ) {
+        k++;
+    }
+
+    const rest = line.slice(k).trim();
+
+    if (rest !== "" && !rest.startsWith("#")) {
+        return -1;
+    }
+
+    return k;
+}
+
+/**
+ * Terraform (HCL) comments: `#` and `//` line comments plus `/* … *​​/`
+ * block comments, with string and heredoc awareness.
+ *
+ * String literals (`"…"`) and heredocs (`<<EOT`, `<<-EOT`, `<<"EOT"`,
+ * `<<'EOT'`) are skipped, so `description = "#123"` and text inside a
+ * heredoc never produce a comment. Heredoc bodies may span lines; the
+ * active delimiter is carried in `state.inString`.
+ *
+ * @param {string} line
+ * @param {{ inBlockComment: boolean, inString: string|null }} state
+ */
+function getTerraformCommentRanges(line, state) {
+    const ranges = [];
+
+    let i = 0;
+    let start = null;
+    let quote = state.inString;
+    let escaped = false;
+
+    while (i < line.length) {
+        const char = line[i];
+        const next = line[i + 1];
+
+        if (state.inBlockComment) {
+            if (char === "*" && next === "/") {
+                ranges.push({
+                    start: start ?? 0,
+                    end: i + 2
+                });
+
+                state.inBlockComment = false;
+                start = null;
+                i += 2;
+                continue;
+            }
+
+            i++;
+            continue;
+        }
+
+        if (quote) {
+            if (quote.startsWith("heredoc:")) {
+                const terminator = quote.slice("heredoc:".length);
+                const trimmed = line.trim();
+
+                if (
+                    !trimmed.startsWith(terminator) ||
+                    (trimmed.length > terminator.length &&
+                        !/^\s/.test(trimmed.slice(terminator.length)))
+                ) {
+                    return ranges;
+                }
+
+                quote = null;
+                state.inString = null;
+                return ranges;
+            }
+
+            if (escaped) {
+                escaped = false;
+            } else if (char === "\\") {
+                escaped = true;
+            } else if (char === quote) {
+                quote = null;
+                state.inString = null;
+            }
+
+            i++;
+            continue;
+        }
+
+        if (
+            char === "<" &&
+            next === "<" &&
+            (i === 0 || /[\s=([,]/.test(line[i - 1]))
+        ) {
+            let j = i + 2;
+
+            if (line[j] === "-") {
+                j++;
+            }
+
+            const label = line
+                .slice(j)
+                .match(/^[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/);
+
+            if (label) {
+                state.inString = `heredoc:${label[2]}`;
+                return ranges;
+            }
+
+            i++;
+            continue;
+        }
+
+        if (char === '"') {
+            quote = char;
+            state.inString = null;
+            i++;
+            continue;
+        }
+
+        if (char === "#" || (char === "/" && next === "/")) {
+            ranges.push({
+                start: i,
+                end: line.length
+            });
+
+            break;
+        }
+
+        if (char === "/" && next === "*") {
+            start = i;
+            state.inBlockComment = true;
+            i += 2;
+            continue;
+        }
+
+        i++;
+    }
+
+    if (state.inBlockComment) {
+        ranges.push({
+            start: start ?? 0,
+            end: line.length
+        });
+    }
+
+    return ranges;
+}
+
+/**
+ * GraphQL `#` comments with string awareness.
+ *
+ * GraphQL strings (`"…"`) are single-line; block strings (`"""…"""`) may
+ * span lines and support the `\"""` escape. A `#` inside either is never a
+ * comment.
+ *
+ * @param {string} line
+ * @param {{ inBlockComment: boolean, inString: string|null }} state
+ */
+function getGraphqlCommentRanges(line, state) {
+    let quote = state.inString;
+    let escaped = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (quote) {
+            if (quote === '"""') {
+                if (line.startsWith('\\"""', i)) {
+                    i += 3;
+                    continue;
+                }
+
+                if (line.startsWith('"""', i)) {
+                    quote = null;
+                    state.inString = null;
+                    i += 2;
+                }
+
+                continue;
+            }
+
+            if (escaped) {
+                escaped = false;
+            } else if (char === "\\") {
+                escaped = true;
+            } else if (char === quote) {
+                quote = null;
+                state.inString = null;
+            }
+
+            continue;
+        }
+
+        if (line.startsWith('"""', i)) {
+            quote = '"""';
+            state.inString = '"""';
+            i += 2;
+            continue;
+        }
+
+        if (char === '"') {
+            quote = '"';
+            state.inString = null;
+            continue;
+        }
+
+        if (char === "#") {
+            return [{
+                start: i,
+                end: line.length
+            }];
+        }
+    }
+
+    return [];
+}
+
+/**
  * Velocity:
  *
  *   ## comment
  *   #* multiline comment *#
+ *
+ * A single `#` starts a directive (`#if`, `#set`, `#foreach`, …) and is
+ * never a comment. String literals (`"…"`, `'…'`) are skipped so `##` or
+ * `#*` inside a string is literal text, and `##` comments may start
+ * anywhere on the line (not just at column zero).
  *
  * @param {string} line
  * @param {{ inBlockComment: boolean, inString: string|null }} state
@@ -572,61 +986,78 @@ function getHashCommentRanges(line, state) {
 function getVelocityCommentRanges(line, state) {
     const ranges = [];
 
-    if (state.inBlockComment) {
-        const end = line.indexOf("*#");
+    let i = 0;
+    let start = null;
+    let quote = state.inString;
+    let escaped = false;
 
-        if (end === -1) {
-            ranges.push({
-                start: 0,
-                end: line.length
-            });
+    while (i < line.length) {
+        const char = line[i];
+        const next = line[i + 1];
 
-            return ranges;
+        if (state.inBlockComment) {
+            if (char === "*" && next === "#") {
+                ranges.push({
+                    start: start ?? 0,
+                    end: i + 2
+                });
+
+                state.inBlockComment = false;
+                start = null;
+                i += 2;
+                continue;
+            }
+
+            i++;
+            continue;
         }
 
-        ranges.push({
-            start: 0,
-            end: end + 2
-        });
+        if (quote) {
+            if (escaped) {
+                escaped = false;
+            } else if (char === "\\") {
+                escaped = true;
+            } else if (char === quote) {
+                quote = null;
+                state.inString = null;
+            }
 
-        state.inBlockComment = false;
+            i++;
+            continue;
+        }
 
-        return ranges;
-    }
+        if (char === '"' || char === "'") {
+            quote = char;
+            state.inString = null;
+            i++;
+            continue;
+        }
 
-    const blockStart = line.indexOf("#*");
-
-    if (blockStart !== -1) {
-        const blockEnd = line.indexOf("*#", blockStart + 2);
-
-        if (blockEnd === -1) {
-            ranges.push({
-                start: blockStart,
-                end: line.length
-            });
-
+        if (char === "#" && next === "*") {
+            start = i;
             state.inBlockComment = true;
-            return ranges;
+            i += 2;
+            continue;
         }
 
+        if (char === "#" && next === "#") {
+            ranges.push({
+                start: i,
+                end: line.length
+            });
+
+            break;
+        }
+
+        i++;
+    }
+
+    if (state.inBlockComment) {
         ranges.push({
-            start: blockStart,
-            end: blockEnd + 2
-        });
-
-        return ranges;
-    }
-
-    const lineStart = line.trimStart();
-
-    if (lineStart.startsWith("##")) {
-        const start = line.indexOf("##");
-
-        return [{
-            start,
+            start: start ?? 0,
             end: line.length
-        }];
+        });
     }
 
-    return [];
+    return ranges;
 }

@@ -123,6 +123,29 @@ test("API reference shows the identifier", () => {
     assert.match(markdown, /Checkout/);
 });
 
+test("DOC ticket reference is labelled as a ticket, not documentation", () => {
+    const markdown = buildHoverMarkdown(
+        {
+            type: "documentation",
+            raw: "DOC-123",
+            file: null,
+            anchor: null,
+            line: null,
+            identifier: "DOC-123"
+        },
+        {
+            status: "external",
+            targetPath: null,
+            line: null,
+            message: null
+        }
+    );
+
+    assert.match(markdown, /Ticket reference/);
+    assert.match(markdown, /DOC-123/);
+    assert.doesNotMatch(markdown, /Documentation/);
+});
+
 test("missing anchor reference shows the reason", () => {
     const markdown = buildHoverMarkdown(
         {

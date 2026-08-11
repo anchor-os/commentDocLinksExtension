@@ -81,6 +81,11 @@ function externalHover(reference) {
             `\`${reference.identifier}\``;
     }
 
+    if (reference.identifier !== null) {
+        return "**Ticket reference**\n\n" +
+            `\`${reference.identifier}\``;
+    }
+
     return "**Documentation reference**\n\n" +
         `\`${reference.raw}\``;
 }

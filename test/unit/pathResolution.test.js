@@ -3,6 +3,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
+import fs from "node:fs";
+import os from "node:os";
 
 import {
     chooseRoot,
@@ -110,4 +112,58 @@ test("chooseRoot falls back to the first root without a context path", () => {
         chooseRoot([REPO], undefined),
         REPO
     );
+});
+
+test("resolveInRoot rejects a symlink escaping the root", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cdl-root-"));
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "cdl-out-"));
+    const link = path.join(dir, "escape");
+
+    try {
+        fs.symlinkSync(outside, link);
+
+        assert.equal(
+            resolveInRoot(dir, path.join("escape", "secret.txt")),
+            null
+        );
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+        fs.rmSync(outside, { recursive: true, force: true });
+    }
+});
+
+test("resolveInRoot follows a symlink that stays inside the root", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cdl-root-"));
+    const real = path.join(dir, "real");
+    const link = path.join(dir, "alias");
+
+    try {
+        fs.mkdirSync(real);
+        fs.symlinkSync(real, link);
+
+        assert.equal(
+            resolveInRoot(dir, path.join("alias", "file.md")),
+            path.join(fs.realpathSync(real), "file.md")
+        );
+    } finally {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
+});
+
+test("resolveInRoot resolves a symlinked root", () => {
+    const realRoot = fs.mkdtempSync(path.join(os.tmpdir(), "cdl-real-"));
+    const linkRoot = fs.mkdtempSync(path.join(os.tmpdir(), "cdl-link-"));
+    const link = path.join(linkRoot, "workspace");
+
+    try {
+        fs.symlinkSync(realRoot, link);
+
+        assert.equal(
+            resolveInRoot(link, "docs/file.md"),
+            path.join(fs.realpathSync(realRoot), "docs", "file.md")
+        );
+    } finally {
+        fs.rmSync(realRoot, { recursive: true, force: true });
+        fs.rmSync(linkRoot, { recursive: true, force: true });
+    }
 });

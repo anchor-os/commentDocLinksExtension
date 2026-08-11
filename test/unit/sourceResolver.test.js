@@ -126,3 +126,27 @@ test("references in non-comment code are ignored", () => {
         { line: 1, character: 0, anchorFound: true }
     );
 });
+
+test("leading ./ on either side does not break the match", () => {
+    const document = makeDocument([
+        "// see ./documentation/a.md#deep-anchor"
+    ]);
+
+    assert.deepEqual(
+        resolveSourceReference(
+            document,
+            "documentation/a.md",
+            "deep-anchor"
+        ),
+        { line: 0, character: 0, anchorFound: true }
+    );
+
+    assert.deepEqual(
+        resolveSourceReference(
+            document,
+            "./documentation/a.md",
+            "deep-anchor"
+        ),
+        { line: 0, character: 0, anchorFound: true }
+    );
+});

@@ -3,7 +3,8 @@
 import * as vscode from "vscode";
 
 import {
-    resolveWorkspacePath
+    resolveWorkspacePath,
+    resolveWorkspaceRoot
 } from "../services/workspace.js";
 
 import {
@@ -95,8 +96,19 @@ export function registerOpenSourceCommand(context) {
                     );
 
                     if (editor === null) {
+                        const root = resolveWorkspaceRoot(
+                            sourceDocumentPath
+                                ? vscode.workspace.getWorkspaceFolder(
+                                      vscode.Uri.file(sourceDocumentPath)
+                                  )
+                                : undefined,
+                            sourceDocumentPath
+                        );
+
                         vscode.window.showErrorMessage(
-                            "No workspace folder is open."
+                            root === null
+                                ? "No workspace folder is open."
+                                : `Unable to resolve source file: ${source}`
                         );
                     }
                 } catch (error) {

@@ -2,6 +2,11 @@
 
 import * as vscode from "vscode";
 
+import {
+    THEME_LINK_COLOR,
+    validLinkColor
+} from "./color.js";
+
 /**
  * Configuration identifiers. Declared in package.json `contributes.configuration`
  * with window scope so they work at User, Workspace and Machine level through
@@ -16,51 +21,7 @@ export const CONFIGURATION = {
     ENABLE_COMPLETION: "enableCompletion"
 };
 
-/**
- * The special value that selects VS Code's theme link color.
- */
-export const THEME_LINK_COLOR = "theme";
-
-const HEX_COLOR_PATTERN = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
-
-const FUNCTIONAL_COLOR_PATTERN =
-    /^(?:rgb|rgba|hsl|hsla)\([^)]*\d[^)]*\)$/i;
-
-const NAMED_COLORS = new Set([
-    "aliceblue", "antiquewhite", "aqua", "aquamarine", "azure",
-    "beige", "bisque", "black", "blanchedalmond", "blue",
-    "blueviolet", "brown", "burlywood", "cadetblue", "chartreuse",
-    "chocolate", "coral", "cornflowerblue", "cornsilk", "crimson",
-    "cyan", "darkblue", "darkcyan", "darkgoldenrod", "darkgray",
-    "darkgreen", "darkgrey", "darkkhaki", "darkmagenta",
-    "darkolivegreen", "darkorange", "darkorchid", "darkred",
-    "darksalmon", "darkseagreen", "darkslateblue", "darkslategray",
-    "darkslategrey", "darkturquoise", "darkviolet", "deeppink",
-    "deepskyblue", "dimgray", "dimgrey", "dodgerblue", "firebrick",
-    "floralwhite", "forestgreen", "fuchsia", "gainsboro",
-    "ghostwhite", "gold", "goldenrod", "gray", "green",
-    "greenyellow", "grey", "honeydew", "hotpink", "indianred",
-    "indigo", "ivory", "khaki", "lavender", "lavenderblush",
-    "lawngreen", "lemonchiffon", "lightblue", "lightcoral",
-    "lightcyan", "lightgoldenrodyellow", "lightgray", "lightgreen",
-    "lightgrey", "lightpink", "lightsalmon", "lightseagreen",
-    "lightskyblue", "lightslategray", "lightslategrey",
-    "lightsteelblue", "lightyellow", "lime", "limegreen", "linen",
-    "magenta", "maroon", "mediumaquamarine", "mediumblue",
-    "mediumorchid", "mediumpurple", "mediumseagreen",
-    "mediumslateblue", "mediumspringgreen", "mediumturquoise",
-    "mediumvioletred", "midnightblue", "mintcream", "mistyrose",
-    "moccasin", "navajowhite", "navy", "oldlace", "olive",
-    "olivedrab", "orange", "orangered", "orchid", "palegoldenrod",
-    "palegreen", "paleturquoise", "palevioletred", "papayawhip",
-    "peachpuff", "peru", "pink", "plum", "powderblue", "purple",
-    "rebeccapurple", "red", "rosybrown", "royalblue", "saddlebrown",
-    "salmon", "sandybrown", "seagreen", "seashell", "sienna",
-    "silver", "skyblue", "slateblue", "slategray", "slategrey",
-    "snow", "springgreen", "steelblue", "tan", "teal", "thistle",
-    "tomato", "transparent", "turquoise", "violet", "wheat",
-    "white", "whitesmoke", "yellow", "yellowgreen"
-]);
+export { THEME_LINK_COLOR } from "./color.js";
 
 /**
  * @typedef {object} ExtensionConfiguration
@@ -113,24 +74,6 @@ export function getConfiguration() {
  */
 function asBoolean(value, fallback) {
     return typeof value === "boolean" ? value : fallback;
-}
-
-/**
- * @param {unknown} value
- * @returns {string}
- */
-function validLinkColor(value) {
-    if (
-        typeof value === "string" &&
-        (value === THEME_LINK_COLOR ||
-            HEX_COLOR_PATTERN.test(value) ||
-            FUNCTIONAL_COLOR_PATTERN.test(value) ||
-            NAMED_COLORS.has(value.toLowerCase()))
-    ) {
-        return value;
-    }
-
-    return THEME_LINK_COLOR;
 }
 
 /**
