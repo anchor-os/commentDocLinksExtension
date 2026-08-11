@@ -17,12 +17,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
 
       - name: Set up Node 26.4
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "26.4.0"
 
@@ -53,7 +53,7 @@ jobs:
         run: npm run package -- --no-dependencies -o extension.vsix
 
       - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: comment-doc-links-vsix
           path: extension.vsix
@@ -68,12 +68,12 @@ jobs:
       id-token: write
     steps:
       - name: Set up Node 26.4
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "26.4.0"
 
       - name: Download VSIX artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: comment-doc-links-vsix
 

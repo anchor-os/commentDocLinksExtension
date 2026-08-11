@@ -46,7 +46,7 @@ jobs:
         # Manual runs always check out refs/tags/<release_ref> (fully qualified)
         # so a same-named branch can never shadow the intended tag. Release
         # runs use github.ref, which is already refs/tags/<tag>.
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event_name == 'release' && github.ref || format('refs/tags/{0}', inputs.release_ref) }}
           persist-credentials: false
@@ -72,7 +72,7 @@ jobs:
           echo "release_ref '${RELEASE_REF}' is a valid version tag."
 
       - name: Set up Node 26.4
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "26.4.0"
 
