@@ -86,7 +86,7 @@ so it can run independently of the Marketplace workflow. It is triggered:
   The `marketplace-publish` environment allows deployment from the `main`
   branch **and** from `v*` tags, so both paths above work:
   - dispatched from `main` → `release_ref` is validated independently (must be
-    a `v<semver>` tag that exists in the repository and matches the checked-out
+    a `vX.Y.Z` tag that exists in the repository and matches the checked-out
     `package.json`);
   - dispatched from a tag (Branch dropdown → **Tags** tab) → `release_ref` must
     equal that tag.

@@ -43,9 +43,12 @@ jobs:
           echo "release_ref '${RELEASE_REF}' matches the selected tag '${GITHUB_REF_NAME}'."
 
       - name: Checkout
+        # Manual runs always check out refs/tags/<release_ref> (fully qualified)
+        # so a same-named branch can never shadow the intended tag. Release
+        # runs use github.ref, which is already refs/tags/<tag>.
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.release_ref || github.ref }}
+          ref: ${{ github.event_name == 'release' && github.ref || format('refs/tags/{0}', inputs.release_ref) }}
           persist-credentials: false
 
       - name: Validate release ref (manual dispatch)
