@@ -13,10 +13,11 @@ import { openFile } from "../services/navigation.js";
 import { COMMANDS } from "../constants.js";
 
 /**
- * Open a documentation file and reveal the anchor.
+ * Open a documentation file and reveal the anchor or line.
  *
  * @param {string} relativePath
  * @param {string|null} anchor
+ * @param {number|null} line
  * @param {string} [sourceDocumentPath]
  *   File system path of the source document that references the
  *   documentation file.
@@ -25,6 +26,7 @@ import { COMMANDS } from "../constants.js";
 export async function openDocumentationFile(
     relativePath,
     anchor,
+    line,
     sourceDocumentPath
 ) {
 
@@ -46,7 +48,7 @@ export async function openDocumentationFile(
 
     const editor = await openFile(fullPath);
 
-    revealAnchor(editor, anchor);
+    revealAnchor(editor, anchor, line);
 
     return editor;
 
@@ -60,11 +62,13 @@ export function registerOpenDocumentationCommand(context) {
             /**
              * @param {string} relativePath
              * @param {string|null} anchor
+             * @param {number|null} line
              * @param {string} [sourceDocumentPath]
              */
             async (
                 relativePath,
                 anchor,
+                line,
                 sourceDocumentPath
             ) => {
                 if (typeof relativePath !== "string") {
@@ -75,6 +79,7 @@ export function registerOpenDocumentationCommand(context) {
                     const editor = await openDocumentationFile(
                         relativePath,
                         anchor,
+                        line,
                         sourceDocumentPath
                     );
 

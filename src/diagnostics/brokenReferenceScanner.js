@@ -119,6 +119,31 @@ function collectBrokenCommentReferences(
                     continue;
                 }
 
+                if (match.line !== null) {
+                    const docText = fsLike.readText(match.file);
+
+                    if (docText === null) {
+                        continue;
+                    }
+
+                    const doc = documentFromText(
+                        docText,
+                        "markdown"
+                    );
+
+                    if (match.line < 1 || match.line > doc.lineCount) {
+                        broken.push({
+                            line: i,
+                            start: match.start,
+                            end: match.end,
+                            message:
+                                `Documentation line out of range: ${match.line}`
+                        });
+                    }
+
+                    continue;
+                }
+
                 if (!match.anchor) {
                     continue;
                 }
