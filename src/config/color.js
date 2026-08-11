@@ -51,15 +51,22 @@ function isFunctionalColor(value) {
         return false;
     }
 
+    const legacySyntax = color.includes(",");
+
     const components = (
-        color.includes(",")
+        legacySyntax
             ? color.split(",")
             : color.trim().split(/\s+/)
     ).map((part) => part.trim());
 
     if (components.length === 4) {
-        // Legacy `rgba()`/`hsla()` put the alpha in a fourth
-        // comma/space-separated component.
+        // Legacy `rgba()`/`hsla()` may put the alpha in a fourth
+        // comma-separated component, but never alongside a `/` alpha
+        // and never in space-separated syntax.
+        if (!legacySyntax || alpha !== null) {
+            return false;
+        }
+
         const legacyAlpha = components.pop();
 
         if (

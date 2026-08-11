@@ -46,7 +46,8 @@ test("functional colors are valid", () => {
         "hsl(120, 50%, 50%)",
         "hsla(120, 50%, 50%, 1)",
         "rgb(255 0 0 / 50%)",
-        "hsl(0deg 100% 50%)"
+        "hsl(0deg 100% 50%)",
+        "rgb(255, 0, 0, 0.5)"
     ]) {
         assert.equal(isValidLinkColor(value), true, value);
     }
@@ -61,7 +62,9 @@ test("malformed functional colors are rejected", () => {
         "rgb(255, 0, 0,)",
         "rgb(255 0 0 / 50% / 10%)",
         "rgb(none 0 0)",
-        "notacolor(1, 2, 3)"
+        "notacolor(1, 2, 3)",
+        "rgb(255 0 0 0.5)",
+        "rgb(255, 0, 0, 50% / 10%)"
     ]) {
         assert.equal(isValidLinkColor(value), false, value);
     }
