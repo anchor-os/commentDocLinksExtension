@@ -2,25 +2,26 @@
 
 import * as vscode from "vscode";
 
-import { revealAnchor }
-    from "../navigation/markdownNavigation.js";
+import { openReference }
+    from "./openReference.js";
 
-import { resolveWorkspacePath }
-    from "../services/workspace.js";
-
-import { openFile } from "../services/navigation.js";
+import {
+    REFERENCE_TYPE
+} from "../references/referenceTypes.js";
 
 import { COMMANDS } from "../constants.js";
 
 /**
  * Open a documentation file and reveal the anchor or line.
  *
+ * Backwards-compatible wrapper around {@link openReference} that keeps the
+ * historical `(relativePath, anchor, line, sourceDocumentPath)` argument
+ * shape for command URIs produced before the unified command existed.
+ *
  * @param {string} relativePath
  * @param {string|null} anchor
  * @param {number|null} line
  * @param {string} [sourceDocumentPath]
- *   File system path of the source document that references the
- *   documentation file.
  * @returns {Promise<vscode.TextEditor|null>}
  */
 export async function openDocumentationFile(
@@ -29,29 +30,17 @@ export async function openDocumentationFile(
     line,
     sourceDocumentPath
 ) {
-
-    const workspaceFolder = sourceDocumentPath
-        ? vscode.workspace.getWorkspaceFolder(
-              vscode.Uri.file(sourceDocumentPath)
-          )
-        : undefined;
-
-    const fullPath = resolveWorkspacePath(
-        relativePath,
-        workspaceFolder,
+    return openReference(
+        {
+            type: REFERENCE_TYPE.DOCUMENTATION,
+            raw: relativePath,
+            file: relativePath,
+            anchor,
+            line,
+            identifier: null
+        },
         sourceDocumentPath
     );
-
-    if (!fullPath) {
-        return null;
-    }
-
-    const editor = await openFile(fullPath);
-
-    revealAnchor(editor, anchor, line);
-
-    return editor;
-
 }
 
 export function registerOpenDocumentationCommand(context) {
@@ -76,18 +65,12 @@ export function registerOpenDocumentationCommand(context) {
                 }
 
                 try {
-                    const editor = await openDocumentationFile(
+                    await openDocumentationFile(
                         relativePath,
                         anchor,
                         line,
                         sourceDocumentPath
                     );
-
-                    if (editor === null) {
-                        vscode.window.showErrorMessage(
-                            "No workspace folder is open."
-                        );
-                    }
                 } catch (error) {
                     console.error(error);
 

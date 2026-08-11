@@ -1,23 +1,29 @@
 // @ts-check
 
 import {
-    getCommentRanges,
     getLanguageIdFromExtension
 } from "../parsers/languageSupport.js";
-
-import { parseComment }
-    from "../parsers/commentParser.js";
 
 import { parseMarkdownHeading }
     from "../parsers/markdownParser.js";
 
 import {
-    listAnchors
-} from "../services/anchorResolver.js";
-
-import {
     hasExactSourceReference
 } from "../services/sourceResolver.js";
+
+import { documentFromText }
+    from "../references/document.js";
+
+import { scanDocumentForReferences }
+    from "../references/documentScanner.js";
+
+import {
+    validateReference
+} from "../references/resolver.js";
+
+import {
+    RESOLUTION_STATUS
+} from "../references/referenceTypes.js";
 
 /**
  * @typedef {object} DocumentLike
@@ -40,144 +46,94 @@ import {
  * @property {string} message
  */
 
-export function documentFromText(text, languageId) {
-    const lines = text.split(/\r\n|\r|\n/);
-
-    return {
-        languageId,
-        lineCount: lines.length,
-        lineAt(index) {
-            return { text: lines[index] };
-        }
-    };
-}
-
 /**
- * Find every broken documentation/source reference in a document.
+ * Find every broken reference in a document.
  *
  * Deliberately conservative — a reference is only reported when it can
- * be proven broken (target file missing, or the anchor is provably
+ * be proven broken (target file missing, or the anchor/line is provably
  * absent). Unknown cases are skipped to avoid false positives.
  *
  * @param {DocumentLike} document
- * @param {FileSystemLike} fsLike
+ * @param {object} context
+ *   A reference context (`{ resolveTargetPath, fs }`) or a plain
+ *   filesystem-like object, in which case paths are used verbatim.
  * @param {string} relativeDocumentationPath
  * @returns {BrokenReference[]}
  */
 export function collectBrokenReferences(
     document,
-    fsLike,
+    context,
     relativeDocumentationPath
 ) {
+    const referenceContext = normalizeContext(context);
+
     if (document.languageId === "markdown") {
         return collectBrokenMarkdownReferences(
             document,
-            fsLike,
+            referenceContext,
             relativeDocumentationPath
         );
     }
 
     return collectBrokenCommentReferences(
         document,
-        fsLike
+        referenceContext
     );
 }
 
-function collectBrokenCommentReferences(
-    document,
-    fsLike
-) {
+/**
+ * @param {object} context
+ */
+function normalizeContext(context) {
+    if (typeof context.resolveTargetPath === "function") {
+        return context;
+    }
+
+    return {
+        resolveTargetPath(relativePath) {
+            return relativePath;
+        },
+        fs: context
+    };
+}
+
+/**
+ * @param {DocumentLike} document
+ * @param {object} context
+ */
+function collectBrokenCommentReferences(document, context) {
     const broken = [];
 
-    const state = { inBlockComment: false };
+    for (const { reference, line } of
+        scanDocumentForReferences(document)) {
+        const result = validateReference(reference, context);
 
-    for (let i = 0; i < document.lineCount; i++) {
-        const text = document.lineAt(i).text;
-
-        const commentRanges = getCommentRanges(
-            document.languageId,
-            text,
-            state
-        );
-
-        for (const range of commentRanges) {
-            const matches = parseComment(
-                text.slice(range.start, range.end),
-                range.start
-            );
-
-            for (const match of matches) {
-                if (!fsLike.exists(match.file)) {
-                    broken.push({
-                        line: i,
-                        start: match.start,
-                        end: match.end,
-                        message:
-                            `Documentation file not found: ${match.file}`
-                    });
-
-                    continue;
-                }
-
-                if (match.line !== null) {
-                    const docText = fsLike.readText(match.file);
-
-                    if (docText === null) {
-                        continue;
-                    }
-
-                    const doc = documentFromText(
-                        docText,
-                        "markdown"
-                    );
-
-                    if (match.line < 1 || match.line > doc.lineCount) {
-                        broken.push({
-                            line: i,
-                            start: match.start,
-                            end: match.end,
-                            message:
-                                `Documentation line out of range: ${match.line}`
-                        });
-                    }
-
-                    continue;
-                }
-
-                if (!match.anchor) {
-                    continue;
-                }
-
-                const docText = fsLike.readText(match.file);
-
-                if (docText === null) {
-                    continue;
-                }
-
-                const doc = documentFromText(
-                    docText,
-                    "markdown"
-                );
-
-                if (!listAnchors(doc).includes(match.anchor)) {
-                    broken.push({
-                        line: i,
-                        start: match.start,
-                        end: match.end,
-                        message:
-                            `Documentation anchor not found: ${match.anchor}`
-                    });
-                }
-            }
+        switch (result.status) {
+            case RESOLUTION_STATUS.MISSING_FILE:
+            case RESOLUTION_STATUS.MISSING_ANCHOR:
+            case RESOLUTION_STATUS.INVALID_LINE:
+            case RESOLUTION_STATUS.INVALID_PATH:
+                broken.push({
+                    line,
+                    start: reference.start,
+                    end: reference.end,
+                    message: result.message
+                });
+                break;
         }
     }
 
     return broken;
 }
 
+/**
+ * @param {DocumentLike} document
+ * @param {object} context
+ * @param {string} relativeDocumentationPath
+ */
 function collectBrokenMarkdownReferences(
     document,
-    fsLike,
+    context,
     relativeDocumentationPath
 ) {
     const broken = [];
@@ -191,7 +147,13 @@ function collectBrokenMarkdownReferences(
             continue;
         }
 
-        if (!fsLike.exists(parsed.source)) {
+        const targetPath =
+            context.resolveTargetPath(parsed.source);
+
+        if (
+            targetPath === null ||
+            !context.fs.exists(targetPath)
+        ) {
             broken.push({
                 line: i,
                 start: parsed.start,
@@ -213,7 +175,8 @@ function collectBrokenMarkdownReferences(
             continue;
         }
 
-        const sourceText = fsLike.readText(parsed.source);
+        const sourceText =
+            context.fs.readText(targetPath);
 
         if (sourceText === null) {
             continue;

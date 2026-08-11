@@ -41,6 +41,10 @@
   "contributes": {
     "commands": [
       {
+        "command": "commentDocLinks.openReference",
+        "title": "Open Reference"
+      },
+      {
         "command": "commentDocLinks.openDocumentation",
         "title": "Open Documentation"
       },
@@ -48,7 +52,37 @@
         "command": "commentDocLinks.openSource",
         "title": "Open Source"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Comment Doc Links",
+      "properties": {
+        "commentDocLinks.enableDecorations": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Highlight recognized references directly in the editor."
+        },
+        "commentDocLinks.linkColor": {
+          "type": "string",
+          "default": "theme",
+          "markdownDescription": "Color of valid reference highlights. Use `theme` to follow VS Code's built-in link color, or any CSS color such as `#4fc1ff` or `green`."
+        },
+        "commentDocLinks.linkUnderline": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Underline valid reference highlights."
+        },
+        "commentDocLinks.enableDiagnostics": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Report broken references as editor warnings."
+        },
+        "commentDocLinks.enableCompletion": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Suggest documentation anchors and source anchors while typing."
+        }
+      }
+    }
   },
   "scripts": {
     "lint": "find src -name '*.js' -exec node --check {} +",

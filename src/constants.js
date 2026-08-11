@@ -45,5 +45,6 @@ export const ALTERNATE_SOURCE_SEPARATOR = "-";
  */
 export const COMMANDS = {
     OPEN_DOCUMENTATION: "commentDocLinks.openDocumentation",
-    OPEN_SOURCE: "commentDocLinks.openSource"
+    OPEN_SOURCE: "commentDocLinks.openSource",
+    OPEN_REFERENCE: "commentDocLinks.openReference"
 };

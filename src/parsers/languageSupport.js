@@ -1,7 +1,12 @@
 // @ts-check
 
 /**
- * Languages whose comments can contain documentation links.
+ * Languages whose comments can contain documentation references.
+ *
+ * Adding a language here requires:
+ *  1. an entry in LANGUAGE_COMMENT_STYLE (how comments are detected), and
+ *  2. optionally an entry in EXTENSION_TO_LANGUAGE (for reverse navigation
+ *     from a Markdown heading back to a source file).
  */
 export const SUPPORTED_LANGUAGES = new Set([
     "javascript",
@@ -12,7 +17,18 @@ export const SUPPORTED_LANGUAGES = new Set([
     "terraform",
     "yaml",
     "velocity",
-    "markdown"
+    "markdown",
+    "python",
+    "java",
+    "go",
+    "rust",
+    "c",
+    "cpp",
+    "csharp",
+    "php",
+    "ruby",
+    "kotlin",
+    "swift"
 ]);
 
 /**
@@ -20,6 +36,44 @@ export const SUPPORTED_LANGUAGES = new Set([
  */
 export function supportsLanguage(languageId) {
     return SUPPORTED_LANGUAGES.has(languageId);
+}
+
+/**
+ * VS Code document selector for every language the extension understands.
+ * Kept in one place so providers and diagnostics stay in sync.
+ *
+ * @returns {import("vscode").DocumentSelector}
+ */
+export function documentSelector() {
+    return [...SUPPORTED_LANGUAGES].map((language) => ({
+        language
+    }));
+}
+
+/**
+ * Comment syntax family used to find comment ranges in a line.
+ */
+const COMMENT_STYLE = {
+    /** `//`, `/* *​*​/` with string awareness (C-family). */
+    slash: ["javascript", "javascriptreact", "typescript",
+        "typescriptreact", "java", "go", "rust", "c", "cpp",
+        "csharp", "kotlin", "swift"],
+    /** `#` line comments. */
+    hash: ["graphql", "terraform", "yaml", "python", "ruby"],
+    /** `##` line comments plus `#* … *#` block comments. */
+    velocity: ["velocity"],
+    /** Whole line (Markdown prose). */
+    wholeLine: ["markdown"],
+    /** `//`, `#` and `/* *​*​/` (PHP). */
+    php: ["php"]
+};
+
+const LANGUAGE_COMMENT_STYLE = new Map();
+
+for (const [style, languages] of Object.entries(COMMENT_STYLE)) {
+    for (const language of languages) {
+        LANGUAGE_COMMENT_STYLE.set(language, style);
+    }
 }
 
 const EXTENSION_TO_LANGUAGE = {
@@ -39,12 +93,28 @@ const EXTENSION_TO_LANGUAGE = {
     ".vm": "velocity",
     ".vtl": "velocity",
     ".md": "markdown",
-    ".markdown": "markdown"
+    ".markdown": "markdown",
+    ".py": "python",
+    ".java": "java",
+    ".go": "go",
+    ".rs": "rust",
+    ".c": "c",
+    ".h": "c",
+    ".cpp": "cpp",
+    ".cc": "cpp",
+    ".cxx": "cpp",
+    ".hpp": "cpp",
+    ".cs": "csharp",
+    ".php": "php",
+    ".rb": "ruby",
+    ".kt": "kotlin",
+    ".kts": "kotlin",
+    ".swift": "swift"
 };
 
 /**
- * Best-effort languageId for a file path, or null when the extension
- * is not one of the supported languages.
+ * Best-effort languageId for a file path, or null when the extension is not
+ * one of the supported languages.
  *
  * @param {string} filename
  * @returns {string|null}
@@ -63,30 +133,31 @@ export function getLanguageIdFromExtension(filename) {
 /**
  * Determine which portions of a line are comments.
  *
- * This function is stateful for block comments.
+ * This function is stateful: pass an object carrying `inBlockComment` and
+ * `inString` and reuse it across lines of the same document so block
+ * comments and multiline strings opened on an earlier line are still
+ * recognized. PHP additionally tracks the active region in `inPhp`.
  *
  * @param {string} languageId
  * @param {string} line
- * @param {{ inBlockComment: boolean }} state
+ * @param {{ inBlockComment: boolean, inString: string|null, inPhp?: boolean }} state
  * @returns {Array<{start: number, end: number}>}
  */
 export function getCommentRanges(languageId, line, state) {
-    switch (languageId) {
-        case "javascript":
-        case "javascriptreact":
-        case "typescript":
-        case "typescriptreact":
+    switch (LANGUAGE_COMMENT_STYLE.get(languageId)) {
+        case "slash":
             return getSlashCommentRanges(line, state);
 
-        case "graphql":
-        case "terraform":
-        case "yaml":
-            return getHashCommentRanges(line);
+        case "hash":
+            return getHashCommentRanges(line, state);
 
         case "velocity":
             return getVelocityCommentRanges(line, state);
 
-        case "markdown":
+        case "php":
+            return getPhpCommentRanges(line, state);
+
+        case "wholeLine":
             return [{ start: 0, end: line.length }];
 
         default:
@@ -95,23 +166,23 @@ export function getCommentRanges(languageId, line, state) {
 }
 
 /**
- * JavaScript / TypeScript:
+ * C-family comments: `//` line comments and `/* … *​​/` block comments.
  *
- * // comment
- * /* comment *\/
- *
- * This intentionally does NOT try to fully parse JavaScript strings.
- * The scanner only recognizes comment delimiters outside strings.
+ * The scanner only recognizes comment delimiters outside strings; content
+ * inside string literals is never treated as a comment. Backtick strings
+ * (Go raw strings, JavaScript template literals), `"""` literals (Kotlin,
+ * Swift) and C# verbatim strings (`@"…"`) may span lines; the active
+ * delimiter is carried in `state.inString` to the next line.
  *
  * @param {string} line
- * @param {{ inBlockComment: boolean }} state
+ * @param {{ inBlockComment: boolean, inString: string|null }} state
  */
 function getSlashCommentRanges(line, state) {
     const ranges = [];
 
     let i = 0;
     let start = null;
-    let quote = null;
+    let quote = state.inString;
     let escaped = false;
 
     while (i < line.length) {
@@ -136,15 +207,56 @@ function getSlashCommentRanges(line, state) {
         }
 
         if (quote) {
+            if (quote.length === 3) {
+                if (line.startsWith(quote, i)) {
+                    quote = null;
+                    state.inString = null;
+                    i += 2;
+                } else {
+                    i++;
+                }
+                continue;
+            }
+
+            if (quote === '@"') {
+                if (char === '"' && next === '"') {
+                    i += 2;
+                    continue;
+                }
+
+                if (char === '"') {
+                    quote = null;
+                    state.inString = null;
+                }
+
+                i++;
+                continue;
+            }
+
             if (escaped) {
                 escaped = false;
             } else if (char === "\\") {
                 escaped = true;
             } else if (char === quote) {
                 quote = null;
+                state.inString = null;
             }
 
             i++;
+            continue;
+        }
+
+        if (line.startsWith('"""', i)) {
+            quote = '"""';
+            state.inString = '"""';
+            i += 3;
+            continue;
+        }
+
+        if (char === "@" && next === '"') {
+            quote = '@"';
+            state.inString = '@"';
+            i += 2;
             continue;
         }
 
@@ -154,6 +266,7 @@ function getSlashCommentRanges(line, state) {
             char === "`"
         ) {
             quote = char;
+            state.inString = char === "`" ? char : null;
             i++;
             continue;
         }
@@ -188,19 +301,224 @@ function getSlashCommentRanges(line, state) {
 }
 
 /**
- * # comment
+ * PHP comments: `//` and `#` line comments plus `/* … *​​/` block comments.
+ * `#[…]` attribute syntax is not a comment.
+ *
+ * Comments and strings are only recognized inside `<?php … ?>` regions.
+ * The active region is tracked in `state.inPhp` (defaults to outside PHP,
+ * matching a file that starts in HTML mode), so apostrophes in inline HTML
+ * such as `<p>It's here</p>` never set persistent string state.
+ *
+ * Strings (single/double quoted and heredoc/nowdoc bodies) may span lines;
+ * the active delimiter is carried in `state.inString` so `#`/`//` inside a
+ * literal never starts a comment.
  *
  * @param {string} line
+ * @param {{ inBlockComment: boolean, inString: string|null, inPhp?: boolean }} state
  */
-function getHashCommentRanges(line) {
-    let quote = null;
+function getPhpCommentRanges(line, state) {
+    const ranges = [];
+
+    if (state.inPhp === undefined) {
+        state.inPhp = false;
+    }
+
+    let i = 0;
+    let start = null;
+    let quote = state.inString;
+    let escaped = false;
+
+    while (i < line.length) {
+        const char = line[i];
+        const next = line[i + 1];
+
+        if (state.inBlockComment) {
+            if (char === "*" && next === "/") {
+                ranges.push({
+                    start: start ?? 0,
+                    end: i + 2
+                });
+
+                state.inBlockComment = false;
+                start = null;
+                i += 2;
+                continue;
+            }
+
+            i++;
+            continue;
+        }
+
+        if (quote) {
+            if (quote.startsWith("heredoc:")) {
+                const terminator = quote.slice("heredoc:".length);
+                const end = heredocTerminatorEnd(line, terminator);
+
+                if (end === -1) {
+                    return ranges;
+                }
+
+                quote = null;
+                state.inString = null;
+                i = end;
+                continue;
+            }
+
+            if (escaped) {
+                escaped = false;
+            } else if (char === "\\") {
+                escaped = true;
+            } else if (char === quote) {
+                quote = null;
+                state.inString = null;
+            }
+
+            i++;
+            continue;
+        }
+
+        if (!state.inPhp) {
+            if (char === "<" && next === "?") {
+                state.inPhp = true;
+                i += 2;
+                continue;
+            }
+
+            i++;
+            continue;
+        }
+
+        if (char === "?" && next === ">") {
+            state.inPhp = false;
+            i += 2;
+            continue;
+        }
+
+        if (
+            char === "<" &&
+            next === "<" &&
+            line[i + 2] === "<"
+        ) {
+            const label = line
+                .slice(i + 3)
+                .match(/^[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1/);
+
+            if (label) {
+                state.inString = `heredoc:${label[2]}`;
+                return ranges;
+            }
+
+            i++;
+            continue;
+        }
+
+        if (char === "'" || char === '"') {
+            quote = char;
+            state.inString = char;
+            i++;
+            continue;
+        }
+
+        if (char === "/" && next === "/") {
+            ranges.push({
+                start: i,
+                end: line.length
+            });
+
+            break;
+        }
+
+        if (char === "#") {
+            if (next === "[") {
+                i++;
+                continue;
+            }
+
+            ranges.push({
+                start: i,
+                end: line.length
+            });
+
+            break;
+        }
+
+        if (char === "/" && next === "*") {
+            start = i;
+            state.inBlockComment = true;
+            i += 2;
+            continue;
+        }
+
+        i++;
+    }
+
+    if (state.inBlockComment) {
+        ranges.push({
+            start: start ?? 0,
+            end: line.length
+        });
+    }
+
+    return ranges;
+}
+
+/**
+ * End offset of the heredoc/nowdoc closing marker on `line`, or -1 when the
+ * line is heredoc body rather than the closer.
+ *
+ * PHP 7.3+ allows the marker to be followed by `;`, `,` or `)` (e.g. `EOT)`
+ * or `EOT,`) and other code; a plain prefix check with a word-boundary guard
+ * covers every form.
+ *
+ * @param {string} line
+ * @param {string} terminator
+ * @returns {number}
+ */
+function heredocTerminatorEnd(line, terminator) {
+    const trimmed = line.trim();
+
+    if (!trimmed.startsWith(terminator)) {
+        return -1;
+    }
+
+    const rest = trimmed.slice(terminator.length);
+
+    if (/^[A-Za-z0-9_]/.test(rest)) {
+        return -1;
+    }
+
+    return (
+        line.length - line.trimStart().length +
+        terminator.length
+    );
+}
+
+/**
+ * `#` line comments (Python, Ruby, GraphQL, Terraform, YAML).
+ *
+ * The scanner only treats `#` as a comment outside strings. Python
+ * triple-quoted strings may span lines; an unclosed triple quote is carried
+ * in `state.inString` to the next line so `#` inside the literal never
+ * starts a comment.
+ *
+ * @param {string} line
+ * @param {{ inBlockComment: boolean, inString: string|null }} state
+ */
+function getHashCommentRanges(line, state) {
+    let quote = state.inString;
     let escaped = false;
 
     for (let i = 0; i < line.length; i++) {
         const char = line[i];
 
         if (quote) {
-            if (escaped) {
+            if (quote.length === 3) {
+                if (line.startsWith(quote, i)) {
+                    quote = null;
+                    state.inString = null;
+                    i += 2;
+                }
+            } else if (escaped) {
                 escaped = false;
             } else if (char === "\\") {
                 escaped = true;
@@ -211,8 +529,23 @@ function getHashCommentRanges(line) {
             continue;
         }
 
+        if (char === '"' && line.startsWith('"""', i)) {
+            quote = '"""';
+            state.inString = '"""';
+            i += 2;
+            continue;
+        }
+
+        if (char === "'" && line.startsWith("'''", i)) {
+            quote = "'''";
+            state.inString = "'''";
+            i += 2;
+            continue;
+        }
+
         if (char === '"' || char === "'") {
             quote = char;
+            state.inString = null;
             continue;
         }
 
@@ -230,11 +563,11 @@ function getHashCommentRanges(line) {
 /**
  * Velocity:
  *
- * ## comment
- * #* multiline comment *#
+ *   ## comment
+ *   #* multiline comment *#
  *
  * @param {string} line
- * @param {{ inBlockComment: boolean }} state
+ * @param {{ inBlockComment: boolean, inString: string|null }} state
  */
 function getVelocityCommentRanges(line, state) {
     const ranges = [];
