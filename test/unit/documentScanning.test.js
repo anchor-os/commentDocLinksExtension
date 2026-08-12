@@ -490,8 +490,13 @@ test("renaming a referenced target re-scans dependents so they discover the new 
     );
 
     // Mirror the onDidRenameFiles handler after the user moves b.md to c.md
-    // and updates a.js to reference the new name.
-    writeFixture("src/a.js", "// see documentation/c.md#anchorA\n");
+    // and updates a.js to reference the new name. The rewrite changes the
+    // file's byte length so the fileVersion token changes independently of
+    // filesystem mtime granularity.
+    writeFixture(
+        "src/a.js",
+        "// renamed target\n// see documentation/c.md#anchorA\n"
+    );
 
     const oldDependents = dependencyIndex.dependentsOf(bPath);
 

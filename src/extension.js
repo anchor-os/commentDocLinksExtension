@@ -286,21 +286,33 @@ export function activate(context) {
                     const oldPath = file.oldUri.fsPath;
                     const newPath = file.newUri.fsPath;
 
-                    // The renamed document may itself be an indexed source.
-                    // Drop its old-path entry and re-scan it at its new path
-                    // so its own dependencies are preserved (source rename).
-                    dependencyIndex.remove(oldPath);
-                    queueDocumentAtPath(newPath, PRIORITY.OPEN);
+                    // Snapshot the dependents before mutating the index:
+                    // remove(oldPath) drops the old path's own dependency
+                    // entries, so taking the snapshot afterwards would be
+                    // fragile if that ever changed the reverse index too.
+                    const oldDependents =
+                        dependencyIndex.dependentsOf(oldPath);
 
-                    // Sources that referenced the old path need to
-                    // re-discover it after the move (target rename): re-scan
-                    // them so the index reflects what they reference now —
-                    // possibly the new path — and refresh their diagnostics
-                    // because the old target may no longer exist.
-                    for (const dependentPath of
-                        dependencyIndex.dependentsOf(oldPath)) {
-                        queueDocumentAtPath(dependentPath, PRIORITY.OPEN);
+                    // Remove stale old-path index data.
+                    dependencyIndex.remove(oldPath);
+
+                    // Re-scan the renamed document at its new path.
+                    queueDocumentAtPath(
+                        newPath,
+                        PRIORITY.OPEN
+                    );
+
+                    // Re-scan every source that previously referenced the
+                    // old path: after a target rename they must discover the
+                    // new path (or report the old one as unresolved).
+                    for (const dependentPath of oldDependents) {
+                        queueDocumentAtPath(
+                            dependentPath,
+                            PRIORITY.OPEN
+                        );
                     }
+
+                    // Refresh diagnostics affected by the rename.
                     refreshDependentsOf(oldPath);
                     refreshDependentsOf(newPath);
                 }
