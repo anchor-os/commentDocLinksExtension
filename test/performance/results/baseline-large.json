@@ -1,0 +1,16 @@
+{
+  "tag": "baseline",
+  "size": "large",
+  "fileCount": 2000,
+  "scanCount": 1000,
+  "bytes": 558940,
+  "activationMs": 1998.98,
+  "activationMsMin": 1724.98,
+  "activationHeapDeltaMb": -2.14,
+  "scanThroughputMs": 180.32,
+  "scanThroughputMsMin": 163.77,
+  "firstDocumentMs": 0.76,
+  "firstDocumentMsMin": 0.72,
+  "responsiveDelayMs": 1773.45975,
+  "rssMb": 65.59
+}

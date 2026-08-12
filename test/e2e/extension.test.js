@@ -514,4 +514,286 @@ suite("Comment Doc Links extension", () => {
         );
     });
 
+    test("changing a referenced document updates dependent diagnostics only", async () => {
+        const sourceUri = vscode.Uri.file(
+            fixturePath("src", "util", "dep-index.js")
+        );
+        const markdownUri = vscode.Uri.file(
+            fixturePath("documentation", "dep-index.md")
+        );
+        const unrelatedUri = vscode.Uri.file(
+            fixturePath("src", "util", "bar.js")
+        );
+
+        await vscode.workspace.openTextDocument(sourceUri);
+        const markdownDoc =
+            await vscode.workspace.openTextDocument(markdownUri);
+        await vscode.workspace.openTextDocument(unrelatedUri);
+
+        const waitForDiagnostics = async (uri, predicate) => {
+            const deadline = Date.now() + 10000;
+
+            while (Date.now() < deadline) {
+                const current =
+                    vscode.languages.getDiagnostics(uri);
+
+                if (predicate(current)) {
+                    return current;
+                }
+
+                await new Promise((resolve) =>
+                    setTimeout(resolve, 100)
+                );
+            }
+
+            throw new Error(
+                `timed out waiting 10s for diagnostics of ${uri.fsPath}`
+            );
+        };
+
+        const messages = (uri) =>
+            vscode.languages.getDiagnostics(uri)
+                .map((diagnostic) => diagnostic.message);
+
+        const originalText = markdownDoc.getText();
+        const replacedText = originalText.replace(
+            "— alpha",
+            "— beta"
+        );
+
+        assert.notEqual(
+            replacedText,
+            originalText,
+            "the anchor rename must actually change the fixture"
+        );
+
+        const clean = await waitForDiagnostics(
+            sourceUri,
+            (current) => current.length === 0
+        );
+
+        assert.equal(
+            clean.length,
+            0,
+            "dep-index.js should start without diagnostics"
+        );
+
+        // Capture the unrelated document's diagnostics once its background
+        // scan has published them, so the post-edit assertion compares
+        // against a live baseline instead of hardcoded fixture text.
+        const unrelatedBaseline = (
+            await waitForDiagnostics(
+                unrelatedUri,
+                (current) =>
+                    current.some((diagnostic) =>
+                        diagnostic.message.includes("not found")
+                    )
+            )
+        ).map((diagnostic) => diagnostic.message);
+
+        const markdownEditor =
+            await vscode.window.showTextDocument(markdownDoc);
+
+        try {
+            await markdownEditor.edit((builder) => {
+                builder.replace(
+                    new vscode.Range(
+                        markdownDoc.positionAt(0),
+                        markdownDoc.positionAt(
+                            originalText.length
+                        )
+                    ),
+                    replacedText
+                );
+            });
+
+            const flagged = await waitForDiagnostics(
+                sourceUri,
+                (current) =>
+                    current.some((diagnostic) =>
+                        diagnostic.message.includes(
+                            "anchor not found"
+                        )
+                    )
+            );
+
+            const flaggedMessages =
+                flagged.map((diagnostic) => diagnostic.message);
+
+            assert.ok(
+                flaggedMessages.some((message) =>
+                    message.includes("alpha")
+                ),
+                `expected a missing-anchor diagnostic, got: ${flaggedMessages}`
+            );
+
+            assert.deepEqual(
+                messages(unrelatedUri),
+                unrelatedBaseline,
+                "unrelated bar.js diagnostics must be unchanged"
+            );
+        } finally {
+            const editedText = markdownDoc.getText();
+
+            await markdownEditor.edit((builder) => {
+                builder.replace(
+                    new vscode.Range(
+                        markdownDoc.positionAt(0),
+                        markdownDoc.positionAt(editedText.length)
+                    ),
+                    originalText
+                );
+            });
+
+            const restored = await waitForDiagnostics(
+                sourceUri,
+                (current) => current.length === 0
+            );
+
+            assert.equal(
+                restored.length,
+                0,
+                "dep-index.js diagnostics must clear once the anchor is restored"
+            );
+        }
+    });
+
+    test("rapid consecutive edits to a referenced document coalesce dependent refreshes", async () => {
+        const sourceUri = vscode.Uri.file(
+            fixturePath("src", "util", "dep-index.js")
+        );
+        const markdownUri = vscode.Uri.file(
+            fixturePath("documentation", "dep-index.md")
+        );
+
+        await vscode.workspace.openTextDocument(sourceUri);
+        const markdownDoc =
+            await vscode.workspace.openTextDocument(markdownUri);
+
+        const waitForDiagnostics = async (uri, predicate) => {
+            const deadline = Date.now() + 10000;
+
+            while (Date.now() < deadline) {
+                const current =
+                    vscode.languages.getDiagnostics(uri);
+
+                if (predicate(current)) {
+                    return current;
+                }
+
+                await new Promise((resolve) =>
+                    setTimeout(resolve, 100)
+                );
+            }
+
+            throw new Error(
+                `timed out waiting 10s for diagnostics of ${uri.fsPath}`
+            );
+        };
+
+        const clean = await waitForDiagnostics(
+            sourceUri,
+            (current) => current.length === 0
+        );
+
+        assert.equal(
+            clean.length,
+            0,
+            "dep-index.js should start without diagnostics"
+        );
+
+        const markdownEditor =
+            await vscode.window.showTextDocument(markdownDoc);
+
+        const originalText = markdownDoc.getText();
+
+        const suffixes = ["beta", "gamma", "delta"];
+
+        try {
+            // A fast burst of edits to the referenced markdown heading.
+            // Every edit invalidates the `alpha` anchor; if dependent
+            // diagnostics refreshed per keystroke, each one would re-publish
+            // dep-index.js synchronously.
+            for (const suffix of suffixes) {
+                const text = originalText.replace(
+                    "— alpha",
+                    `— ${suffix}`
+                );
+                const currentText = markdownDoc.getText();
+
+                assert.notEqual(
+                    text,
+                    currentText,
+                    "each burst edit must actually change the document"
+                );
+
+                await markdownEditor.edit((builder) => {
+                    builder.replace(
+                        new vscode.Range(
+                            markdownDoc.positionAt(0),
+                            markdownDoc.positionAt(
+                                currentText.length
+                            )
+                        ),
+                        text
+                    );
+                });
+            }
+
+            // The whole burst lands well inside the 250 ms debounce window,
+            // so the dependent must still show its last published diagnostics:
+            // a per-keystroke refresh would already flag it by now.
+            const duringBurst =
+                vscode.languages.getDiagnostics(sourceUri);
+
+            assert.equal(
+                duringBurst.length,
+                0,
+                "rapid edits must not refresh dependents per keystroke"
+            );
+
+            // Once the burst settles, the single coalesced pass must
+            // eventually re-publish the dependent against the final text.
+            const flagged = await waitForDiagnostics(
+                sourceUri,
+                (current) =>
+                    current.some((diagnostic) =>
+                        diagnostic.message.includes(
+                            "anchor not found"
+                        )
+                    )
+            );
+
+            assert.ok(
+                flagged.some((diagnostic) =>
+                    diagnostic.message.includes("alpha")
+                ),
+                "the coalesced refresh must report the missing alpha anchor"
+            );
+        } finally {
+            await markdownEditor.edit((builder) => {
+                const editedText = markdownDoc.getText();
+
+                builder.replace(
+                    new vscode.Range(
+                        markdownDoc.positionAt(0),
+                        markdownDoc.positionAt(editedText.length)
+                    ),
+                    originalText
+                );
+            });
+
+            const restored = await waitForDiagnostics(
+                sourceUri,
+                (current) => current.length === 0
+            );
+
+            assert.equal(
+                restored.length,
+                0,
+                "dep-index.js diagnostics must clear once the anchor is restored"
+            );
+        }
+    });
+
 });
