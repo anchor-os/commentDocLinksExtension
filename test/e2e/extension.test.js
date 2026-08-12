@@ -839,6 +839,10 @@ suite("Comment Doc Links extension", () => {
             `export function renamed() {\n` +
             `    return "ok";\n` +
             `}\n`;
+        const brokenSourceText = originalSourceText.replace(
+            "#alpha",
+            "#missing"
+        );
         const originalTargetText =
             `# Rename fixture\n` +
             `\n` +
@@ -846,31 +850,61 @@ suite("Comment Doc Links extension", () => {
             `\n` +
             `Linked heading used by the rename E2E test.\n`;
 
+        // The source starts with a deliberately broken reference. Waiting
+        // for its "anchor not found" diagnostic proves the background scan
+        // has actually indexed the source and built its reverse dependency
+        // on the target, so the rename handler is guaranteed to find the
+        // source as a dependent when it fires.
         await vscode.workspace.fs.writeFile(
             sourceUri,
-            Buffer.from(originalSourceText)
+            Buffer.from(brokenSourceText)
         );
         await vscode.workspace.fs.writeFile(
             targetUri,
             Buffer.from(originalTargetText)
         );
 
-        const sourceDoc =
-            await vscode.workspace.openTextDocument(sourceUri);
-        await vscode.workspace.openTextDocument(targetUri);
-
-        const clean = await waitForDiagnostics(
-            sourceUri,
-            (current) => current.length === 0
-        );
-
-        assert.equal(
-            clean.length,
-            0,
-            "the renamed source should start without diagnostics"
-        );
+        let sourceDoc;
 
         try {
+            sourceDoc =
+                await vscode.workspace.openTextDocument(sourceUri);
+            await vscode.workspace.openTextDocument(targetUri);
+
+            await waitForDiagnostics(
+                sourceUri,
+                (current) =>
+                    current.some((diagnostic) =>
+                        diagnostic.message.includes(
+                            "anchor not found"
+                        ) &&
+                        diagnostic.message.includes("missing")
+                    )
+            );
+
+            // Fix the reference and wait for the diagnostics to clear:
+            // that proves the re-scan re-linked the source to the target
+            // before the rename below.
+            const sourceEditor =
+                await vscode.window.showTextDocument(sourceDoc);
+
+            await sourceEditor.edit((builder) => {
+                builder.replace(
+                    new vscode.Range(
+                        sourceDoc.positionAt(0),
+                        sourceDoc.positionAt(
+                            brokenSourceText.length
+                        )
+                    ),
+                    originalSourceText
+                );
+            });
+
+            await waitForDiagnostics(
+                sourceUri,
+                (current) => current.length === 0
+            );
+
             // A real rename through the workbench: WorkspaceEdit.renameFile
             // goes through the same path as an explorer rename, so
             // onDidRenameFiles fires and the extension re-indexes.
@@ -920,9 +954,6 @@ suite("Comment Doc Links extension", () => {
                 originalSourceText,
                 "the repoint must actually change the source"
             );
-
-            const sourceEditor =
-                await vscode.window.showTextDocument(sourceDoc);
 
             await sourceEditor.edit((builder) => {
                 builder.replace(
@@ -993,24 +1024,26 @@ suite("Comment Doc Links extension", () => {
         } finally {
             // Restore the source comment, then remove the owned files so
             // the shared fixture workspace stays pristine.
-            const currentSourceText = sourceDoc.getText();
-
-            if (currentSourceText !== originalSourceText) {
+            if (sourceDoc) {
                 try {
-                    const sourceEditor = await vscode.window
-                        .showTextDocument(sourceDoc);
+                    const currentSourceText = sourceDoc.getText();
 
-                    await sourceEditor.edit((builder) => {
-                        builder.replace(
-                            new vscode.Range(
-                                sourceDoc.positionAt(0),
-                                sourceDoc.positionAt(
-                                    currentSourceText.length
-                                )
-                            ),
-                            originalSourceText
-                        );
-                    });
+                    if (currentSourceText !== originalSourceText) {
+                        const sourceEditor = await vscode.window
+                            .showTextDocument(sourceDoc);
+
+                        await sourceEditor.edit((builder) => {
+                            builder.replace(
+                                new vscode.Range(
+                                    sourceDoc.positionAt(0),
+                                    sourceDoc.positionAt(
+                                        currentSourceText.length
+                                    )
+                                ),
+                                originalSourceText
+                            );
+                        });
+                    }
                 } catch {
                     // The source document may already be gone.
                 }
