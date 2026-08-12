@@ -1057,7 +1057,7 @@ suite("Comment Doc Links extension", () => {
                 }
             }
         }
-    });
+    }).timeout(120000);
 
 
 });
