@@ -796,4 +796,268 @@ suite("Comment Doc Links extension", () => {
         }
     });
 
+    test("renaming a referenced documentation file refreshes its dependents", async () => {
+        const waitForDiagnostics = async (uri, predicate) => {
+            const deadline = Date.now() + 10000;
+
+            while (Date.now() < deadline) {
+                const current =
+                    vscode.languages.getDiagnostics(uri);
+
+                if (predicate(current)) {
+                    return current;
+                }
+
+                await new Promise((resolve) =>
+                    setTimeout(resolve, 100)
+                );
+            }
+
+            throw new Error(
+                `timed out waiting 10s for diagnostics of ${uri.fsPath}`
+            );
+        };
+
+        // The fixture workspace is shared by several concurrently running
+        // extension hosts, so this test owns uniquely named files instead of
+        // mutating the canonical fixtures.
+        const id = `${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2, 8)}`;
+        const sourceUri = vscode.Uri.file(
+            fixturePath("src", "util", `rename-${id}.js`)
+        );
+        const targetUri = vscode.Uri.file(
+            fixturePath("documentation", `rename-${id}.md`)
+        );
+        const movedUri = vscode.Uri.file(
+            fixturePath("documentation", `rename-${id}-moved.md`)
+        );
+
+        const originalSourceText =
+            `// See documentation/rename-${id}.md#alpha\n` +
+            `export function renamed() {\n` +
+            `    return "ok";\n` +
+            `}\n`;
+        const brokenSourceText = originalSourceText.replace(
+            "#alpha",
+            "#missing"
+        );
+        const originalTargetText =
+            `# Rename fixture\n` +
+            `\n` +
+            `## src/util/rename-${id}.js — alpha\n` +
+            `\n` +
+            `Linked heading used by the rename E2E test.\n`;
+
+        // The source starts with a deliberately broken reference. Waiting
+        // for its "anchor not found" diagnostic proves the background scan
+        // has actually indexed the source and built its reverse dependency
+        // on the target, so the rename handler is guaranteed to find the
+        // source as a dependent when it fires.
+        await vscode.workspace.fs.writeFile(
+            sourceUri,
+            Buffer.from(brokenSourceText)
+        );
+        await vscode.workspace.fs.writeFile(
+            targetUri,
+            Buffer.from(originalTargetText)
+        );
+
+        let sourceDoc;
+
+        try {
+            sourceDoc =
+                await vscode.workspace.openTextDocument(sourceUri);
+            await vscode.workspace.openTextDocument(targetUri);
+
+            await waitForDiagnostics(
+                sourceUri,
+                (current) =>
+                    current.some((diagnostic) =>
+                        diagnostic.message.includes(
+                            "anchor not found"
+                        ) &&
+                        diagnostic.message.includes("missing")
+                    )
+            );
+
+            // Fix the reference and wait for the diagnostics to clear:
+            // that proves the re-scan re-linked the source to the target
+            // before the rename below.
+            const sourceEditor =
+                await vscode.window.showTextDocument(sourceDoc);
+
+            await sourceEditor.edit((builder) => {
+                builder.replace(
+                    new vscode.Range(
+                        sourceDoc.positionAt(0),
+                        sourceDoc.positionAt(
+                            brokenSourceText.length
+                        )
+                    ),
+                    originalSourceText
+                );
+            });
+
+            await waitForDiagnostics(
+                sourceUri,
+                (current) => current.length === 0
+            );
+
+            // A real rename through the workbench: WorkspaceEdit.renameFile
+            // goes through the same path as an explorer rename, so
+            // onDidRenameFiles fires and the extension re-indexes.
+            const renameAway = new vscode.WorkspaceEdit();
+            renameAway.renameFile(targetUri, movedUri);
+            const applied =
+                await vscode.workspace.applyEdit(renameAway);
+
+            assert.equal(
+                applied,
+                true,
+                "the referenced target rename must apply"
+            );
+
+            // The dependent still points at the old path, which no longer
+            // exists: the rename handler must re-publish its diagnostics.
+            const broken = await waitForDiagnostics(
+                sourceUri,
+                (current) =>
+                    current.some((diagnostic) =>
+                        diagnostic.message.includes(
+                            "not found"
+                        )
+                    )
+            );
+
+            assert.ok(
+                broken.some((diagnostic) =>
+                    diagnostic.message.includes(
+                        `rename-${id}.md`
+                    )
+                ),
+                `expected a missing-file diagnostic, got: ${
+                    broken.map((diagnostic) => diagnostic.message)
+                }`
+            );
+
+            // The developer updates the comment to the new path. The edit
+            // re-scans the source and its diagnostics clear again.
+            const repointedSource = originalSourceText.replace(
+                `rename-${id}.md#alpha`,
+                `rename-${id}-moved.md#alpha`
+            );
+
+            assert.notEqual(
+                repointedSource,
+                originalSourceText,
+                "the repoint must actually change the source"
+            );
+
+            await sourceEditor.edit((builder) => {
+                builder.replace(
+                    new vscode.Range(
+                        sourceDoc.positionAt(0),
+                        sourceDoc.positionAt(
+                            originalSourceText.length
+                        )
+                    ),
+                    repointedSource
+                );
+            });
+
+            await waitForDiagnostics(
+                sourceUri,
+                (current) => current.length === 0
+            );
+
+            // A later change to the renamed target must propagate to the
+            // dependent now that it tracks the new path.
+            const movedDoc =
+                await vscode.workspace.openTextDocument(movedUri);
+            const movedEditor =
+                await vscode.window.showTextDocument(movedDoc);
+
+            const currentMovedText = movedDoc.getText();
+            const anchorBrokenText = currentMovedText.replace(
+                "— alpha",
+                "— beta"
+            );
+
+            assert.notEqual(
+                anchorBrokenText,
+                currentMovedText,
+                "the anchor break must actually change the target"
+            );
+
+            await movedEditor.edit((builder) => {
+                builder.replace(
+                    new vscode.Range(
+                        movedDoc.positionAt(0),
+                        movedDoc.positionAt(
+                            currentMovedText.length
+                        )
+                    ),
+                    anchorBrokenText
+                );
+            });
+
+            const flagged = await waitForDiagnostics(
+                sourceUri,
+                (current) =>
+                    current.some((diagnostic) =>
+                        diagnostic.message.includes(
+                            "anchor not found"
+                        )
+                    )
+            );
+
+            assert.ok(
+                flagged.some((diagnostic) =>
+                    diagnostic.message.includes("alpha")
+                ),
+                `expected a missing-anchor diagnostic, got: ${
+                    flagged.map((diagnostic) => diagnostic.message)
+                }`
+            );
+        } finally {
+            // Restore the source comment, then remove the owned files so
+            // the shared fixture workspace stays pristine.
+            if (sourceDoc) {
+                try {
+                    const currentSourceText = sourceDoc.getText();
+
+                    if (currentSourceText !== originalSourceText) {
+                        const sourceEditor = await vscode.window
+                            .showTextDocument(sourceDoc);
+
+                        await sourceEditor.edit((builder) => {
+                            builder.replace(
+                                new vscode.Range(
+                                    sourceDoc.positionAt(0),
+                                    sourceDoc.positionAt(
+                                        currentSourceText.length
+                                    )
+                                ),
+                                originalSourceText
+                            );
+                        });
+                    }
+                } catch {
+                    // The source document may already be gone.
+                }
+            }
+
+            for (const uri of [sourceUri, targetUri, movedUri]) {
+                try {
+                    await vscode.workspace.fs.delete(uri);
+                } catch {
+                    // The file is already absent; nothing to clean up.
+                }
+            }
+        }
+    }).timeout(120000);
+
+
 });
