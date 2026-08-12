@@ -331,3 +331,104 @@ test("pendingCount and runningCount report queue state", async () => {
     assert.equal(scheduler.runningCount, 0);
     assert.equal(scheduler.pendingCount, 0);
 });
+
+test("a second job for a running key waits instead of racing it", async () => {
+    const scheduler = new ScanScheduler({ concurrency: 3 });
+    const events = [];
+    let release;
+
+    const gate = new Promise((resolve) => {
+        release = resolve;
+    });
+
+    scheduler.enqueue({
+        key: "a",
+        priority: PRIORITY.OPEN,
+        run: async () => {
+            events.push("first:start");
+            await gate;
+            events.push("first:end");
+        }
+    });
+
+    // Let the deferred pump start the first job so it occupies the key.
+    await tick();
+
+    assert.deepEqual(events, ["first:start"]);
+
+    scheduler.enqueue({
+        key: "a",
+        priority: PRIORITY.ACTIVE,
+        run: () => {
+            events.push("second:start");
+        }
+    });
+
+    // Several pumps must not be enough to start the second job: the key is
+    // busy, and a concurrent run could write its result out of order.
+    await tick();
+    await tick();
+
+    assert.deepEqual(
+        events,
+        ["first:start"],
+        "the second job for the same key must not start yet"
+    );
+    assert.equal(scheduler.runningCount, 1);
+    assert.equal(scheduler.pendingCount, 1);
+
+    release();
+
+    await scheduler.idle();
+
+    assert.deepEqual(
+        events,
+        ["first:start", "first:end", "second:start"],
+        "the queued job must run only after the running one completes"
+    );
+});
+
+test("a busy key does not block jobs for other keys", async () => {
+    const scheduler = new ScanScheduler({ concurrency: 3 });
+    const started = [];
+    let release;
+
+    const gate = new Promise((resolve) => {
+        release = resolve;
+    });
+
+    scheduler.enqueue({
+        key: "busy",
+        priority: PRIORITY.OPEN,
+        run: async () => {
+            started.push("busy");
+            await gate;
+        }
+    });
+
+    await tick();
+
+    // A repeat of the busy key must wait, but an unrelated key must still
+    // use the free concurrency slot.
+    scheduler.enqueue({
+        key: "busy",
+        priority: PRIORITY.OPEN,
+        run: () => started.push("busy-again")
+    });
+    scheduler.enqueue({
+        key: "other",
+        priority: PRIORITY.OPEN,
+        run: () => started.push("other")
+    });
+
+    await tick();
+    await tick();
+
+    assert.deepEqual(started, ["busy", "other"]);
+
+    release();
+
+    await scheduler.idle();
+
+    assert.deepEqual(started, ["busy", "other", "busy-again"]);
+});

@@ -16,5 +16,5 @@ Critical invariants:
 - worktrees resolve against the correct checkout;
 - unsaved text wins over disk;
 - dependency mappings survive create/delete/rename/edit;
-- queued work is deduplicated per path and every job re-checks the recorded scan version before indexing (note: jobs are not serialized per path, so a job that is already running is not cancelled by a newer one — scan results are last-write-wins);
+- stale jobs cannot overwrite newer state: scan jobs are serialized per path, and each one re-checks the version before and after reading;
 - external references are not local missing-file errors.
