@@ -1,0 +1,19 @@
+{
+  "tag": "after",
+  "size": "medium",
+  "fileCount": 200,
+  "scanCount": 100,
+  "bytes": 54985,
+  "activationMs": 2.8,
+  "activationMsMin": 2.69,
+  "activationSyncMs": 0,
+  "activationHeapDeltaMb": 0,
+  "scanThroughputMs": 3.78,
+  "scanThroughputMsMin": 3.34,
+  "firstDocumentMs": 0.78,
+  "firstDocumentMsMin": 0.77,
+  "drainMs": 122.85,
+  "rescanMs": 0.03,
+  "responsiveDelayMs": 23.6545,
+  "rssMb": 61.45
+}
