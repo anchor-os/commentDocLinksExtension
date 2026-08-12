@@ -537,3 +537,110 @@ test("renaming a referenced target re-scans dependents so they discover the new 
         "the old target path must no longer track dependents"
     );
 });
+
+test("a slow disk scan cannot overwrite the state written by a newer scan of the same path", async () => {
+    const aPath = writeFixture(
+        "race/a.js",
+        "// see race/old.md#anchorA\n"
+    );
+    const oldTargetPath = writeFixture("race/old.md", "# old\n");
+    const newTargetPath = writeFixture("race/new.md", "# new\n");
+
+    const staleText = fs.readFileSync(aPath, "utf8");
+
+    const dependencyIndex = new ReferenceDependencyIndex();
+    const scanner = new ScanScheduler({ concurrency: 3 });
+
+    let reads = 0;
+    let concurrentReads = 0;
+    let maxConcurrentReads = 0;
+    let release;
+
+    const gate = new Promise((resolve) => {
+        release = resolve;
+    });
+
+    const documentScanner = createDocumentScanner({
+        dependencyIndex,
+        scanner,
+        contextFor: () => ({
+            resolveTargetPath(relativePath) {
+                return resolveInRoot(root, relativePath);
+            }
+        }),
+        openDocumentByPath: () => undefined,
+        readFile: async (fsPath) => {
+            reads++;
+            concurrentReads++;
+            maxConcurrentReads = Math.max(
+                maxConcurrentReads,
+                concurrentReads
+            );
+
+            try {
+                // The first read is slow and observes the pre-change bytes,
+                // which is exactly the situation in which a stale job could
+                // publish its result last.
+                if (reads === 1) {
+                    await gate;
+                    return staleText;
+                }
+
+                return await fs.promises.readFile(fsPath, "utf8");
+            } finally {
+                concurrentReads--;
+            }
+        },
+        updateDiagnostics: () => {},
+        refreshDependents: () => {},
+        openDocuments: () => [],
+        activeDocument: () => undefined
+    });
+
+    documentScanner.queueDocumentAtPath(aPath, PRIORITY.TARGET);
+
+    // Wait for the first job to reach its (blocked) read.
+    while (reads === 0) {
+        await new Promise((resolve) => setImmediate(resolve));
+    }
+
+    // The file changes on disk and a fresh scan is queued while the older
+    // job is still in flight.
+    writeFixture(
+        "race/a.js",
+        "// updated\n// see race/new.md#anchorA\n"
+    );
+
+    documentScanner.queueDocumentAtPath(aPath, PRIORITY.ACTIVE);
+
+    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(
+        maxConcurrentReads,
+        1,
+        "two scans of the same path must never run concurrently"
+    );
+
+    release();
+
+    await scanner.idle();
+
+    assert.deepEqual(
+        dependencyIndex.targetsOf(aPath),
+        [newTargetPath],
+        "the newest scan must win; the stale job may not overwrite it"
+    );
+
+    assert.deepEqual(
+        dependencyIndex.dependentsOf(oldTargetPath),
+        [],
+        "the stale target must not survive in the dependency index"
+    );
+
+    assert.equal(
+        dependencyIndex.isCurrent(aPath, fileVersion(aPath)),
+        true,
+        "the index must be marked current at the on-disk version"
+    );
+});

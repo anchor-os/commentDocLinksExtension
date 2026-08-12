@@ -31,12 +31,16 @@ export const PRIORITY = Object.freeze({
  *   - Duplicate work is dropped: only one pending job per key exists. A
  *     higher-priority job for the same key replaces the pending one, which
  *     is how stale queued work is cancelled without extra machinery.
+ *   - Serialized per key: at most one job per key runs at a time. A job
+ *     enqueued for a key that is already running stays pending until that
+ *     job finishes, so two scans of the same path can never interleave and
+ *     write their results out of order.
  *   - Best-effort: one failing job can never break the queue. Failures are
  *     reported to an optional `onError` callback.
  *
- * Staleness of a job that is ALREADY RUNNING is the caller's concern: the
- * job re-checks the document version inside its `run` closure and aborts
- * when it no longer matches.
+ * Because jobs are serialized per key, a job always observes the state left
+ * by the previous job for the same key, and the version re-check inside its
+ * `run` closure is enough to skip work that is no longer needed.
  */
 export class ScanScheduler {
 
@@ -48,6 +52,14 @@ export class ScanScheduler {
 
     /** @type {Map<string, { key: string, priority: number, run: () => Promise<void>|void }>} */
     #pending = new Map();
+
+    /**
+     * Keys with a job currently running. A pending job whose key is in here
+     * waits its turn instead of racing the running job.
+     *
+     * @type {Set<string>}
+     */
+    #active = new Set();
 
     /** @type {Array<() => void>} */
     #waiters = [];
@@ -116,6 +128,9 @@ export class ScanScheduler {
     /**
      * Start the next batch of jobs. Keeps no more than {@link #concurrency}
      * jobs running and picks the highest-priority pending job first.
+     *
+     * Keys with a running job are skipped, not started: they are picked up
+     * again by the pump scheduled when that job finishes.
      */
     #pump() {
         while (
@@ -126,6 +141,10 @@ export class ScanScheduler {
             let bestPriority = Infinity;
 
             for (const [key, job] of this.#pending) {
+                if (this.#active.has(key)) {
+                    continue;
+                }
+
                 if (job.priority < bestPriority) {
                     bestPriority = job.priority;
                     bestKey = key;
@@ -133,7 +152,8 @@ export class ScanScheduler {
             }
 
             // A pending job can still lose the comparison when its priority
-            // is NaN; stop rather than attempting to run `undefined`.
+            // is NaN, and every remaining key may be running already; stop
+            // rather than attempting to run `undefined`.
             if (bestKey === null) {
                 break;
             }
@@ -141,6 +161,7 @@ export class ScanScheduler {
             const job = this.#pending.get(bestKey);
 
             this.#pending.delete(bestKey);
+            this.#active.add(bestKey);
             this.#running++;
 
             void this.#runJob(job);
@@ -158,6 +179,7 @@ export class ScanScheduler {
             this.#onError?.(error, job.key);
         } finally {
             this.#running--;
+            this.#active.delete(job.key);
 
             // Let timers, input and rendering run before the next batch.
             await new Promise((resolve) => setImmediate(resolve));

@@ -116,6 +116,17 @@ export function createDocumentScanner(deps) {
 
                 const text = await readFile(fsPath);
 
+                // The file can be rewritten while it is being read, in
+                // which case the text above would be cached under a version
+                // token that no longer describes it. Drop the torn read; the
+                // next scan of a document that references this path queues
+                // it again.
+                if (
+                    await fileVersionAsync(fsPath) !== version
+                ) {
+                    return;
+                }
+
                 indexDocument(
                     fsPath,
                     documentFromText(
