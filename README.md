@@ -96,9 +96,27 @@ by an external system.
 - Kotlin
 - Swift
 
+## Editions
+
+Comment Doc Links is implemented for two families of editors. Both implement
+the same specification and the same reference syntax described above — they are
+independent builds that share no code at runtime.
+
+| Editor                          | Implementation            | Package        |
+| ------------------------------- | ------------------------- | -------------- |
+| Visual Studio Code              | `src/` (TypeScript)       | VSIX extension |
+| WebStorm / IntelliJ-based IDEs  | `jetbrains/` (Kotlin)     | Plugin ZIP     |
+
+The VS Code extension lives under `src/` and is packaged as a `.vsix`. The
+JetBrains plugin lives under `jetbrains/` (a standalone Gradle/Kotlin project)
+and is packaged as a plugin ZIP. The two builds are isolated: the Gradle build
+does not depend on npm, and the npm build does not depend on Gradle.
+
 ## Requirements
 
 - Visual Studio Code 1.106.0 or newer.
+- **WebStorm 2026.2.1 or other IntelliJ-based IDEs** (JetBrains plugin in
+  `jetbrains/`).
 
 ## Extension Settings
 

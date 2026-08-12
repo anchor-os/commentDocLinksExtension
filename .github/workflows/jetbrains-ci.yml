@@ -1,0 +1,52 @@
+name: JetBrains Plugin CI
+
+# Isolated from the VS Code / Node CI. Only runs for changes under jetbrains/.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'jetbrains/**'
+      - '.github/workflows/jetbrains-ci.yml'
+  pull_request:
+    paths:
+      - 'jetbrains/**'
+      - '.github/workflows/jetbrains-ci.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jetbrains-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build, test and package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        working-directory: jetbrains
+        run: chmod +x ./gradlew
+
+      - name: Build, test and package plugin
+        working-directory: jetbrains
+        run: ./gradlew buildPlugin
+
+      - name: Upload plugin ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: comment-doc-links-jetbrains
+          path: jetbrains/build/distributions/*.zip
+          if-no-files-found: error
