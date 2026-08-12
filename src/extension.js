@@ -216,6 +216,7 @@ export function activate(context) {
 
     const {
         queueOpenDocument,
+        queueDocumentAtPath,
         queueAllOpenDocuments
     } = documentScanner;
 
@@ -282,9 +283,26 @@ export function activate(context) {
         vscode.workspace.onDidRenameFiles(
             (event) => {
                 for (const file of event.files) {
-                    dependencyIndex.remove(file.oldUri.fsPath);
-                    refreshDependentsOf(file.oldUri.fsPath);
-                    refreshDependentsOf(file.newUri.fsPath);
+                    const oldPath = file.oldUri.fsPath;
+                    const newPath = file.newUri.fsPath;
+
+                    // The renamed document may itself be an indexed source.
+                    // Drop its old-path entry and re-scan it at its new path
+                    // so its own dependencies are preserved (source rename).
+                    dependencyIndex.remove(oldPath);
+                    queueDocumentAtPath(newPath, PRIORITY.OPEN);
+
+                    // Sources that referenced the old path need to
+                    // re-discover it after the move (target rename): re-scan
+                    // them so the index reflects what they reference now —
+                    // possibly the new path — and refresh their diagnostics
+                    // because the old target may no longer exist.
+                    for (const dependentPath of
+                        dependencyIndex.dependentsOf(oldPath)) {
+                        queueDocumentAtPath(dependentPath, PRIORITY.OPEN);
+                    }
+                    refreshDependentsOf(oldPath);
+                    refreshDependentsOf(newPath);
                 }
             }
         ),

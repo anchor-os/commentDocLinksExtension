@@ -10,7 +10,8 @@ import { createDocumentScanner }
     from "../../src/scanning/documentScanning.js";
 
 import {
-    ScanScheduler
+    ScanScheduler,
+    PRIORITY
 } from "../../src/scanning/scanScheduler.js";
 
 import {
@@ -386,4 +387,148 @@ test("queueAllOpenDocuments scans active first and every other open document", a
     assert.deepEqual(dependencyIndex.targetsOf(dPath), [
         path.join(root, "documentation", "missing.md")
     ]);
+});
+
+test("renaming a source file re-indexes the new path so dependencies are preserved", async () => {
+    const aPath = writeFixture("src/a.js", "// see documentation/b.md#anchorA\n");
+    const aRenamedPath = writeFixture(
+        "src/a-renamed.js",
+        "// see documentation/b.md#anchorA\n"
+    );
+    const bPath = writeFixture(
+        "documentation/b.md",
+        "## src/a.js — anchorA\n"
+    );
+
+    const { documentScanner, dependencyIndex, scanner } =
+        harness({ open: [] });
+
+    documentScanner.queueDocumentAtPath(aPath, PRIORITY.OPEN);
+    await scanner.idle();
+
+    assert.deepEqual(
+        dependencyIndex.dependentsOf(bPath),
+        [aPath],
+        "the source must be a tracked dependent of its referenced target"
+    );
+
+    // Mirror the onDidRenameFiles handler: drop the old path, re-scan the
+    // renamed file, and re-scan the documents that referenced the old path.
+    const oldDependents = dependencyIndex.dependentsOf(aPath);
+
+    dependencyIndex.remove(aPath);
+
+    documentScanner.queueDocumentAtPath(
+        aRenamedPath,
+        PRIORITY.OPEN
+    );
+
+    for (const dependentPath of oldDependents) {
+        documentScanner.queueDocumentAtPath(
+            dependentPath,
+            PRIORITY.OPEN
+        );
+    }
+
+    await scanner.idle();
+
+    assert.equal(
+        dependencyIndex.isCurrent(
+            aRenamedPath,
+            fileVersion(aRenamedPath)
+        ),
+        true,
+        "the renamed source must be scanned at its new path"
+    );
+
+    assert.deepEqual(
+        dependencyIndex.targetsOf(aRenamedPath),
+        [bPath],
+        "the renamed source must keep its original dependencies"
+    );
+
+    assert.deepEqual(
+        dependencyIndex.dependentsOf(bPath),
+        [aRenamedPath],
+        "the renamed source must remain a dependent of its target"
+    );
+
+    assert.equal(
+        dependencyIndex.isCurrent(aPath, fileVersion(aPath)),
+        false,
+        "the old path must no longer be indexed"
+    );
+
+    assert.deepEqual(
+        dependencyIndex.dependentsOf(aPath),
+        [],
+        "nothing may depend on the old source path"
+    );
+});
+
+test("renaming a referenced target re-scans dependents so they discover the new path", async () => {
+    const aPath = writeFixture("src/a.js", "// see documentation/b.md#anchorA\n");
+    const bPath = writeFixture(
+        "documentation/b.md",
+        "## src/a.js — anchorA\n"
+    );
+    const cPath = writeFixture(
+        "documentation/c.md",
+        "## src/a.js — anchorA\n"
+    );
+
+    const { documentScanner, dependencyIndex, scanner } =
+        harness({ open: [] });
+
+    documentScanner.queueDocumentAtPath(aPath, PRIORITY.OPEN);
+    await scanner.idle();
+
+    assert.deepEqual(
+        dependencyIndex.dependentsOf(bPath),
+        [aPath],
+        "a.js must depend on the old target path before the rename"
+    );
+
+    // Mirror the onDidRenameFiles handler after the user moves b.md to c.md
+    // and updates a.js to reference the new name.
+    writeFixture("src/a.js", "// see documentation/c.md#anchorA\n");
+
+    const oldDependents = dependencyIndex.dependentsOf(bPath);
+
+    dependencyIndex.remove(bPath);
+
+    documentScanner.queueDocumentAtPath(cPath, PRIORITY.OPEN);
+
+    for (const dependentPath of oldDependents) {
+        documentScanner.queueDocumentAtPath(
+            dependentPath,
+            PRIORITY.OPEN
+        );
+    }
+
+    await scanner.idle();
+
+    assert.deepEqual(
+        dependencyIndex.targetsOf(aPath),
+        [cPath],
+        "the dependent must be re-scanned and discover the renamed target"
+    );
+
+    assert.deepEqual(
+        dependencyIndex.dependentsOf(cPath),
+        [aPath],
+        "future changes to the renamed target must refresh the dependent"
+    );
+
+    assert.deepEqual(
+        dependencyIndex.targetsOf(cPath),
+        [aPath],
+        "the renamed target must itself be re-scanned at its new path"
+    );
+
+    assert.deepEqual(
+        dependencyIndex.dependentsOf(bPath),
+        [],
+        "the old target path must no longer track dependents"
+    );
 });
