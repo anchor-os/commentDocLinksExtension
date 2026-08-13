@@ -6,7 +6,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
 class ReferenceParserTest {
-
     // ---- detectReferenceSpans ----
 
     @Test

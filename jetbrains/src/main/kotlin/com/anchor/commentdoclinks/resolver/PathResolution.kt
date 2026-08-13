@@ -30,7 +30,7 @@ fun hasGitEntry(directory: String): Boolean {
  */
 fun findCheckoutRoot(
     directory: String,
-    hasEntry: (String) -> Boolean = ::hasGitEntry
+    hasEntry: (String) -> Boolean = ::hasGitEntry,
 ): String? {
     var current = Paths.get(directory).toAbsolutePath().normalize()
     while (true) {
@@ -40,7 +40,10 @@ fun findCheckoutRoot(
     }
 }
 
-private data class RealpathResult(val path: String, val suffix: List<String>)
+private data class RealpathResult(
+    val path: String,
+    val suffix: List<String>,
+)
 
 /**
  * Real path of the deepest existing ancestor of [candidate], plus the
@@ -51,11 +54,12 @@ private fun realpathPrefix(candidate: String): RealpathResult? {
     var current = Paths.get(candidate).normalize()
     val suffix = mutableListOf<String>()
     while (true) {
-        val real = try {
-            current.toRealPath().toString()
-        } catch (_: Exception) {
-            null
-        }
+        val real =
+            try {
+                current.toRealPath().toString()
+            } catch (_: Exception) {
+                null
+            }
         if (real != null) return RealpathResult(real, suffix.toList())
         val parent = current.parent ?: return null
         suffix.add(0, current.fileName?.toString() ?: "")
@@ -81,26 +85,36 @@ private fun escapesRoot(relative: Path): Boolean =
  *
  * @return the resolved absolute path, or null when it escapes the root.
  */
-fun resolveInRoot(root: String, relativePath: String): String? {
-    val normalizedRoot = Paths.get(root).toAbsolutePath().normalize().toString()
+fun resolveInRoot(
+    root: String,
+    relativePath: String,
+): String? {
+    val normalizedRoot =
+        Paths
+            .get(root)
+            .toAbsolutePath()
+            .normalize()
+            .toString()
     val base = Paths.get(normalizedRoot)
     val resolved = base.resolve(relativePath).normalize()
 
-    val lexical = try {
-        base.relativize(resolved)
-    } catch (_: IllegalArgumentException) {
-        return null
-    }
+    val lexical =
+        try {
+            base.relativize(resolved)
+        } catch (_: IllegalArgumentException) {
+            return null
+        }
     if (escapesRoot(lexical)) return null
 
     val rootReal = realpathPrefix(normalizedRoot) ?: return null
     val targetReal = realpathPrefix(resolved.toString()) ?: return null
 
-    val physical = try {
-        Paths.get(rootReal.path).relativize(Paths.get(targetReal.path))
-    } catch (_: IllegalArgumentException) {
-        return null
-    }
+    val physical =
+        try {
+            Paths.get(rootReal.path).relativize(Paths.get(targetReal.path))
+        } catch (_: IllegalArgumentException) {
+            return null
+        }
     if (escapesRoot(physical)) return null
 
     return Paths.get(targetReal.path, *targetReal.suffix.toTypedArray()).toString()
@@ -109,14 +123,18 @@ fun resolveInRoot(root: String, relativePath: String): String? {
 /**
  * True when [candidate] is [target] or an ancestor of [target].
  */
-private fun isAncestor(candidate: String, target: String): Boolean {
+private fun isAncestor(
+    candidate: String,
+    target: String,
+): Boolean {
     val cand = Paths.get(candidate).toAbsolutePath().normalize()
     val tgt = Paths.get(target).toAbsolutePath().normalize()
-    val relative = try {
-        cand.relativize(tgt)
-    } catch (_: Exception) {
-        return false
-    }
+    val relative =
+        try {
+            cand.relativize(tgt)
+        } catch (_: Exception) {
+            return false
+        }
     val text = relative.toString()
     return text == "" ||
         (!text.startsWith("..${File.separator}") && text != ".." && !relative.isAbsolute)
@@ -131,11 +149,26 @@ private fun isAncestor(candidate: String, target: String): Boolean {
  *
  * @param contextPath file system path of the referencing document.
  */
-fun chooseRoot(roots: List<String>, contextPath: String?): String? {
-    val candidates = roots.map { Paths.get(it).toAbsolutePath().normalize().toString() }
+fun chooseRoot(
+    roots: List<String>,
+    contextPath: String?,
+): String? {
+    val candidates =
+        roots.map {
+            Paths
+                .get(it)
+                .toAbsolutePath()
+                .normalize()
+                .toString()
+        }
     if (contextPath == null || candidates.size <= 1) return candidates.firstOrNull()
 
-    val context = Paths.get(contextPath).toAbsolutePath().normalize().toString()
+    val context =
+        Paths
+            .get(contextPath)
+            .toAbsolutePath()
+            .normalize()
+            .toString()
     var best: String? = null
     for (candidate in candidates) {
         if (!isAncestor(candidate, context)) continue
@@ -148,14 +181,18 @@ fun chooseRoot(roots: List<String>, contextPath: String?): String? {
  * Relative path of [fsPath] from [root], normalized to forward slashes.
  * Returns null when [fsPath] is not under [root].
  */
-fun workspaceRelativePath(fsPath: String, root: String): String? {
+fun workspaceRelativePath(
+    fsPath: String,
+    root: String,
+): String? {
     val r = Paths.get(root).toAbsolutePath().normalize()
     val p = Paths.get(fsPath).toAbsolutePath().normalize()
-    val relative = try {
-        r.relativize(p)
-    } catch (_: Exception) {
-        return null
-    }
+    val relative =
+        try {
+            r.relativize(p)
+        } catch (_: Exception) {
+            return null
+        }
     val text = relative.toString()
     if (text == "" || text.startsWith("..${File.separator}") || text == ".." || relative.isAbsolute) {
         return null

@@ -14,9 +14,7 @@ import com.intellij.openapi.vfs.VirtualFile
  * (validation then reports "missing file" rather than guessing).
  */
 class VfsFileSystem : FileSystemLike {
-    override fun exists(targetPath: String): Boolean {
-        return LocalFileSystem.getInstance().findFileByPath(targetPath) != null
-    }
+    override fun exists(targetPath: String): Boolean = LocalFileSystem.getInstance().findFileByPath(targetPath) != null
 
     override fun readText(targetPath: String): String? {
         val file: VirtualFile =

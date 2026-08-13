@@ -11,7 +11,6 @@ import kotlin.test.assertNull
 
 @OptIn(ExperimentalPathApi::class)
 class PathResolutionTest {
-
     private fun tempDir(): Path = Files.createTempDirectory("cdl-test")
 
     @Test
@@ -98,10 +97,11 @@ class PathResolutionTest {
             Files.createFile(wt.resolve(".git"))
 
             val context = wt.resolve("src/file.js").toString()
-            val chosen = chooseRoot(
-                listOf(repo.toString(), wt.toString()),
-                context
-            )
+            val chosen =
+                chooseRoot(
+                    listOf(repo.toString(), wt.toString()),
+                    context,
+                )
             assertEquals(wt.toString(), chosen)
         } finally {
             repo.deleteRecursively()

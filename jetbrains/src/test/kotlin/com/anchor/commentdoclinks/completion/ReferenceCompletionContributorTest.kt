@@ -13,7 +13,6 @@ import org.junit.Test
  * directly (the contributor is a thin caller).
  */
 class ReferenceCompletionContributorTest {
-
     @Test
     fun testSuggestsDocAnchorsAfterHash() {
         val docText = "# Title\n## checkout-flow\n## overview\n"
@@ -35,12 +34,13 @@ class ReferenceCompletionContributorTest {
         val sourceText = "// doc.md#checkout-flow\n// doc.md#overview\n"
         val fs = FakeFileSystem(mapOf("/repo/src/app.js" to sourceText))
 
-        val variants = suggestSourceAnchorCompletions(
-            headingPrefix = "## src/app.js — ",
-            markdownPath = "/repo/doc.md",
-            root = "/repo",
-            fs = fs
-        )
+        val variants =
+            suggestSourceAnchorCompletions(
+                headingPrefix = "## src/app.js — ",
+                markdownPath = "/repo/doc.md",
+                root = "/repo",
+                fs = fs,
+            )
         assertTrue("expected checkout-flow", "checkout-flow" in variants)
         assertTrue("expected overview", "overview" in variants)
     }
@@ -50,7 +50,7 @@ class ReferenceCompletionContributorTest {
         val fs = FakeFileSystem(mapOf("/repo/src/app.js" to "// doc.md#checkout-flow\n"))
         assertEquals(
             emptyList<String>(),
-            suggestSourceAnchorCompletions("## src/app.js", "/repo/doc.md", "/repo", fs)
+            suggestSourceAnchorCompletions("## src/app.js", "/repo/doc.md", "/repo", fs),
         )
     }
 }

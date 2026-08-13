@@ -2,10 +2,10 @@ package com.anchor.commentdoclinks.resolver
 
 import com.anchor.commentdoclinks.model.DocumentLike
 import com.anchor.commentdoclinks.model.ParsedReference
-import com.anchor.commentdoclinks.model.stringDocument
 import com.anchor.commentdoclinks.model.ReferenceType
 import com.anchor.commentdoclinks.model.ResolutionResult
 import com.anchor.commentdoclinks.model.ResolutionStatus
+import com.anchor.commentdoclinks.model.stringDocument
 
 /**
  * Minimal file-system view the validator needs: existence + text read.
@@ -13,15 +13,17 @@ import com.anchor.commentdoclinks.model.ResolutionStatus
  */
 interface FileSystemLike {
     fun exists(targetPath: String): Boolean
+
     fun readText(targetPath: String): String?
 }
 
-private val MESSAGES = mapOf(
-    ResolutionStatus.MISSING_FILE to "Documentation file not found: ",
-    ResolutionStatus.MISSING_ANCHOR to "Documentation anchor not found: ",
-    ResolutionStatus.INVALID_LINE to "Documentation line out of range: ",
-    ResolutionStatus.INVALID_PATH to "Documentation path is not allowed"
-)
+private val MESSAGES =
+    mapOf(
+        ResolutionStatus.MISSING_FILE to "Documentation file not found: ",
+        ResolutionStatus.MISSING_ANCHOR to "Documentation anchor not found: ",
+        ResolutionStatus.INVALID_LINE to "Documentation line out of range: ",
+        ResolutionStatus.INVALID_PATH to "Documentation path is not allowed",
+    )
 
 /**
  * Validate a reference against the filesystem.
@@ -35,7 +37,7 @@ private val MESSAGES = mapOf(
 fun validateReference(
     reference: ParsedReference,
     resolveTargetPath: (String) -> String?,
-    fs: FileSystemLike
+    fs: FileSystemLike,
 ): ResolutionResult {
     if (reference.type == ReferenceType.DOCUMENTATION && reference.file != null) {
         return validateDocumentationReference(reference, resolveTargetPath, fs)
@@ -46,7 +48,7 @@ fun validateReference(
 private fun validateDocumentationReference(
     reference: ParsedReference,
     resolveTargetPath: (String) -> String?,
-    fs: FileSystemLike
+    fs: FileSystemLike,
 ): ResolutionResult {
     val targetPath = resolveTargetPath(reference.file!!)
 
@@ -55,7 +57,7 @@ private fun validateDocumentationReference(
             ResolutionStatus.INVALID_PATH,
             null,
             null,
-            MESSAGES[ResolutionStatus.INVALID_PATH]
+            MESSAGES[ResolutionStatus.INVALID_PATH],
         )
     }
 
@@ -64,7 +66,7 @@ private fun validateDocumentationReference(
             ResolutionStatus.MISSING_FILE,
             targetPath,
             null,
-            MESSAGES[ResolutionStatus.MISSING_FILE] + reference.file
+            MESSAGES[ResolutionStatus.MISSING_FILE] + reference.file,
         )
     }
 
@@ -82,7 +84,7 @@ private fun validateDocumentationReference(
 private fun validateDocumentationLine(
     line: Int,
     targetPath: String,
-    fs: FileSystemLike
+    fs: FileSystemLike,
 ): ResolutionResult {
     val text = fs.readText(targetPath)
 
@@ -98,7 +100,7 @@ private fun validateDocumentationLine(
             ResolutionStatus.INVALID_LINE,
             targetPath,
             null,
-            MESSAGES[ResolutionStatus.INVALID_LINE] + line.toString()
+            MESSAGES[ResolutionStatus.INVALID_LINE] + line.toString(),
         )
     }
 
@@ -108,7 +110,7 @@ private fun validateDocumentationLine(
 private fun validateDocumentationAnchor(
     anchor: String,
     targetPath: String,
-    fs: FileSystemLike
+    fs: FileSystemLike,
 ): ResolutionResult {
     val text = fs.readText(targetPath)
 
@@ -123,7 +125,7 @@ private fun validateDocumentationAnchor(
             ResolutionStatus.MISSING_ANCHOR,
             targetPath,
             null,
-            MESSAGES[ResolutionStatus.MISSING_ANCHOR] + anchor
+            MESSAGES[ResolutionStatus.MISSING_ANCHOR] + anchor,
         )
     }
 

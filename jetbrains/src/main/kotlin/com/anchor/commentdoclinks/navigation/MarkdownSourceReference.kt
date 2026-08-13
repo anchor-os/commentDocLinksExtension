@@ -28,9 +28,8 @@ class MarkdownSourceReference(
     element: PsiElement,
     private val heading: ParsedHeading,
     private val markdownFile: PsiFile,
-    range: TextRange
+    range: TextRange,
 ) : PsiReferenceBase<PsiElement>(element, range, false) {
-
     override fun resolve(): PsiElement? {
         val project = markdownFile.project
         val virtualFile = markdownFile.virtualFile ?: return null
@@ -50,7 +49,10 @@ class MarkdownSourceReference(
         return elementAtLine(sourcePsi, location.line)
     }
 
-    private fun elementAtLine(file: PsiFile, line: Int): PsiElement? {
+    private fun elementAtLine(
+        file: PsiFile,
+        line: Int,
+    ): PsiElement? {
         val document = file.viewProvider.document ?: return file
         if (line < 0 || line >= document.lineCount) return file
         val offset = document.getLineStartOffset(line)

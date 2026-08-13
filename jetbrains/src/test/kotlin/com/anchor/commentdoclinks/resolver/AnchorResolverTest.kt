@@ -24,13 +24,14 @@ class AnchorResolverTest {
 
     @Test
     fun `explicit heading wins over slug`() {
-        val doc = stringDocument(
-            """
-            # Title
-            ## src/cart.js — checkout-flow
-            ## Checkout Flow
-            """.trimIndent()
-        )
+        val doc =
+            stringDocument(
+                """
+                # Title
+                ## src/cart.js — checkout-flow
+                ## Checkout Flow
+                """.trimIndent(),
+            )
         val loc = resolveAnchor(doc, "checkout-flow")!!
         // explicit heading is at line 1
         assertEquals(1, loc.line)
@@ -38,12 +39,13 @@ class AnchorResolverTest {
 
     @Test
     fun `html anchor resolves`() {
-        val doc = stringDocument(
-            """
-            <a id="legacy-anchor"></a>
-            ## Section
-            """.trimIndent()
-        )
+        val doc =
+            stringDocument(
+                """
+                <a id="legacy-anchor"></a>
+                ## Section
+                """.trimIndent(),
+            )
         val loc = resolveAnchor(doc, "legacy-anchor")!!
         assertEquals(0, loc.line)
     }

@@ -25,6 +25,8 @@ cd jetbrains
 | Verify compatibility | `./gradlew verifyPlugin` | Marketplace compatibility report |
 | Sign (token) | `./gradlew signPlugin` | signs the built distribution in place |
 | Publish | `./gradlew publishPlugin` | uploads to Marketplace (needs token) |
+| Check formatting | `./gradlew spotlessCheck` | ktlint (Kotlin) — fails on unformatted code |
+| Auto-format | `./gradlew spotlessApply` | reformats `src/**/*.kt` to ktlint style |
 
 > The Gradle wrapper `distributionSha256Sum` is pinned, so the first `./gradlew`
 > run verifies the distribution hash.
@@ -55,7 +57,8 @@ jetbrains/
   `src/services/referenceValidator.js`, etc. exactly. Document any deliberate
   deviation in `IMPLEMENTATION_STATUS.md` and `BEHAVIOR_SPEC.md`.
 - **Don't touch `src/`** (VS Code), `package.json`, or the VS Code CI workflows.
-- Kotlin style: 4-space indent, `data class` models, explicit `when` on enums.
+- Kotlin style: 4-space indent, `data class` models, explicit `when` on enums
+  (enforced by ktlint via `spotlessCheck`/`spotlessApply`).
 
 ## Adding a supported language
 

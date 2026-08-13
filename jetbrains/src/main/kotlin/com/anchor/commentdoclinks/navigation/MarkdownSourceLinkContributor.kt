@@ -23,9 +23,9 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
             object : PsiReferenceProvider() {
                 override fun getReferencesByElement(
                     element: PsiElement,
-                    context: ProcessingContext
+                    context: ProcessingContext,
                 ): Array<PsiReference> = referencesForFile(element)
-            }
+            },
         )
     }
 
@@ -38,12 +38,13 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
 
         val references = mutableListOf<PsiReference>()
         for (line in 0 until document.lineCount) {
-            val lineText = document.getText(
-                com.intellij.openapi.util.TextRange(
-                    document.getLineStartOffset(line),
-                    document.getLineEndOffset(line)
+            val lineText =
+                document.getText(
+                    com.intellij.openapi.util.TextRange(
+                        document.getLineStartOffset(line),
+                        document.getLineEndOffset(line),
+                    ),
                 )
-            )
             val heading = parseMarkdownHeading(lineText) ?: continue
             val lineStart = document.getLineStartOffset(line)
             references.add(
@@ -51,8 +52,8 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
                     file,
                     heading,
                     file,
-                    TextRange(lineStart + heading.start, lineStart + heading.end)
-                )
+                    TextRange(lineStart + heading.start, lineStart + heading.end),
+                ),
             )
         }
         return references.toTypedArray()

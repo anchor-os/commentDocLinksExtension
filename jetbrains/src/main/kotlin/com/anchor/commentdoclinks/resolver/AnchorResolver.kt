@@ -8,13 +8,16 @@ import com.anchor.commentdoclinks.model.DocumentLike
 data class AnchorLocation(
     val anchor: String,
     val line: Int,
-    val character: Int
+    val character: Int,
 )
 
 /**
  * A resolved anchor position (0-based line/character).
  */
-data class Location(val line: Int, val character: Int)
+data class Location(
+    val line: Int,
+    val character: Int,
+)
 
 private val HTML_ANCHOR_REGEX = Regex("""<a id="([A-Za-z0-9_-]+)"></a>""")
 private val PLAIN_HEADING_REGEX = Regex("""^#{1,6}\s+(.+)$""")
@@ -91,7 +94,10 @@ private fun slugAnchors(document: DocumentLike): List<AnchorLocation> {
  * explicit headings → HTML anchors → slugified plain headings.
  * Exact (non-prefix) match. Empty anchor → null.
  */
-fun resolveAnchor(document: DocumentLike, anchor: String): Location? {
+fun resolveAnchor(
+    document: DocumentLike,
+    anchor: String,
+): Location? {
     if (anchor.isEmpty()) return null
 
     for (entry in explicitAnchors(document)) {

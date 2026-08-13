@@ -12,16 +12,18 @@ import com.anchor.commentdoclinks.model.ReferenceType
  * rejected). `#42` is deliberately NOT a line reference — it stays a heading
  * anchor so `#anchor` and `#L42` never conflict.
  */
-private val DOCUMENTATION_REGEX = Regex(
-    """(?<![\w:./\\])([A-Za-z0-9_.-][A-Za-z0-9_./-]*\.md)""" +
-        """(?:(?::(\d+))|(?:#[Ll](\d+))|(?:#|\s+-\s+|\s+—\s+)([A-Za-z0-9_-]+))?"""
-)
+private val DOCUMENTATION_REGEX =
+    Regex(
+        """(?<![\w:./\\])([A-Za-z0-9_.-][A-Za-z0-9_./-]*\.md)""" +
+            """(?:(?::(\d+))|(?:#[Ll](\d+))|(?:#|\s+-\s+|\s+—\s+)([A-Za-z0-9_-]+))?""",
+    )
 
 /** Anchored variant used to normalize a single already-detected reference. */
-private val DOCUMENTATION_ANCHORED = Regex(
-    """^([A-Za-z0-9_.-][A-Za-z0-9_./-]*\.md)""" +
-        """(?:(?::(\d+))|(?:#[Ll](\d+))|(?:#|\s+-\s+|\s+—\s+)([A-Za-z0-9_-]+))?$"""
-)
+private val DOCUMENTATION_ANCHORED =
+    Regex(
+        """^([A-Za-z0-9_.-][A-Za-z0-9_./-]*\.md)""" +
+            """(?:(?::(\d+))|(?:#[Ll](\d+))|(?:#|\s+-\s+|\s+—\s+)([A-Za-z0-9_-]+))?$""",
+    )
 
 /** Issue reference: `#123` (leading word char forbidden). */
 private val ISSUE_REGEX = Regex("""(?<![\w:#])#(\d+)\b""")
@@ -41,7 +43,11 @@ private val API_ANCHORED = Regex("""^API:([A-Za-z0-9_-]+)$""")
 /**
  * A raw reference span with 0-based character offsets.
  */
-data class ReferenceSpan(val raw: String, val start: Int, val end: Int)
+data class ReferenceSpan(
+    val raw: String,
+    val start: Int,
+    val end: Int,
+)
 
 /**
  * Detect reference spans in text, in priority order.
@@ -57,11 +63,12 @@ fun detectReferenceSpans(text: String): List<ReferenceSpan> {
     val consumed = mutableListOf<ReferenceSpan>()
 
     fun accept(match: MatchResult) {
-        val span = ReferenceSpan(
-            raw = match.value,
-            start = match.range.first,
-            end = match.range.last + 1
-        )
+        val span =
+            ReferenceSpan(
+                raw = match.value,
+                start = match.range.first,
+                end = match.range.last + 1,
+            )
         for (existing in consumed) {
             if (span.start < existing.end && existing.start < span.end) return
         }
@@ -86,18 +93,19 @@ fun detectReferenceSpans(text: String): List<ReferenceSpan> {
 fun parseReference(raw: String): ParsedReference? {
     DOCUMENTATION_ANCHORED.matchEntire(raw)?.let { m ->
         val g = m.groupValues
-        val line = when {
-            g[2].isNotEmpty() -> g[2].toIntOrNull()
-            g[3].isNotEmpty() -> g[3].toIntOrNull()
-            else -> null
-        }
+        val line =
+            when {
+                g[2].isNotEmpty() -> g[2].toIntOrNull()
+                g[3].isNotEmpty() -> g[3].toIntOrNull()
+                else -> null
+            }
         return ParsedReference(
             type = ReferenceType.DOCUMENTATION,
             raw = raw,
             file = g[1],
             anchor = if (g[4].isNotEmpty()) g[4] else null,
             line = line,
-            identifier = null
+            identifier = null,
         )
     }
 
@@ -108,7 +116,7 @@ fun parseReference(raw: String): ParsedReference? {
             file = null,
             anchor = null,
             line = null,
-            identifier = m.groupValues[1]
+            identifier = m.groupValues[1],
         )
     }
 
@@ -119,7 +127,7 @@ fun parseReference(raw: String): ParsedReference? {
             file = null,
             anchor = null,
             line = null,
-            identifier = raw
+            identifier = raw,
         )
     }
 
@@ -130,7 +138,7 @@ fun parseReference(raw: String): ParsedReference? {
             file = null,
             anchor = null,
             line = null,
-            identifier = m.groupValues[1]
+            identifier = m.groupValues[1],
         )
     }
 
@@ -143,8 +151,10 @@ fun parseReference(raw: String): ParsedReference? {
  * Offsets are relative to [offset], which should be the position of the
  * comment text inside its containing line.
  */
-fun parseComment(text: String, offset: Int = 0): List<ParsedReference> {
-    return detectReferenceSpans(text).mapNotNull { span ->
+fun parseComment(
+    text: String,
+    offset: Int = 0,
+): List<ParsedReference> =
+    detectReferenceSpans(text).mapNotNull { span ->
         parseReference(span.raw)?.copy(start = offset + span.start, end = offset + span.end)
     }
-}

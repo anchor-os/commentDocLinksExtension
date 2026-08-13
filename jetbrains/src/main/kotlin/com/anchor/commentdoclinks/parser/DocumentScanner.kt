@@ -6,7 +6,10 @@ import com.anchor.commentdoclinks.model.ParsedReference
 /**
  * A reference found in a document, tagged with the 0-based line it lives on.
  */
-data class ScannedReference(val reference: ParsedReference, val line: Int)
+data class ScannedReference(
+    val reference: ParsedReference,
+    val line: Int,
+)
 
 /**
  * Scan a whole document for references that live inside comments.
@@ -21,7 +24,10 @@ data class ScannedReference(val reference: ParsedReference, val line: Int)
  *
  * @return scanned references, in document order
  */
-fun scanDocumentForReferences(document: DocumentLike, languageId: String): List<ScannedReference> {
+fun scanDocumentForReferences(
+    document: DocumentLike,
+    languageId: String,
+): List<ScannedReference> {
     if (!supportsLanguage(languageId)) {
         return emptyList()
     }
@@ -33,10 +39,11 @@ fun scanDocumentForReferences(document: DocumentLike, languageId: String): List<
         val text = document.lineAt(line)
 
         for (range in getCommentRanges(languageId, text, state)) {
-            val matches = parseComment(
-                text.substring(range.start, range.end),
-                range.start
-            )
+            val matches =
+                parseComment(
+                    text.substring(range.start, range.end),
+                    range.start,
+                )
 
             for (reference in matches) {
                 results.add(ScannedReference(reference, line))

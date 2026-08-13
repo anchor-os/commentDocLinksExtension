@@ -9,5 +9,5 @@ data class ResolutionResult(
     val status: ResolutionStatus,
     val targetPath: String? = null,
     val line: Int? = null,
-    val message: String? = null
+    val message: String? = null,
 )

@@ -14,10 +14,10 @@ import com.anchor.commentdoclinks.services.VfsFileSystem
 import com.anchor.commentdoclinks.services.WorkspaceRootService
 import com.anchor.commentdoclinks.services.languageIdFromVirtualFile
 import com.intellij.codeInsight.completion.CompletionContributor
+import com.intellij.codeInsight.completion.CompletionParameters
 import com.intellij.codeInsight.completion.CompletionProvider
 import com.intellij.codeInsight.completion.CompletionResultSet
 import com.intellij.codeInsight.completion.CompletionType
-import com.intellij.codeInsight.completion.CompletionParameters
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.util.TextRange
@@ -45,7 +45,7 @@ class ReferenceCompletionContributor : CompletionContributor() {
                 override fun addCompletions(
                     parameters: CompletionParameters,
                     context: ProcessingContext,
-                    result: CompletionResultSet
+                    result: CompletionResultSet,
                 ) {
                     if (!CommentDocLinksConfig.enableCompletion) return
 
@@ -69,7 +69,7 @@ class ReferenceCompletionContributor : CompletionContributor() {
                             fullLine.substring(0, caretInLine),
                             virtualFile.path,
                             root,
-                            fs
+                            fs,
                         )) {
                             result.addElement(LookupElementBuilder.create(variant))
                         }
@@ -82,20 +82,21 @@ class ReferenceCompletionContributor : CompletionContributor() {
                         result.addElement(LookupElementBuilder.create(variant))
                     }
                 }
-            }
+            },
         )
     }
 
     private fun commentStateBefore(
         document: Document,
         lineIndex: Int,
-        languageId: String
+        languageId: String,
     ): CommentScannerState {
         val state = CommentScannerState()
         for (i in 0 until lineIndex) {
-            val lineText = document.getText(
-                TextRange(document.getLineStartOffset(i), document.getLineEndOffset(i))
-            )
+            val lineText =
+                document.getText(
+                    TextRange(document.getLineStartOffset(i), document.getLineEndOffset(i)),
+                )
             getCommentRanges(languageId, lineText, state)
         }
         return state
@@ -105,7 +106,7 @@ class ReferenceCompletionContributor : CompletionContributor() {
         line: String,
         character: Int,
         languageId: String,
-        state: CommentScannerState
+        state: CommentScannerState,
     ): CommentUpTo? {
         for (range in getCommentRanges(languageId, line, state)) {
             if (character > range.start && character <= range.end) {
@@ -115,7 +116,10 @@ class ReferenceCompletionContributor : CompletionContributor() {
         return null
     }
 
-    private data class CommentUpTo(val text: String, val offset: Int)
+    private data class CommentUpTo(
+        val text: String,
+        val offset: Int,
+    )
 
     companion object {
         private fun languageIdFromVirtualFile(path: String): String? =
@@ -136,7 +140,7 @@ internal val HEADING_REFERENCE_REGEX = Regex("""^#{2,}\s+(.+?)\s+[—\-]\s*$""")
 internal fun suggestDocAnchorCompletions(
     commentTextUpToCaret: String,
     root: String,
-    fs: FileSystemLike
+    fs: FileSystemLike,
 ): List<String> {
     val match = ANCHOR_REFERENCE_REGEX.find(commentTextUpToCaret) ?: return emptyList()
     val file = match.groupValues[1]
@@ -153,7 +157,7 @@ internal fun suggestSourceAnchorCompletions(
     headingPrefix: String,
     markdownPath: String,
     root: String,
-    fs: FileSystemLike
+    fs: FileSystemLike,
 ): List<String> {
     val match = HEADING_REFERENCE_REGEX.find(headingPrefix) ?: return emptyList()
     val source = match.groupValues[1]
