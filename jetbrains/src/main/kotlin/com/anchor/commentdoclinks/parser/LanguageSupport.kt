@@ -8,68 +8,114 @@ class CommentScannerState(
     var inBlockComment: Boolean = false,
     var inString: String? = null,
     var inPhp: Boolean? = null,
-    var inBlockScalar: Int? = null
+    var inBlockScalar: Int? = null,
 )
 
 /**
  * A comment range within a single line. [start] is inclusive, [end] exclusive
  * (matches the VS Code `slice(start, end)` semantics used by the scanner).
  */
-data class CommentRange(val start: Int, val end: Int)
-
-val SUPPORTED_LANGUAGES: Set<String> = setOf(
-    "javascript", "javascriptreact", "typescript", "typescriptreact",
-    "graphql", "terraform", "yaml", "velocity", "markdown",
-    "python", "java", "go", "rust", "c", "cpp",
-    "csharp", "php", "ruby", "kotlin", "swift"
+data class CommentRange(
+    val start: Int,
+    val end: Int,
 )
+
+val SUPPORTED_LANGUAGES: Set<String> =
+    setOf(
+        "javascript",
+        "javascriptreact",
+        "typescript",
+        "typescriptreact",
+        "graphql",
+        "terraform",
+        "yaml",
+        "velocity",
+        "markdown",
+        "python",
+        "java",
+        "go",
+        "rust",
+        "c",
+        "cpp",
+        "csharp",
+        "php",
+        "ruby",
+        "kotlin",
+        "swift",
+    )
 
 fun supportsLanguage(languageId: String): Boolean = SUPPORTED_LANGUAGES.contains(languageId)
 
-private val COMMENT_STYLE: Map<String, String> = buildMap {
-    val slash = listOf(
-        "javascript", "javascriptreact", "typescript", "typescriptreact",
-        "java", "go", "rust", "c", "cpp", "csharp", "kotlin", "swift"
-    )
-    val hash = listOf("python", "ruby")
-    val yaml = listOf("yaml")
-    val terraform = listOf("terraform")
-    val graphql = listOf("graphql")
-    val velocity = listOf("velocity")
-    val wholeLine = listOf("markdown")
-    val php = listOf("php")
-    for (l in slash) put(l, "slash")
-    for (l in hash) put(l, "hash")
-    for (l in yaml) put(l, "yaml")
-    for (l in terraform) put(l, "terraform")
-    for (l in graphql) put(l, "graphql")
-    for (l in velocity) put(l, "velocity")
-    for (l in wholeLine) put(l, "wholeLine")
-    for (l in php) put(l, "php")
-}
+private val COMMENT_STYLE: Map<String, String> =
+    buildMap {
+        val slash =
+            listOf(
+                "javascript",
+                "javascriptreact",
+                "typescript",
+                "typescriptreact",
+                "java",
+                "go",
+                "rust",
+                "c",
+                "cpp",
+                "csharp",
+                "kotlin",
+                "swift",
+            )
+        val hash = listOf("python", "ruby")
+        val yaml = listOf("yaml")
+        val terraform = listOf("terraform")
+        val graphql = listOf("graphql")
+        val velocity = listOf("velocity")
+        val wholeLine = listOf("markdown")
+        val php = listOf("php")
+        for (l in slash) put(l, "slash")
+        for (l in hash) put(l, "hash")
+        for (l in yaml) put(l, "yaml")
+        for (l in terraform) put(l, "terraform")
+        for (l in graphql) put(l, "graphql")
+        for (l in velocity) put(l, "velocity")
+        for (l in wholeLine) put(l, "wholeLine")
+        for (l in php) put(l, "php")
+    }
 
-val EXTENSION_TO_LANGUAGE: Map<String, String> = mapOf(
-    ".js" to "javascript", ".mjs" to "javascript", ".cjs" to "javascript",
-    ".jsx" to "javascriptreact",
-    ".ts" to "typescript", ".mts" to "typescript", ".cts" to "typescript",
-    ".tsx" to "typescriptreact",
-    ".gql" to "graphql", ".graphql" to "graphql",
-    ".tf" to "terraform",
-    ".yaml" to "yaml", ".yml" to "yaml",
-    ".vm" to "velocity", ".vtl" to "velocity",
-    ".md" to "markdown", ".markdown" to "markdown",
-    ".py" to "python",
-    ".java" to "java",
-    ".go" to "go",
-    ".rs" to "rust",
-    ".c" to "c", ".h" to "c",
-    ".cpp" to "cpp", ".cc" to "cpp", ".cxx" to "cpp", ".hpp" to "cpp",
-    ".cs" to "csharp",
-    ".php" to "php",
-    ".rb" to "ruby",
-    ".kt" to "kotlin", ".kts" to "kotlin",
-    ".swift" to "swift"
-)
+val EXTENSION_TO_LANGUAGE: Map<String, String> =
+    mapOf(
+        ".js" to "javascript",
+        ".mjs" to "javascript",
+        ".cjs" to "javascript",
+        ".jsx" to "javascriptreact",
+        ".ts" to "typescript",
+        ".mts" to "typescript",
+        ".cts" to "typescript",
+        ".tsx" to "typescriptreact",
+        ".gql" to "graphql",
+        ".graphql" to "graphql",
+        ".tf" to "terraform",
+        ".yaml" to "yaml",
+        ".yml" to "yaml",
+        ".vm" to "velocity",
+        ".vtl" to "velocity",
+        ".md" to "markdown",
+        ".markdown" to "markdown",
+        ".py" to "python",
+        ".java" to "java",
+        ".go" to "go",
+        ".rs" to "rust",
+        ".c" to "c",
+        ".h" to "c",
+        ".cpp" to "cpp",
+        ".cc" to "cpp",
+        ".cxx" to "cpp",
+        ".hpp" to "cpp",
+        ".cs" to "csharp",
+        ".php" to "php",
+        ".rb" to "ruby",
+        ".kt" to "kotlin",
+        ".kts" to "kotlin",
+        ".swift" to "swift",
+    )
 
 /**
  * Best-effort languageId for a file path, or null when the extension is not
@@ -87,8 +133,12 @@ fun getLanguageIdFromExtension(filename: String): String? {
  * carried scanner [state]. Stateful: reuse the same [CommentScannerState]
  * across lines of one document.
  */
-fun getCommentRanges(languageId: String, line: String, state: CommentScannerState): List<CommentRange> {
-    return when (COMMENT_STYLE[languageId]) {
+fun getCommentRanges(
+    languageId: String,
+    line: String,
+    state: CommentScannerState,
+): List<CommentRange> =
+    when (COMMENT_STYLE[languageId]) {
         "slash" -> getSlashCommentRanges(line, state)
         "hash" -> getHashCommentRanges(line, state)
         "yaml" -> getYamlCommentRanges(line, state)
@@ -99,9 +149,11 @@ fun getCommentRanges(languageId: String, line: String, state: CommentScannerStat
         "wholeLine" -> listOf(CommentRange(0, line.length))
         else -> emptyList()
     }
-}
 
-private fun getSlashCommentRanges(line: String, state: CommentScannerState): List<CommentRange> {
+private fun getSlashCommentRanges(
+    line: String,
+    state: CommentScannerState,
+): List<CommentRange> {
     val ranges = mutableListOf<CommentRange>()
     var i = 0
     var start: Int? = null
@@ -194,7 +246,10 @@ private fun getSlashCommentRanges(line: String, state: CommentScannerState): Lis
     return ranges
 }
 
-private fun getHashCommentRanges(line: String, state: CommentScannerState): List<CommentRange> {
+private fun getHashCommentRanges(
+    line: String,
+    state: CommentScannerState,
+): List<CommentRange> {
     var i = 0
     var quote = state.inString
     var escaped = false
@@ -248,7 +303,10 @@ private fun getHashCommentRanges(line: String, state: CommentScannerState): List
     return emptyList()
 }
 
-private fun getGraphqlCommentRanges(line: String, state: CommentScannerState): List<CommentRange> {
+private fun getGraphqlCommentRanges(
+    line: String,
+    state: CommentScannerState,
+): List<CommentRange> {
     var i = 0
     var quote = state.inString
     var escaped = false
@@ -303,10 +361,12 @@ private fun getGraphqlCommentRanges(line: String, state: CommentScannerState): L
     return emptyList()
 }
 
-private fun leadingWhitespace(line: String): Int =
-    line.takeWhile { it == ' ' || it == '\t' }.length
+private fun leadingWhitespace(line: String): Int = line.takeWhile { it == ' ' || it == '\t' }.length
 
-private fun yamlBlockScalarValue(line: String, index: Int): Int {
+private fun yamlBlockScalarValue(
+    line: String,
+    index: Int,
+): Int {
     var j = index
     while (j < line.length && (line[j] == ' ' || line[j] == '\t')) j++
     if (j >= line.length || (line[j] != '|' && line[j] != '>')) return -1
@@ -339,16 +399,20 @@ private fun yamlBlockScalarHeaderIndent(line: String): Int? {
         if (char == '#') break
         val opensScalar = char == ':' && yamlBlockScalarValue(line, i + 1) != -1
         val prevWs = i == 0 || line[i - 1] == ' ' || line[i - 1] == '\t'
-        val opensSeq = char == '-' && prevWs &&
-            (i + 1 < line.length && (line[i + 1] == ' ' || line[i + 1] == '\t')) &&
-            yamlBlockScalarValue(line, i + 1) != -1
+        val opensSeq =
+            char == '-' && prevWs &&
+                (i + 1 < line.length && (line[i + 1] == ' ' || line[i + 1] == '\t')) &&
+                yamlBlockScalarValue(line, i + 1) != -1
         if (opensScalar || opensSeq) return leadingWhitespace(line)
         i++
     }
     return null
 }
 
-private fun getYamlCommentRanges(line: String, state: CommentScannerState): List<CommentRange> {
+private fun getYamlCommentRanges(
+    line: String,
+    state: CommentScannerState,
+): List<CommentRange> {
     if (state.inBlockScalar == null) state.inBlockScalar = null
 
     if (state.inBlockScalar != null) {
@@ -401,15 +465,21 @@ private fun getYamlCommentRanges(line: String, state: CommentScannerState): List
     return emptyList()
 }
 
-private fun heredocTerminatorEnd(line: String, terminator: String): Int {
+private fun heredocTerminatorEnd(
+    line: String,
+    terminator: String,
+): Int {
     val trimmed = line.trim()
     if (!trimmed.startsWith(terminator)) return -1
     val rest = trimmed.substring(terminator.length)
-    if (rest.isNotEmpty() && rest[0].isLetterOrDigit() || rest.isNotEmpty() && rest[0] == '_') return -1
+    if ((rest.isNotEmpty() && rest[0].isLetterOrDigit()) || (rest.isNotEmpty() && rest[0] == '_')) return -1
     return line.length - line.trimStart().length + terminator.length
 }
 
-private fun getTerraformCommentRanges(line: String, state: CommentScannerState): List<CommentRange> {
+private fun getTerraformCommentRanges(
+    line: String,
+    state: CommentScannerState,
+): List<CommentRange> {
     val ranges = mutableListOf<CommentRange>()
     var i = 0
     var start: Int? = null
@@ -437,8 +507,10 @@ private fun getTerraformCommentRanges(line: String, state: CommentScannerState):
                 val terminator = quote.substring("heredoc:".length)
                 val trimmed = line.trim()
                 if (!trimmed.startsWith(terminator) ||
-                    (trimmed.length > terminator.length &&
-                        !trimmed.substring(terminator.length).first().isWhitespace())
+                    (
+                        trimmed.length > terminator.length &&
+                            !trimmed.substring(terminator.length).first().isWhitespace()
+                    )
                 ) {
                     return ranges
                 }
@@ -458,7 +530,9 @@ private fun getTerraformCommentRanges(line: String, state: CommentScannerState):
             continue
         }
 
-        if (char == '<' && next == '<' && (i == 0 || line[i - 1].isWhitespace() || line[i - 1] == '=' || line[i - 1] == '(' || line[i - 1] == '[' || line[i - 1] == ',')) {
+        if (char == '<' && next == '<' &&
+            (i == 0 || line[i - 1].isWhitespace() || line[i - 1] == '=' || line[i - 1] == '(' || line[i - 1] == '[' || line[i - 1] == ',')
+        ) {
             var j = i + 2
             if (j < line.length && line[j] == '-') j++
             val labelMatch = Regex("""^[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\1""").find(line.substring(j))
@@ -493,7 +567,10 @@ private fun getTerraformCommentRanges(line: String, state: CommentScannerState):
     return ranges
 }
 
-private fun getVelocityCommentRanges(line: String, state: CommentScannerState): List<CommentRange> {
+private fun getVelocityCommentRanges(
+    line: String,
+    state: CommentScannerState,
+): List<CommentRange> {
     val ranges = mutableListOf<CommentRange>()
     var i = 0
     var start: Int? = null
@@ -517,9 +594,11 @@ private fun getVelocityCommentRanges(line: String, state: CommentScannerState): 
         }
 
         if (quote != null) {
-            if (escaped) escaped = false
-            else if (char == '\\') escaped = true
-            else if (char == quote[0]) {
+            if (escaped) {
+                escaped = false
+            } else if (char == '\\') {
+                escaped = true
+            } else if (char == quote[0]) {
                 quote = null
                 state.inString = null
             }
@@ -550,7 +629,10 @@ private fun getVelocityCommentRanges(line: String, state: CommentScannerState): 
     return ranges
 }
 
-private fun getPhpCommentRanges(line: String, state: CommentScannerState): List<CommentRange> {
+private fun getPhpCommentRanges(
+    line: String,
+    state: CommentScannerState,
+): List<CommentRange> {
     if (state.inPhp == null) state.inPhp = false
     val ranges = mutableListOf<CommentRange>()
     var i = 0

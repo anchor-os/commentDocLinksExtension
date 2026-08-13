@@ -6,7 +6,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class DocumentScannerTest {
-
     @Test
     fun `ignores unsupported language`() {
         val doc = stringDocument("see docs/file.md in a comment")
@@ -16,11 +15,12 @@ class DocumentScannerTest {
 
     @Test
     fun `finds reference only inside slash comment`() {
-        val doc = stringDocument(
-            """
-            const x = "docs/file.md"; // docs/guide.md
-            """.trimIndent()
-        )
+        val doc =
+            stringDocument(
+                """
+                const x = "docs/file.md"; // docs/guide.md
+                """.trimIndent(),
+            )
         val results = scanDocumentForReferences(doc, "javascript")
         assertEquals(1, results.size)
         assertEquals("docs/guide.md", results[0].reference.file)
@@ -36,13 +36,14 @@ class DocumentScannerTest {
 
     @Test
     fun `reports correct 0-based line`() {
-        val doc = stringDocument(
-            """
-            line0
-            line1 // docs/guide.md
-            line2
-            """.trimIndent()
-        )
+        val doc =
+            stringDocument(
+                """
+                line0
+                line1 // docs/guide.md
+                line2
+                """.trimIndent(),
+            )
         val results = scanDocumentForReferences(doc, "javascript")
         assertEquals(1, results.size)
         assertEquals(1, results[0].line)

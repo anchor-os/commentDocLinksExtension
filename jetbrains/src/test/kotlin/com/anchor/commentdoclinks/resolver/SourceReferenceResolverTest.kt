@@ -7,17 +7,17 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class SourceReferenceResolverTest {
-
     private val languageId = "javascript"
 
     @Test
     fun `exact anchor reference wins`() {
-        val doc = stringDocument(
-            """
-            // docs/guide.md
-            // docs/guide.md#usage
-            """.trimIndent()
-        )
+        val doc =
+            stringDocument(
+                """
+                // docs/guide.md
+                // docs/guide.md#usage
+                """.trimIndent(),
+            )
         val result = resolveSourceReference(doc, languageId, "docs/guide.md", "usage")
         assertEquals(1, result.line)
         assertEquals(0, result.character)
@@ -26,12 +26,13 @@ class SourceReferenceResolverTest {
 
     @Test
     fun `falls back to first file-only reference`() {
-        val doc = stringDocument(
-            """
-            // docs/guide.md
-            // docs/guide.md#usage
-            """.trimIndent()
-        )
+        val doc =
+            stringDocument(
+                """
+                // docs/guide.md
+                // docs/guide.md#usage
+                """.trimIndent(),
+            )
         val result = resolveSourceReference(doc, languageId, "docs/guide.md", "missing")
         assertEquals(0, result.line)
         assertFalse(result.anchorFound)
@@ -39,12 +40,13 @@ class SourceReferenceResolverTest {
 
     @Test
     fun `falls back to top of document when file unreferenced`() {
-        val doc = stringDocument(
-            """
-            // something else
-            // docs/other.md
-            """.trimIndent()
-        )
+        val doc =
+            stringDocument(
+                """
+                // something else
+                // docs/other.md
+                """.trimIndent(),
+            )
         val result = resolveSourceReference(doc, languageId, "docs/guide.md", "usage")
         assertEquals(0, result.line)
         assertFalse(result.anchorFound)
@@ -78,13 +80,14 @@ class SourceReferenceResolverTest {
 
     @Test
     fun `listSourceAnchors deduplicates`() {
-        val doc = stringDocument(
-            """
-            // docs/guide.md#usage
-            // docs/guide.md#usage
-            // docs/guide.md#install
-            """.trimIndent()
-        )
+        val doc =
+            stringDocument(
+                """
+                // docs/guide.md#usage
+                // docs/guide.md#usage
+                // docs/guide.md#install
+                """.trimIndent(),
+            )
         val anchors = listSourceAnchors(doc, languageId, "docs/guide.md")
         assertEquals(setOf("usage", "install"), anchors.toSet())
     }

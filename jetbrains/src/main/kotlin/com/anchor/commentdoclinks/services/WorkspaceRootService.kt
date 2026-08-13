@@ -21,8 +21,9 @@ import java.util.concurrent.ConcurrentMap
  * service only supplies the IntelliJ-side inputs (project base path and the
  * referencing file's path) and consumes the result.
  */
-class WorkspaceRootService(private val project: Project) {
-
+class WorkspaceRootService(
+    private val project: Project,
+) {
     /**
      * Resolved root per document path. Git checkout roots are stable within a
      * session, so caching avoids re-walking `.git` up the directory tree on
@@ -63,7 +64,7 @@ class WorkspaceRootService(private val project: Project) {
         if (candidate != null) {
             return com.anchor.commentdoclinks.resolver.workspaceRelativePath(
                 documentFile.path,
-                candidate
+                candidate,
             ) ?: documentFile.path
         }
         return documentFile.path

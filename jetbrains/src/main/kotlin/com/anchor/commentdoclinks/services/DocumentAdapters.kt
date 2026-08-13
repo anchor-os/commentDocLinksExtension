@@ -14,6 +14,7 @@ fun documentLikeFromDocument(document: Document): DocumentLike {
     val lines = document.text.split("\r\n", "\r", "\n")
     return object : DocumentLike {
         override val lineCount: Int get() = lines.size
+
         override fun lineAt(index: Int): String = lines.getOrElse(index) { "" }
     }
 }
@@ -22,5 +23,4 @@ fun documentLikeFromDocument(document: Document): DocumentLike {
  * Best-effort VS Code-style `languageId` for a source [VirtualFile], using the
  * shared extension map. Returns null for unsupported extensions.
  */
-fun languageIdFromVirtualFile(file: VirtualFile): String? =
-    getLanguageIdFromExtension(file.name)
+fun languageIdFromVirtualFile(file: VirtualFile): String? = getLanguageIdFromExtension(file.name)

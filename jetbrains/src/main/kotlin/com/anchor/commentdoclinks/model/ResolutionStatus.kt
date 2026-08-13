@@ -8,7 +8,9 @@ package com.anchor.commentdoclinks.model
  * identically, so a reference is never "valid when clicked" but "broken
  * according to diagnostics".
  */
-enum class ResolutionStatus(val value: String) {
+enum class ResolutionStatus(
+    val value: String,
+) {
     /** Target file exists and any anchor/line is valid (or file unreadable). */
     VALID("valid"),
 
@@ -25,7 +27,8 @@ enum class ResolutionStatus(val value: String) {
     INVALID_PATH("invalid-path"),
 
     /** Reference type has no local target (issue/API/DOC-…). */
-    EXTERNAL("external");
+    EXTERNAL("external"),
+    ;
 
     companion object {
         fun fromValue(v: String): ResolutionStatus? = entries.firstOrNull { it.value == v }

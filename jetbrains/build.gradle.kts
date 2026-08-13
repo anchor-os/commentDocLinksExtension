@@ -1,6 +1,7 @@
 plugins {
     id("org.jetbrains.intellij.platform") version "2.18.1"
     id("org.jetbrains.kotlin.jvm") version "2.4.0"
+    id("com.diffplug.spotless") version "8.9.0"
 }
 
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
@@ -63,5 +64,14 @@ intellijPlatform {
         channels = providers.environmentVariable("JETBRAINS_MARKETPLACE_CHANNELS")
             .orElse("default")
             .map { it.split(',').map { c -> c.trim() }.filter { c -> c.isNotEmpty() } }
+    }
+}
+
+// Kotlin formatting/linting for the plugin source (Biome only covers JS/TS).
+// `spotlessCheck` fails the build on unformatted code; `spotlessApply` fixes it.
+spotless {
+    kotlin {
+        target("src/**/*.kt")
+        ktlint()
     }
 }

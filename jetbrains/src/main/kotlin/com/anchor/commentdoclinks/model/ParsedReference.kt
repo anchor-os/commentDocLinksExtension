@@ -15,7 +15,7 @@ data class ParsedReference(
     val line: Int?,
     val identifier: String?,
     val start: Int = 0,
-    val end: Int = 0
+    val end: Int = 0,
 ) {
     val isExternal: Boolean
         get() = type != ReferenceType.DOCUMENTATION || file == null

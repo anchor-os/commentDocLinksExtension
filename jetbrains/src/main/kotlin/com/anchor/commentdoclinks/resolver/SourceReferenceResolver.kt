@@ -16,7 +16,7 @@ import com.anchor.commentdoclinks.parser.scanDocumentForReferences
 data class SourceReference(
     val line: Int,
     val character: Int,
-    val anchorFound: Boolean
+    val anchorFound: Boolean,
 )
 
 /**
@@ -24,8 +24,7 @@ data class SourceReference(
  * that writes `./docs/guide.md` still round-trips with reverse navigation,
  * which produces `docs/guide.md`.
  */
-private fun normalizedFile(file: String): String =
-    if (file.startsWith("./")) file.substring(2) else file
+private fun normalizedFile(file: String): String = if (file.startsWith("./")) file.substring(2) else file
 
 /**
  * Find the source comment that references a documentation file.
@@ -47,7 +46,7 @@ fun resolveSourceReference(
     document: DocumentLike,
     languageId: String,
     documentationFile: String,
-    anchor: String?
+    anchor: String?,
 ): SourceReference {
     var fallback: SourceReference? = null
 
@@ -76,7 +75,7 @@ fun hasExactSourceReference(
     document: DocumentLike,
     languageId: String,
     documentationFile: String,
-    anchor: String
+    anchor: String,
 ): Boolean {
     if (anchor.isEmpty()) {
         return false
@@ -101,7 +100,7 @@ fun hasExactSourceReference(
 fun listSourceAnchors(
     document: DocumentLike,
     languageId: String,
-    documentationFile: String
+    documentationFile: String,
 ): List<String> {
     val anchors = mutableSetOf<String>()
 

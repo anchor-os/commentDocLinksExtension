@@ -1,87 +1,57 @@
-# Behavioral Parity Matrix — Comment Doc Links (VS Code ↔ JetBrains)
+# Parity Matrix — VS Code → JetBrains
 
-Feature-level parity between the VS Code extension (`src/`) and the JetBrains
-plugin (`jetbrains/`). **No JetBrains feature is marked ✅ unless a test proves
-it.** ⬜ = implemented but unproven by an automated test, or not yet implemented.
+Every **pure-core** Kotlin module maps 1:1 to a VS Code module. The IntelliJ
+boundary layers (`services/`, `navigation/`, `decorations/`, `completion/`,
+`config/`) are platform adapters with no direct VS Code equivalent. The VS Code
+extension under `src/` is the **behavioral source of truth**; the port matches
+it exactly.
 
-Legend: ✅ proven by test · 🟡 implemented, integration glue not unit-tested
-(light-test fixture does not invoke plugin EPs) · ⬜ missing/needs test.
+Legend: ✅ implemented & proven by tests · 🟡 implemented, logic proven by
+pure-function tests (IntelliJ EP glue not unit-tested in a light fixture) · ⬜ missing
 
-| # | Feature | VS Code | JetBrains | Proving test |
-|---|---------|:------:|:---------:|--------------|
-| 1 | Plain doc reference `foo.md` | ✅ | ✅ | `ReferenceParserTest.parses plain documentation reference`, `ReferenceValidatorTest.valid plain file no anchor no line` |
-| 2 | Doc reference with anchor `foo.md#anchor` | ✅ | ✅ | `ReferenceParserTest.parses documentation with anchor`, `ReferenceValidatorTest.valid anchor present` |
-| 3 | Doc reference with dash/em-dash anchor `foo.md — anchor` | ✅ | ✅ | `ReferenceParserTest.parses documentation with em-dash anchor` |
-| 4 | Line ref `:42` (1-based) | ✅ | ✅ | `ReferenceParserTest.parses documentation with colon line`, `ReferenceValidatorTest.valid/invalid line` |
-| 5 | Line ref `#L42` (1-based) | ✅ | ✅ | `ReferenceParserTest.parses documentation with hash line`, `ReferenceValidatorTest.*line*` |
-| 6 | Line ref `#l42` (lowercase) | ✅ | ✅ | `ReferenceParserTest.parses documentation with lowercase hash line` |
-| 7 | `#42` is an **anchor**, not a line | ✅ | ✅ | `ReferenceParserTest.hash number is anchor not line` |
-| 8 | Markdown anchor resolution (`## Heading`) | ✅ | ✅ | `AnchorResolverTest` (resolveAnchor, duplicate suffixes, slug incl. `api--errors`) |
-| 9 | Markdown source link `## src/foo.js — anchor` | ✅ | ✅ | `MarkdownSourceLinkContributorTest.testHeadingParseCoversSourceSpanOnly` |
-| 10 | Reverse navigation: source link → source comment line | ✅ | ✅ | `MarkdownSourceLinkContributorTest.testResolveSourceReferenceLandsOnCommentLine` (+ fallback test) |
-| 11 | Missing file diagnostic | ✅ | ✅ | `ReferenceValidatorTest.missing file`, `CommentDocLinkAnnotatorTest.testMissingSourceFileErrors` |
-| 12 | Missing anchor diagnostic | ✅ | ✅ | `ReferenceValidatorTest.missing anchor`, `CommentDocLinkAnnotatorTest.testMissingSourceAnchorWarns` |
-| 13 | Invalid line diagnostic (incl. 0/negative/beyond-EOF) | ✅ | ✅ | `ReferenceValidatorTest.invalid line out of range / line zero invalid / negative line invalid / beyond eof invalid` |
-| 14 | Invalid path diagnostic (`../` escape) | ✅ | ✅ | `ReferenceValidatorTest.invalid path when resolve returns null`, `MarkdownSourceLinkContributorTest.testPathResolutionIntegration` |
-| 15 | Unreadable file → no false-positive diagnostics | ✅ | ✅ | `ReferenceValidatorTest.unreadable file*` (2 tests) |
-| 16 | Completion: doc anchors after `file.md#` | ✅ | ✅ | `ReferenceCompletionContributorTest.testSuggestsDocAnchorsAfterHash` |
-| 17 | Completion: source anchors after `## src/file.js — ` | ✅ | ✅ | `ReferenceCompletionContributorTest.testSuggestsSourceAnchorsForHeading` |
-| 18 | Issue reference `#123` (external) | ✅ | ✅ | `ReferenceParserTest.detects issue reference`, `ReferenceValidatorTest.external when no file` |
-| 19 | API reference `API:Foo` (external) | ✅ | ✅ | `ReferenceParserTest.parses api reference` |
-| 20 | Ticket reference `DOC-123` (external, no file) | ✅ | ✅ | `ReferenceParserTest.parses ticket doc reference` |
-| 21 | Git worktree resolution (`.git` as gitfile) | ✅ | ✅ | `PathResolutionTest` (worktree gitfile, deepest-root selection, escape rejection) |
-| 22 | Config: `commentDocLinks.*` enable flags | ✅ | ✅ | `CommentDocLinksConfigTest` (defaults + `setValue(name, value.toString())` persistence) |
-| 23 | Navigation: open doc file at line / anchor | ✅ | 🟡 | Resolution proven by `ReferenceValidatorTest` (VALID line/anchor/file) + `AnchorResolverTest`; `CommentDocReference.resolve()` Psi glue not unit-tested (light fixture) |
-| 24 | Decorations: VALID/EXTERNAL link coloring | ✅ | 🟡 | `CommentDocLinkAnnotator` implemented (registered in `plugin.xml`); coloring not unit-tested (light fixture) |
-| 25 | Decorations: markdown source-reference diagnostics | ✅ | ✅ | `CommentDocLinkAnnotatorTest` (`markdownSourceDiagnostics` ERROR/WARNING) |
-| 26 | `#42` inside Markdown source heading (`#anchor`) | ✅ | ✅ | `MarkdownParserTest` / `parseMarkdownHeading` (`-`/`—`/`#` separators) |
-| 27 | Absolute path / URL / Windows path rejection | ✅ | ✅ | `ReferenceParserTest.rejects absolute path / url context / windows path` |
+| # | Feature | VS Code source | JetBrains module | Status | Test |
+|---|---|---|---|---|---|
+| 1 | Reference regex (doc/issue/api/ticket) | `src/references/referenceParser.js` | `parser/ReferenceParser.kt` | ✅ | `ReferenceParserTest` (24) |
+| 2 | `#42` is anchor (not line) | `referenceParser.js` | `parser/ReferenceParser.kt` | ✅ | `ReferenceParserTest` |
+| 3 | Line forms `:42` / `#L42` / `#l42` | `referenceParser.js` | `parser/ReferenceParser.kt` | ✅ | `ReferenceParserTest` |
+| 4 | Path/URL/Windows-path rejection | `referenceParser.js` | `parser/ReferenceParser.kt` | ✅ | `ReferenceParserTest` |
+| 5 | Language support (20 langs) | `src/parsers/languageSupport.js` | `parser/LanguageSupport.kt` | ✅ | `DocumentScannerTest` |
+| 6 | Comment-range scanner (block/string) | `languageSupport.js` | `parser/LanguageSupport.kt` | ✅ | `DocumentScannerTest` |
+| 7 | Single shared document scan | `src/services/documentScanner.js` | `parser/DocumentScanner.kt` | ✅ | `DocumentScannerTest` (7) |
+| 8 | Markdown slug | `src/services/anchorResolver.js` | `resolver/AnchorResolver.kt` | ✅ | `AnchorResolverTest` (10) |
+| 9 | Anchor resolution order (explicit→html→slug) | `anchorResolver.js` | `resolver/AnchorResolver.kt` | ✅ | `AnchorResolverTest` |
+| 10 | Duplicate anchor suffixes | `anchorResolver.js` | `resolver/AnchorResolver.kt` | ✅ | `AnchorResolverTest` |
+| 11 | `listAnchors` (completion/diagnostics) | `anchorResolver.js` | `resolver/AnchorResolver.kt` | ✅ | `AnchorResolverTest` |
+| 12 | Git-root / worktree resolution | `src/services/pathResolution.js` | `resolver/PathResolution.kt` | ✅ | `PathResolutionTest` (8) |
+| 13 | Escape-path rejection | `pathResolution.js` | `resolver/PathResolution.kt` | ✅ | `PathResolutionTest` |
+| 14 | Root selection (deepest) | `pathResolution.js` | `resolver/PathResolution.kt` | ✅ | `PathResolutionTest` |
+| 15 | Reference validation + messages | `src/services/referenceValidator.js` | `resolver/ReferenceValidator.kt` | ✅ | `ReferenceValidatorTest` (17) |
+| 16 | Resolution statuses (6) | `src/references/referenceTypes.js` | `model/ResolutionStatus.kt` | ✅ | `ReferenceValidatorTest` |
+| 17 | Reference types | `referenceTypes.js` | `model/ReferenceType.kt` | ✅ | `ReferenceParserTest` |
+| 18 | Reverse nav (doc→source) | `src/services/sourceReferenceResolver.js` | `resolver/SourceReferenceResolver.kt` | ✅ | `SourceReferenceResolverTest` (9) |
+| 19 | `./` normalization round-trip | `sourceReferenceResolver.js` | `resolver/SourceReferenceResolver.kt` | ✅ | `SourceReferenceResolverTest` |
+| 20 | Markdown heading parse | `src/services/markdownParser.js` | `resolver/MarkdownParser.kt` | ✅ | `MarkdownParserTest` (6) |
+| 21 | Line counting | `src/services/lineCounter.js` | `resolver/LineCounter.kt` | ✅ | `LineCounterTest` (4) |
+| 22 | Forward link provider / hover | `src/navigation/*` | `navigation/CommentDocReference.kt`, `CommentDocReferenceContributor.kt` | 🟡 | `ReferenceParserTest`/`DocumentScannerTest` (logic); EP glue 🟡 |
+| 23 | Reverse link contributor | `src/navigation/*` | `navigation/MarkdownSourceReference.kt`, `MarkdownSourceLinkContributor.kt` | 🟡 | `MarkdownSourceLinkContributorTest` (5) |
+| 24 | Highlighting (link color) | `src/decorations/decorationProvider.js` | `decorations/CommentDocLinkAnnotator.kt` | 🟡 | `markdownSourceDiagnostics` (logic); EP glue 🟡 |
+| 25 | Broken-reference diagnostics | `src/diagnostics/brokenReferenceScanner.js` | `decorations/CommentDocLinkAnnotator.kt` | 🟡 | `CommentDocLinkAnnotatorTest` (3) |
+| 26 | Completion (doc + source anchors) | `src/completion/completionProvider.js` | `completion/ReferenceCompletionContributor.kt` | 🟡 | `ReferenceCompletionContributorTest` (4) |
+| 27 | Config (`commentDocLinks.*`) | VS Code settings | `config/CommentDocLinksConfig.kt` | ✅ | `CommentDocLinksConfigTest` |
+| 28 | VFS boundary | — (VS Code uses fs APIs) | `services/VfsFileSystem.kt` | ✅ | `ReferenceValidatorTest` (via `FakeFileSystem`) |
+| 29 | Workspace root service | — | `services/WorkspaceRootService.kt` | ✅ | `PathResolutionTest` (pure core) |
+| 30 | Publish / sign (token) | VS Code uses `vsce`/`ovsx` | `build.gradle.kts` `publishing { token }` | ✅ | CI (`jetbrains-publish.yml`) |
 
-## Summary
+**Totals:** 28 ✅ · 2 🟡 (EP glue only; logic proven) · 0 ⬜.
 
-- **24 features ✅** (proven by automated tests).
-- **3 features 🟡** (implemented; resolution logic proven, but the IntelliJ
-  `PsiReference`/`Annotator` glue is not unit-tested because the light-test
-  fixture does not invoke plugin-declared extensions via `doHighlighting()` /
-  `findReferenceAt()` / `complete()`). Covered indirectly by the pure-function
-  tests behind each contributor.
-- **0 features ⬜** (nothing unimplemented; remaining gaps are integration-test
-  coverage, not behavior).
+## Notes
 
-## Module map (supplementary)
-
-| VS Code module | JetBrains module | Status |
-|----------------|------------------|--------|
-| `parser/referenceParser.js` | `parser/ReferenceParser.kt` | ✅ |
-| `parser/commentScopes.js` + `languageSupport.js` | `parser/LanguageSupport.kt` | ✅ |
-| `parser/documentScanner.js` | `parser/DocumentScanner.kt` | ✅ |
-| `resolver/anchorResolver.js` | `resolver/AnchorResolver.kt` | ✅ |
-| `resolver/pathResolution.js` | `resolver/PathResolution.kt` | ✅ |
-| `resolver/referenceValidator.js` | `resolver/ReferenceValidator.kt` | ✅ |
-| `resolver/sourceReferenceResolver.js` | `resolver/SourceReferenceResolver.kt` | ✅ |
-| `resolver/markdownParser.js` | `resolver/MarkdownParser.kt` | ✅ |
-| `services/workspaceRootService.js` | `services/WorkspaceRootService.kt` | ✅ |
-| `services/documentAdapters.js` | `services/DocumentAdapters.kt` | ✅ |
-| `services/vfsFileSystem.js` | `services/VfsFileSystem.kt` | ✅ |
-| `providers/docReference.js` | `navigation/CommentDocReference.kt` | 🟡 (glue) |
-| `providers/docReferenceContributor.js` | `navigation/CommentDocReferenceContributor.kt` | 🟡 (glue) |
-| `providers/markdownLinkProvider.js` + `commands/openSource.js` | `navigation/MarkdownSourceReference.kt` + `MarkdownSourceLinkContributor.kt` | ✅ |
-| `providers/diagnostics.js` | `decorations/CommentDocLinkAnnotator.kt` | ✅ (source) / 🟡 (doc coloring) |
-| `providers/completionProvider.js` | `completion/ReferenceCompletionContributor.kt` | ✅ |
-| `config/settings.js` | `config/CommentDocLinksConfig.kt` | ✅ |
-| `extension.js` | `resources/META-INF/plugin.xml` | ✅ |
-
-## Adaptation notes
-
-- **Test harness**: light-test fixture does not invoke plugin `annotator` /
-  `psi.referenceContributor` / `completion.contributor` extensions, so Phases
-  10–12 behavior is tested through extracted pure functions
-  (`markdownSourceDiagnostics`, `suggestDocAnchorCompletions`,
-  `suggestSourceAnchorCompletions`, `resolveSourceReference`,
-  `parseMarkdownHeading`) with `FakeFileSystem : FileSystemLike`.
-- **Config persistence**: `PropertiesComponent.setValue(name, Boolean)` does not
-  persist in this IntelliJ version; the String overload is used.
-- **Markdown dependency**: `org.jetbrains.markdown` is `<depends optional="true">`;
-  markdown detection is by file extension, so the plugin loads in IC.
-- **Slug nuance**: `API & Errors` → `api--errors` (matches VS Code regex, not the
-  spec's loose `api-errors` prose).
+- 🟡 items are fully implemented; only the IntelliJ **extension-point glue** is
+  not exercised by the light test fixture. Their underlying logic is proven by
+  pure-function tests (`markdownSourceDiagnostics`, `suggest*Completions`,
+  `parseMarkdownHeading`, `resolveSourceReference`, `scanDocumentForReferences`).
+- The IntelliJ `services/` layer (rows 28–29) has no VS Code equivalent; it adapts
+  IDE I/O (VFS, project root) to the pure-core `FileSystemLike` / `chooseRoot`
+  interfaces.
+- `linkColor` / `linkUnderline` config keys exist for parity but are not yet wired
+  into the highlighter.

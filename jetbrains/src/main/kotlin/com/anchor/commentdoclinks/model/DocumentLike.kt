@@ -6,6 +6,7 @@ package com.anchor.commentdoclinks.model
  */
 interface DocumentLike {
     val lineCount: Int
+
     fun lineAt(index: Int): String
 }
 
@@ -17,6 +18,7 @@ fun stringDocument(text: String): DocumentLike {
     val lines = text.split("\r\n", "\r", "\n")
     return object : DocumentLike {
         override val lineCount: Int get() = lines.size
+
         override fun lineAt(index: Int): String = lines.getOrElse(index) { "" }
     }
 }

@@ -16,7 +16,6 @@ import org.junit.Test
  * source reference lands on the comment line that references the document.
  */
 class MarkdownSourceLinkContributorTest {
-
     @Test
     fun testHeadingParseCoversSourceSpanOnly() {
         val line = "## src/app.js — checkout-flow"
@@ -36,12 +35,13 @@ class MarkdownSourceLinkContributorTest {
     @Test
     fun testResolveSourceReferenceLandsOnCommentLine() {
         val sourceText = "// unrelated comment\n// doc.md#checkout-flow\n"
-        val result = resolveSourceReference(
-            document = stringDocument(sourceText),
-            languageId = "javascript",
-            documentationFile = "doc.md",
-            anchor = "checkout-flow"
-        )
+        val result =
+            resolveSourceReference(
+                document = stringDocument(sourceText),
+                languageId = "javascript",
+                documentationFile = "doc.md",
+                anchor = "checkout-flow",
+            )
         assertEquals(1, result.line)
         assertEquals(true, result.anchorFound)
     }
@@ -49,12 +49,13 @@ class MarkdownSourceLinkContributorTest {
     @Test
     fun testResolveSourceReferenceFallbackWhenAnchorAbsent() {
         val sourceText = "// doc.md\n"
-        val result = resolveSourceReference(
-            document = stringDocument(sourceText),
-            languageId = "javascript",
-            documentationFile = "doc.md",
-            anchor = "checkout-flow"
-        )
+        val result =
+            resolveSourceReference(
+                document = stringDocument(sourceText),
+                languageId = "javascript",
+                documentationFile = "doc.md",
+                anchor = "checkout-flow",
+            )
         // file referenced without the anchor -> first reference line, anchorFound false
         assertEquals(0, result.line)
         assertEquals(false, result.anchorFound)

@@ -1,5 +1,6 @@
 package com.anchor.commentdoclinks.decorations
 
+import com.anchor.commentdoclinks.config.CommentDocLinksConfig
 import com.anchor.commentdoclinks.model.DocumentLike
 import com.anchor.commentdoclinks.model.ResolutionStatus
 import com.anchor.commentdoclinks.model.stringDocument
@@ -11,7 +12,6 @@ import com.anchor.commentdoclinks.resolver.parseMarkdownHeading
 import com.anchor.commentdoclinks.resolver.resolveInRoot
 import com.anchor.commentdoclinks.resolver.validateReference
 import com.anchor.commentdoclinks.resolver.workspaceRelativePath
-import com.anchor.commentdoclinks.config.CommentDocLinksConfig
 import com.anchor.commentdoclinks.services.VfsFileSystem
 import com.anchor.commentdoclinks.services.WorkspaceRootService
 import com.anchor.commentdoclinks.services.documentLikeFromDocument
@@ -33,7 +33,7 @@ import com.intellij.psi.PsiFile
 val LINK_KEY: TextAttributesKey =
     TextAttributesKey.createTextAttributesKey(
         "COMMENT_DOC_LINKS_LINK",
-        DefaultLanguageHighlighterColors.DOC_COMMENT_TAG_VALUE
+        DefaultLanguageHighlighterColors.DOC_COMMENT_TAG_VALUE,
     )
 
 /**
@@ -48,7 +48,10 @@ val LINK_KEY: TextAttributesKey =
  * shared scan used by navigation and diagnostics in the VS Code extension.
  */
 class CommentDocLinkAnnotator : Annotator {
-    override fun annotate(element: PsiElement, holder: AnnotationHolder) {
+    override fun annotate(
+        element: PsiElement,
+        holder: AnnotationHolder,
+    ) {
         if (element !is PsiFile) return
         val virtualFile = element.virtualFile ?: return
         val languageId = languageIdFromVirtualFile(virtualFile) ?: return
@@ -67,7 +70,8 @@ class CommentDocLinkAnnotator : Annotator {
             when (result.status) {
                 ResolutionStatus.VALID, ResolutionStatus.EXTERNAL -> {
                     if (decorationsEnabled) {
-                        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+                        holder
+                            .newSilentAnnotation(HighlightSeverity.INFORMATION)
                             .range(range)
                             .textAttributes(LINK_KEY)
                             .create()
@@ -76,7 +80,8 @@ class CommentDocLinkAnnotator : Annotator {
 
                 ResolutionStatus.MISSING_FILE, ResolutionStatus.INVALID_PATH -> {
                     if (diagnosticsEnabled) {
-                        holder.newAnnotation(HighlightSeverity.ERROR, result.message ?: "Broken documentation reference")
+                        holder
+                            .newAnnotation(HighlightSeverity.ERROR, result.message ?: "Broken documentation reference")
                             .range(range)
                             .create()
                     }
@@ -84,7 +89,8 @@ class CommentDocLinkAnnotator : Annotator {
 
                 ResolutionStatus.MISSING_ANCHOR, ResolutionStatus.INVALID_LINE -> {
                     if (diagnosticsEnabled) {
-                        holder.newAnnotation(HighlightSeverity.WARNING, result.message ?: "Broken documentation reference")
+                        holder
+                            .newAnnotation(HighlightSeverity.WARNING, result.message ?: "Broken documentation reference")
                             .range(range)
                             .create()
                     }
@@ -107,13 +113,14 @@ class CommentDocLinkAnnotator : Annotator {
         document: com.intellij.openapi.editor.Document,
         root: String,
         fs: VfsFileSystem,
-        holder: AnnotationHolder
+        holder: AnnotationHolder,
     ) {
         val documentationFile = workspaceRelativePath(file.virtualFile?.path ?: return, root) ?: return
 
         for (diag in markdownSourceDiagnostics(documentLikeFromDocument(document), root, fs, documentationFile)) {
             val lineStart = document.getLineStartOffset(diag.line)
-            holder.newAnnotation(diag.severity, diag.message)
+            holder
+                .newAnnotation(diag.severity, diag.message)
                 .range(TextRange(lineStart + diag.range.startOffset, lineStart + diag.range.endOffset))
                 .create()
         }
@@ -130,14 +137,14 @@ internal data class MarkdownSourceDiagnostic(
     val line: Int,
     val range: TextRange,
     val severity: HighlightSeverity,
-    val message: String
+    val message: String,
 )
 
 internal fun markdownSourceDiagnostics(
     doc: DocumentLike,
     root: String,
     fs: FileSystemLike,
-    documentationFile: String
+    documentationFile: String,
 ): List<MarkdownSourceDiagnostic> {
     val result = mutableListOf<MarkdownSourceDiagnostic>()
     // One pass may reference the same source file from many headings; cache the
@@ -157,17 +164,18 @@ internal fun markdownSourceDiagnostics(
                     line,
                     range,
                     HighlightSeverity.ERROR,
-                    "Source file not found: ${heading.source}"
-                )
+                    "Source file not found: ${heading.source}",
+                ),
             )
             continue
         }
 
-        val cached = sourceCache.getOrPut(targetPath) {
-            val text = fs.readText(targetPath) ?: return@getOrPut null
-            val languageId = getLanguageIdFromExtension(targetPath.substringAfterLast('/')) ?: return@getOrPut null
-            text to languageId
-        } ?: continue
+        val cached =
+            sourceCache.getOrPut(targetPath) {
+                val text = fs.readText(targetPath) ?: return@getOrPut null
+                val languageId = getLanguageIdFromExtension(targetPath.substringAfterLast('/')) ?: return@getOrPut null
+                text to languageId
+            } ?: continue
 
         val (sourceText, sourceLanguageId) = cached
         if (heading.anchor.isEmpty() || sourceLanguageId == "markdown") continue
@@ -178,8 +186,8 @@ internal fun markdownSourceDiagnostics(
                     line,
                     range,
                     HighlightSeverity.WARNING,
-                    "Source anchor not found: ${heading.anchor}"
-                )
+                    "Source anchor not found: ${heading.anchor}",
+                ),
             )
         }
     }

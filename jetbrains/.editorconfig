@@ -1,0 +1,8 @@
+root = true
+
+[*.kt]
+ktlint_code_style = ktlint_official
+indent_size = 4
+# File names are intentional (e.g. DocumentScanner.kt hosts ScannedReference);
+# skip the stylistic filename-matches-class rule.
+ktlint_standard_filename = disabled

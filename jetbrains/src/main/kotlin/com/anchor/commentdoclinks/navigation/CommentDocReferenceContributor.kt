@@ -27,9 +27,9 @@ class CommentDocReferenceContributor : PsiReferenceContributor() {
             object : PsiReferenceProvider() {
                 override fun getReferencesByElement(
                     element: PsiElement,
-                    context: ProcessingContext
+                    context: ProcessingContext,
                 ): Array<PsiReference> = referencesForFile(element)
-            }
+            },
         )
     }
 

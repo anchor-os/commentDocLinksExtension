@@ -28,9 +28,8 @@ import com.intellij.psi.PsiReferenceBase
 class CommentDocReference(
     element: PsiElement,
     private val reference: ParsedReference,
-    private val sourceFile: PsiFile
+    private val sourceFile: PsiFile,
 ) : PsiReferenceBase<PsiElement>(element, TextRange(reference.start, reference.end), true) {
-
     override fun resolve(): PsiElement? {
         val project = sourceFile.project
         val virtualFile = sourceFile.virtualFile ?: return null
@@ -61,7 +60,10 @@ class CommentDocReference(
         return targetPsi
     }
 
-    private fun elementAtLine(file: PsiFile, line: Int): PsiElement? {
+    private fun elementAtLine(
+        file: PsiFile,
+        line: Int,
+    ): PsiElement? {
         val document = file.viewProvider.document ?: return file
         if (line < 0 || line >= document.lineCount) return file
         val offset = document.getLineStartOffset(line)

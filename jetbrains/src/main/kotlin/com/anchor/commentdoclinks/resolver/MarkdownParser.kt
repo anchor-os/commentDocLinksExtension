@@ -30,15 +30,16 @@ data class ParsedHeading(
     val source: String,
     val anchor: String,
     val start: Int,
-    val end: Int
+    val end: Int,
 )
 
-private val MARKDOWN_HEADING_REGEX = Regex(
-    """^#{2,}\s+(.+?)(?:\s+""" + MARKDOWN_SOURCE_SEPARATOR + """\s+|""" +
-        """\s+""" + ALTERNATE_SOURCE_SEPARATOR + """\s+|""" +
-        ANCHOR_SEPARATOR + """)""" +
-        """([A-Za-z0-9_-]+)$"""
-)
+private val MARKDOWN_HEADING_REGEX =
+    Regex(
+        """^#{2,}\s+(.+?)(?:\s+""" + MARKDOWN_SOURCE_SEPARATOR + """\s+|""" +
+            """\s+""" + ALTERNATE_SOURCE_SEPARATOR + """\s+|""" +
+            ANCHOR_SEPARATOR + """)""" +
+            """([A-Za-z0-9_-]+)$""",
+    )
 
 /**
  * Parse a documentation heading:
@@ -57,6 +58,6 @@ fun parseMarkdownHeading(line: String): ParsedHeading? {
         source = source,
         anchor = match.groupValues[2],
         start = line.indexOf(source),
-        end = line.indexOf(source) + source.length
+        end = line.indexOf(source) + source.length,
     )
 }
