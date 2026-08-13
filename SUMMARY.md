@@ -37,13 +37,13 @@
 3. Optional cleanup: delete stale branches `jetbrains-ci-publish`, `fix/jetbrains-publish-gate` (PRs merged).
 
 ## Relevant Files
-- `/Users/Manish.Sharma/hornblower/comment-doc-links/biome.json` — Biome config; `suspicious.useIterableCallbackReturn: "off"`.
-- `/Users/Manish.Sharma/hornblower/comment-doc-links/package.json` — `lint` → `biome check .`; `format`/`format:check`/`lint:biome` added; `@biomejs/biome` devDependency.
-- `/Users/Manish.Sharma/hornblower/comment-doc-links/.github/workflows/ci.yml` — `npm run lint` (line 35) now runs Biome.
-- `/Users/Manish.Sharma/hornblower/comment-doc-links/jetbrains/build.gradle.kts` — Spotless 8.9.0 + ktlint block; token-only signing.
-- `/Users/Manish.Sharma/hornblower/comment-doc-links/jetbrains/.editorconfig` — ktlint_official, 4-space indent, `filename` rule disabled.
-- `/Users/Manish.Sharma/hornblower/comment-doc-links/.github/workflows/jetbrains-publish.yml` — fixed via PR #21.
-- `/Users/Manish.Sharma/hornblower/comment-doc-links/jetbrains/build.gradle.kts` — token-only signing.
-- `/Users/Manish.Sharma/hornblower/comment-doc-links/jetbrains/gradle.properties` — config cache.
-- `/Users/Manish.Sharma/hornblower/comment-doc-links/jetbrains/{README,ARCHITECTURE,DEVELOPMENT,TESTING,PUBLISHING,IMPLEMENTATION_STATUS,PARITY_MATRIX}.md` — docs (PR #24).
-- `/Users/Manish.Sharma/hornblower/comment-doc-links/src/scanning/scanScheduler.js` — `Array.from` side-effect pattern (reason for disabling `useIterableCallbackReturn`).
+- `biome.json` — Biome config; `suspicious.useIterableCallbackReturn: "off"`.
+- `package.json` — `lint` → `biome check .`; `format`/`format:check`/`lint:biome` added; `@biomejs/biome` devDependency.
+- `.github/workflows/ci.yml` — `npm run lint` (line 35) now runs Biome.
+- `jetbrains/build.gradle.kts` — Spotless 8.9.0 + ktlint block; token-only signing.
+- `jetbrains/.editorconfig` — ktlint_official, 4-space indent, `filename` rule disabled.
+- `.github/workflows/jetbrains-publish.yml` — fixed via PR #21.
+- `jetbrains/build.gradle.kts` — token-only signing.
+- `jetbrains/gradle.properties` — config cache.
+- `jetbrains/{README,ARCHITECTURE,DEVELOPMENT,TESTING,PUBLISHING,IMPLEMENTATION_STATUS,PARITY_MATRIX}.md` — docs (PR #24).
+- `src/scanning/scanScheduler.js` — `Array.from` side-effect pattern (reason for disabling `useIterableCallbackReturn`).

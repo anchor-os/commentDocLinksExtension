@@ -1,7 +1,10 @@
 # Parity Matrix — VS Code → JetBrains
 
-Every Kotlin module maps 1:1 to a VS Code module. The VS Code extension under
-`src/` is the **behavioral source of truth**; the port matches it exactly.
+Every **pure-core** Kotlin module maps 1:1 to a VS Code module. The IntelliJ
+boundary layers (`services/`, `navigation/`, `decorations/`, `completion/`,
+`config/`) are platform adapters with no direct VS Code equivalent. The VS Code
+extension under `src/` is the **behavioral source of truth**; the port matches
+it exactly.
 
 Legend: ✅ implemented & proven by tests · 🟡 implemented, logic proven by
 pure-function tests (IntelliJ EP glue not unit-tested in a light fixture) · ⬜ missing

@@ -33,7 +33,7 @@ cd jetbrains
 
 ## Project layout
 
-```
+ ```text
 jetbrains/
 ├── build.gradle.kts
 ├── gradle.properties            # JVM args, build cache, configuration cache

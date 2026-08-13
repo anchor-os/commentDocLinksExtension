@@ -6,13 +6,15 @@ IntelliJ-boundary layer that feeds IDE data into the core and renders the
 results through IntelliJ extension points.
 
 > **Source of truth.** The VS Code extension under `src/` (and its `test/`,
-> `docs/`) defines the behavior. Every Kotlin module maps 1:1 to a VS Code
-> module (see `PARITY_MATRIX.md`). Do not invent behavior that is not in the
-> VS Code code.
+> `docs/`) defines the behavior. Every **pure-core** Kotlin module
+> (`model/`, `parser/`, `resolver/`) maps 1:1 to a VS Code module (see
+> `PARITY_MATRIX.md`). The IntelliJ boundary layers (`services/`, `navigation/`,
+> `decorations/`, `completion/`, `config/`) are platform adapters with no direct
+> VS Code equivalent. Do not invent behavior that is not in the VS Code code.
 
 ## Layers
 
-```
+ ```text
 com.anchor.commentdoclinks
 ├── model/          # Pure data: ParsedReference, ReferenceType, ResolutionStatus, ResolutionResult, DocumentLike
 ├── parser/         # Pure: ReferenceParser (regex), LanguageSupport (comment scanner), DocumentScanner
@@ -56,7 +58,7 @@ so they are directly unit-testable without an IntelliJ fixture.
 
 ## Data flow — forward navigation (comment → doc)
 
-```
+ ```text
 Annotator / ReferenceContributor (per PsiFile)
   → scanDocumentForReferences(doc, languageId)            [parser/DocumentScanner]
   → parseComment / parseReference                          [parser/ReferenceParser]
@@ -70,7 +72,7 @@ Annotator / ReferenceContributor (per PsiFile)
 
 ## Data flow — reverse navigation (doc heading → source comment)
 
-```
+ ```text
 MarkdownSourceLinkContributor (per markdown heading)
   → parseMarkdownHeading(line)                              [resolver/MarkdownParser]
   → resolveSourceReference(doc, languageId, source, anchor) [resolver/SourceReferenceResolver]
