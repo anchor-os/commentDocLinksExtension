@@ -42,7 +42,7 @@ pure-function tests (IntelliJ EP glue not unit-tested in a light fixture) · ⬜
 | 29 | Workspace root service | — | `services/WorkspaceRootService.kt` | ✅ | `PathResolutionTest` (pure core) |
 | 30 | Publish / sign (token) | VS Code uses `vsce`/`ovsx` | `build.gradle.kts` `publishing { token }` | ✅ | CI (`jetbrains-publish.yml`) |
 
-**Totals:** 28 ✅ · 2 🟡 (EP glue only; logic proven) · 0 ⬜.
+**Totals:** 25 ✅ · 5 🟡 (EP glue only; logic proven) · 0 ⬜.
 
 ## Notes
 
