@@ -1,6 +1,5 @@
 package com.anchor.commentdoclinks.resolver
 
-import com.anchor.commentdoclinks.config.CommentDocLinksConfig
 import com.anchor.commentdoclinks.model.DocumentLike
 import com.anchor.commentdoclinks.parser.scanDocumentForReferences
 
@@ -51,7 +50,7 @@ fun resolveSourceReference(
 ): SourceReference {
     var fallback: SourceReference? = null
 
-    for ((reference, line) in scanDocumentForReferences(document, languageId, CommentDocLinksConfig.ticketLinks)) {
+    for ((reference, line) in scanDocumentForReferences(document, languageId)) {
         if (normalizedFile(reference.file ?: "") != normalizedFile(documentationFile)) {
             continue
         }
@@ -82,7 +81,7 @@ fun hasExactSourceReference(
         return false
     }
 
-    for ((reference, _) in scanDocumentForReferences(document, languageId, CommentDocLinksConfig.ticketLinks)) {
+    for ((reference, _) in scanDocumentForReferences(document, languageId)) {
         if (
             normalizedFile(reference.file ?: "") == normalizedFile(documentationFile) &&
             reference.anchor == anchor
@@ -105,7 +104,7 @@ fun listSourceAnchors(
 ): List<String> {
     val anchors = mutableSetOf<String>()
 
-    for ((reference, _) in scanDocumentForReferences(document, languageId, CommentDocLinksConfig.ticketLinks)) {
+    for ((reference, _) in scanDocumentForReferences(document, languageId)) {
         if (
             normalizedFile(reference.file ?: "") == normalizedFile(documentationFile) &&
             reference.anchor != null
