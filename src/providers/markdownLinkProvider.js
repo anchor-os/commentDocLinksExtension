@@ -1,80 +1,53 @@
 // @ts-check
 
 import * as vscode from "vscode";
-
-import { parseMarkdownHeading }
-    from "../parsers/markdownParser.js";
-
-import { createCommandUri }
-    from "../utils/commandUri.js";
-
-import { workspaceRelativePath }
-    from "../services/workspace.js";
-
 import { COMMANDS } from "../constants.js";
+import { parseMarkdownHeading } from "../parsers/markdownParser.js";
+
+import { workspaceRelativePath } from "../services/workspace.js";
+import { createCommandUri } from "../utils/commandUri.js";
 
 /**
  * @implements {vscode.DocumentLinkProvider}
  */
 export class MarkdownLinkProvider {
+  provideDocumentLinks(document) {
+    const links = [];
 
-    provideDocumentLinks(document) {
+    const workspaceFolder = vscode.workspace.getWorkspaceFolder(document.uri);
 
-        const links = [];
+    const documentationFile = workspaceRelativePath(document.uri.fsPath, workspaceFolder);
 
-        const workspaceFolder =
-            vscode.workspace.getWorkspaceFolder(document.uri);
+    for (let i = 0; i < document.lineCount; i++) {
+      const line = document.lineAt(i);
 
-        const documentationFile =
-            workspaceRelativePath(
-                document.uri.fsPath,
-                workspaceFolder
-            );
+      const parsed = parseMarkdownHeading(line.text);
 
-        for (let i = 0; i < document.lineCount; i++) {
+      if (!parsed) {
+        continue;
+      }
 
-            const line = document.lineAt(i);
+      const range = new vscode.Range(
+        i,
 
-            const parsed =
-                parseMarkdownHeading(line.text);
+        parsed.start,
 
-            if (!parsed) {
-                continue;
-            }
+        i,
 
-            const range = new vscode.Range(
+        parsed.end,
+      );
 
-                i,
+      const uri = createCommandUri(
+        COMMANDS.OPEN_SOURCE,
+        parsed.source,
+        parsed.anchor,
+        documentationFile,
+        document.uri.fsPath,
+      );
 
-                parsed.start,
-
-                i,
-
-                parsed.end
-
-            );
-
-            const uri = createCommandUri(
-                COMMANDS.OPEN_SOURCE,
-                parsed.source,
-                parsed.anchor,
-                documentationFile,
-                document.uri.fsPath
-            );
-
-            links.push(
-
-                new vscode.DocumentLink(
-                    range,
-                    uri
-                )
-
-            );
-
-        }
-
-        return links;
-
+      links.push(new vscode.DocumentLink(range, uri));
     }
 
+    return links;
+  }
 }

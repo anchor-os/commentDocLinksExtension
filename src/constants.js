@@ -15,9 +15,7 @@ export const MARKDOWN_EXTENSION = ".md";
 /**
  * All documentation extensions the extension understands.
  */
-export const DOCUMENT_EXTENSIONS = [
-    MARKDOWN_EXTENSION
-];
+export const DOCUMENT_EXTENSIONS = [MARKDOWN_EXTENSION];
 
 /**
  * Separator between a documentation file and its anchor in source comments:
@@ -44,7 +42,7 @@ export const ALTERNATE_SOURCE_SEPARATOR = "-";
  * Command identifiers contributed by the extension.
  */
 export const COMMANDS = {
-    OPEN_DOCUMENTATION: "commentDocLinks.openDocumentation",
-    OPEN_SOURCE: "commentDocLinks.openSource",
-    OPEN_REFERENCE: "commentDocLinks.openReference"
+  OPEN_DOCUMENTATION: "commentDocLinks.openDocumentation",
+  OPEN_SOURCE: "commentDocLinks.openSource",
+  OPEN_REFERENCE: "commentDocLinks.openReference",
 };

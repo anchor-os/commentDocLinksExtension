@@ -8,18 +8,16 @@
  * @returns {{ file: string, partialAnchor: string } | null}
  */
 export function extractDocFileAfterHash(text) {
-    const match = text.match(
-        /([A-Za-z0-9_./\\-]+\.md)#([A-Za-z0-9_-]*)$/
-    );
+  const match = text.match(/([A-Za-z0-9_./\\-]+\.md)#([A-Za-z0-9_-]*)$/);
 
-    if (!match) {
-        return null;
-    }
+  if (!match) {
+    return null;
+  }
 
-    return {
-        file: match[1],
-        partialAnchor: match[2]
-    };
+  return {
+    file: match[1],
+    partialAnchor: match[2],
+  };
 }
 
 /**
@@ -31,13 +29,13 @@ export function extractDocFileAfterHash(text) {
  * @returns {{ source: string } | null}
  */
 export function extractHeadingSourceBeforeDash(text) {
-    const match = text.match(/^#{2,}\s+(.+?)\s+[—\-]\s*$/);
+  const match = text.match(/^#{2,}\s+(.+?)\s+[—-]\s*$/);
 
-    if (!match) {
-        return null;
-    }
+  if (!match) {
+    return null;
+  }
 
-    return { source: match[1] };
+  return { source: match[1] };
 }
 
 /**
@@ -49,11 +47,11 @@ export function extractHeadingSourceBeforeDash(text) {
  * @returns {{ start: number, end: number }}
  */
 export function anchorSuffixRange(text, partialAnchor) {
-    if (!partialAnchor) {
-        return { start: text.length, end: text.length };
-    }
+  if (!partialAnchor) {
+    return { start: text.length, end: text.length };
+  }
 
-    const start = text.lastIndexOf(partialAnchor);
+  const start = text.lastIndexOf(partialAnchor);
 
-    return { start, end: text.length };
+  return { start, end: text.length };
 }

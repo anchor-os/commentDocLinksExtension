@@ -13,12 +13,12 @@ import { stat } from "node:fs/promises";
  * @returns {string|null}
  */
 export function fileVersion(targetPath) {
-    try {
-        const statResult = fs.statSync(targetPath);
-        return `${statResult.mtimeMs}:${statResult.size}`;
-    } catch {
-        return null;
-    }
+  try {
+    const statResult = fs.statSync(targetPath);
+    return `${statResult.mtimeMs}:${statResult.size}`;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -29,10 +29,10 @@ export function fileVersion(targetPath) {
  * @returns {Promise<string|null>}
  */
 export async function fileVersionAsync(targetPath) {
-    try {
-        const statResult = await stat(targetPath);
-        return `${statResult.mtimeMs}:${statResult.size}`;
-    } catch {
-        return null;
-    }
+  try {
+    const statResult = await stat(targetPath);
+    return `${statResult.mtimeMs}:${statResult.size}`;
+  } catch {
+    return null;
+  }
 }

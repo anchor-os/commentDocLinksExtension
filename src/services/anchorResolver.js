@@ -27,11 +27,11 @@ import { parseMarkdownHeading } from "../parsers/markdownParser.js";
  * @returns {string}
  */
 export function markdownSlug(headingText) {
-    return headingText
-        .trim()
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}_ -]/gu, "")
-        .replace(/ /g, "-");
+  return headingText
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}_ -]/gu, "")
+    .replace(/ /g, "-");
 }
 
 /**
@@ -42,22 +42,21 @@ export function markdownSlug(headingText) {
  * @returns {Array<{ anchor: string, line: number, character: number }>}
  */
 function explicitAnchors(document) {
-    const anchors = [];
+  const anchors = [];
 
-    for (let i = 0; i < document.lineCount; i++) {
-        const parsed =
-            parseMarkdownHeading(document.lineAt(i).text);
+  for (let i = 0; i < document.lineCount; i++) {
+    const parsed = parseMarkdownHeading(document.lineAt(i).text);
 
-        if (parsed) {
-            anchors.push({
-                anchor: parsed.anchor,
-                line: i,
-                character: 0
-            });
-        }
+    if (parsed) {
+      anchors.push({
+        anchor: parsed.anchor,
+        line: i,
+        character: 0,
+      });
     }
+  }
 
-    return anchors;
+  return anchors;
 }
 
 /**
@@ -67,23 +66,21 @@ function explicitAnchors(document) {
  * @returns {Array<{ anchor: string, line: number, character: number }>}
  */
 function htmlAnchors(document) {
-    const anchors = [];
+  const anchors = [];
 
-    for (let i = 0; i < document.lineCount; i++) {
-        const match = document.lineAt(i).text.match(
-            /<a id="([A-Za-z0-9_-]+)"><\/a>/
-        );
+  for (let i = 0; i < document.lineCount; i++) {
+    const match = document.lineAt(i).text.match(/<a id="([A-Za-z0-9_-]+)"><\/a>/);
 
-        if (match) {
-            anchors.push({
-                anchor: match[1],
-                line: i,
-                character: 0
-            });
-        }
+    if (match) {
+      anchors.push({
+        anchor: match[1],
+        line: i,
+        character: 0,
+      });
     }
+  }
 
-    return anchors;
+  return anchors;
 }
 
 /**
@@ -96,45 +93,45 @@ function htmlAnchors(document) {
  * @returns {Array<{ anchor: string, line: number, character: number }>}
  */
 function slugAnchors(document) {
-    const anchors = [];
-    const seen = new Set();
+  const anchors = [];
+  const seen = new Set();
 
-    for (let i = 0; i < document.lineCount; i++) {
-        const text = document.lineAt(i).text;
+  for (let i = 0; i < document.lineCount; i++) {
+    const text = document.lineAt(i).text;
 
-        if (parseMarkdownHeading(text)) {
-            continue;
-        }
-
-        const heading = text.match(/^#{1,6}\s+(.+)$/);
-
-        if (!heading) {
-            continue;
-        }
-
-        const slug = markdownSlug(heading[1]);
-
-        if (!slug) {
-            continue;
-        }
-
-        let candidate = slug;
-        let n = 1;
-
-        while (seen.has(candidate)) {
-            candidate = `${slug}-${n}`;
-            n++;
-        }
-
-        seen.add(candidate);
-        anchors.push({
-            anchor: candidate,
-            line: i,
-            character: 0
-        });
+    if (parseMarkdownHeading(text)) {
+      continue;
     }
 
-    return anchors;
+    const heading = text.match(/^#{1,6}\s+(.+)$/);
+
+    if (!heading) {
+      continue;
+    }
+
+    const slug = markdownSlug(heading[1]);
+
+    if (!slug) {
+      continue;
+    }
+
+    let candidate = slug;
+    let n = 1;
+
+    while (seen.has(candidate)) {
+      candidate = `${slug}-${n}`;
+      n++;
+    }
+
+    seen.add(candidate);
+    anchors.push({
+      anchor: candidate,
+      line: i,
+      character: 0,
+    });
+  }
+
+  return anchors;
 }
 
 /**
@@ -162,29 +159,29 @@ function slugAnchors(document) {
  * @returns {Location|null}
  */
 export function resolveAnchor(document, anchor) {
-    if (!anchor) {
-        return null;
-    }
-
-    for (const entry of explicitAnchors(document)) {
-        if (entry.anchor === anchor) {
-            return { line: entry.line, character: entry.character };
-        }
-    }
-
-    for (const entry of htmlAnchors(document)) {
-        if (entry.anchor === anchor) {
-            return { line: entry.line, character: entry.character };
-        }
-    }
-
-    for (const entry of slugAnchors(document)) {
-        if (entry.anchor === anchor) {
-            return { line: entry.line, character: entry.character };
-        }
-    }
-
+  if (!anchor) {
     return null;
+  }
+
+  for (const entry of explicitAnchors(document)) {
+    if (entry.anchor === anchor) {
+      return { line: entry.line, character: entry.character };
+    }
+  }
+
+  for (const entry of htmlAnchors(document)) {
+    if (entry.anchor === anchor) {
+      return { line: entry.line, character: entry.character };
+    }
+  }
+
+  for (const entry of slugAnchors(document)) {
+    if (entry.anchor === anchor) {
+      return { line: entry.line, character: entry.character };
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -197,23 +194,21 @@ export function resolveAnchor(document, anchor) {
  * @returns {string[]}
  */
 export function listAnchors(document) {
-    const entries = [
-        ...explicitAnchors(document),
-        ...htmlAnchors(document),
-        ...slugAnchors(document)
-    ];
+  const entries = [
+    ...explicitAnchors(document),
+    ...htmlAnchors(document),
+    ...slugAnchors(document),
+  ];
 
-    entries.sort((a, b) =>
-        a.line - b.line || a.character - b.character
-    );
+  entries.sort((a, b) => a.line - b.line || a.character - b.character);
 
-    const anchors = [];
+  const anchors = [];
 
-    for (const entry of entries) {
-        if (!anchors.includes(entry.anchor)) {
-            anchors.push(entry.anchor);
-        }
+  for (const entry of entries) {
+    if (!anchors.includes(entry.anchor)) {
+      anchors.push(entry.anchor);
     }
+  }
 
-    return anchors;
+  return anchors;
 }

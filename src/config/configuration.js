@@ -2,10 +2,7 @@
 
 import * as vscode from "vscode";
 
-import {
-    THEME_LINK_COLOR,
-    validLinkColor
-} from "./color.js";
+import { THEME_LINK_COLOR, validLinkColor } from "./color.js";
 
 /**
  * Configuration identifiers. Declared in package.json `contributes.configuration`
@@ -13,12 +10,12 @@ import {
  * VS Code's normal configuration system.
  */
 export const CONFIGURATION = {
-    SECTION: "commentDocLinks",
-    ENABLE_DECORATIONS: "enableDecorations",
-    LINK_COLOR: "linkColor",
-    LINK_UNDERLINE: "linkUnderline",
-    ENABLE_DIAGNOSTICS: "enableDiagnostics",
-    ENABLE_COMPLETION: "enableCompletion"
+  SECTION: "commentDocLinks",
+  ENABLE_DECORATIONS: "enableDecorations",
+  LINK_COLOR: "linkColor",
+  LINK_UNDERLINE: "linkUnderline",
+  ENABLE_DIAGNOSTICS: "enableDiagnostics",
+  ENABLE_COMPLETION: "enableCompletion",
 };
 
 export { THEME_LINK_COLOR } from "./color.js";
@@ -41,31 +38,17 @@ export { THEME_LINK_COLOR } from "./color.js";
  * @returns {ExtensionConfiguration}
  */
 export function getConfiguration() {
-    const configuration =
-        vscode.workspace.getConfiguration(CONFIGURATION.SECTION);
+  const configuration = vscode.workspace.getConfiguration(CONFIGURATION.SECTION);
 
-    const linkColor =
-        configuration.get(CONFIGURATION.LINK_COLOR);
+  const linkColor = configuration.get(CONFIGURATION.LINK_COLOR);
 
-    return {
-        enableDecorations: asBoolean(
-            configuration.get(CONFIGURATION.ENABLE_DECORATIONS),
-            true
-        ),
-        linkColor: validLinkColor(linkColor),
-        linkUnderline: asBoolean(
-            configuration.get(CONFIGURATION.LINK_UNDERLINE),
-            true
-        ),
-        enableDiagnostics: asBoolean(
-            configuration.get(CONFIGURATION.ENABLE_DIAGNOSTICS),
-            true
-        ),
-        enableCompletion: asBoolean(
-            configuration.get(CONFIGURATION.ENABLE_COMPLETION),
-            true
-        )
-    };
+  return {
+    enableDecorations: asBoolean(configuration.get(CONFIGURATION.ENABLE_DECORATIONS), true),
+    linkColor: validLinkColor(linkColor),
+    linkUnderline: asBoolean(configuration.get(CONFIGURATION.LINK_UNDERLINE), true),
+    enableDiagnostics: asBoolean(configuration.get(CONFIGURATION.ENABLE_DIAGNOSTICS), true),
+    enableCompletion: asBoolean(configuration.get(CONFIGURATION.ENABLE_COMPLETION), true),
+  };
 }
 
 /**
@@ -73,7 +56,7 @@ export function getConfiguration() {
  * @param {boolean} fallback
  */
 function asBoolean(value, fallback) {
-    return typeof value === "boolean" ? value : fallback;
+  return typeof value === "boolean" ? value : fallback;
 }
 
 /**
@@ -82,18 +65,12 @@ function asBoolean(value, fallback) {
  * @param {vscode.ConfigurationChangeEvent} event
  */
 export function affectsDecorationConfiguration(event) {
-    return (
-        event.affectsConfiguration(CONFIGURATION.SECTION) ||
-        event.affectsConfiguration(
-            `${CONFIGURATION.SECTION}.${CONFIGURATION.ENABLE_DECORATIONS}`
-        ) ||
-        event.affectsConfiguration(
-            `${CONFIGURATION.SECTION}.${CONFIGURATION.LINK_COLOR}`
-        ) ||
-        event.affectsConfiguration(
-            `${CONFIGURATION.SECTION}.${CONFIGURATION.LINK_UNDERLINE}`
-        )
-    );
+  return (
+    event.affectsConfiguration(CONFIGURATION.SECTION) ||
+    event.affectsConfiguration(`${CONFIGURATION.SECTION}.${CONFIGURATION.ENABLE_DECORATIONS}`) ||
+    event.affectsConfiguration(`${CONFIGURATION.SECTION}.${CONFIGURATION.LINK_COLOR}`) ||
+    event.affectsConfiguration(`${CONFIGURATION.SECTION}.${CONFIGURATION.LINK_UNDERLINE}`)
+  );
 }
 
 /**
@@ -106,9 +83,9 @@ export function affectsDecorationConfiguration(event) {
  * @returns {vscode.ThemeColor|string}
  */
 export function linkColorValue(linkColor) {
-    if (linkColor === THEME_LINK_COLOR) {
-        return new vscode.ThemeColor("textLink.foreground");
-    }
+  if (linkColor === THEME_LINK_COLOR) {
+    return new vscode.ThemeColor("textLink.foreground");
+  }
 
-    return linkColor;
+  return linkColor;
 }

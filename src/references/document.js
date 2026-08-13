@@ -15,15 +15,15 @@
  * }}
  */
 export function documentFromText(text, languageId = "markdown") {
-    const lines = text.split(/\r\n|\r|\n/);
+  const lines = text.split(/\r\n|\r|\n/);
 
-    return {
-        languageId,
-        lineCount: lines.length,
-        lineAt(index) {
-            return { text: lines[index] };
-        }
-    };
+  return {
+    languageId,
+    lineCount: lines.length,
+    lineAt(index) {
+      return { text: lines[index] };
+    },
+  };
 }
 
 /**
@@ -33,5 +33,5 @@ export function documentFromText(text, languageId = "markdown") {
  * @returns {number}
  */
 export function countLines(text) {
-    return text.split(/\r\n|\r|\n/).length;
+  return text.split(/\r\n|\r|\n/).length;
 }

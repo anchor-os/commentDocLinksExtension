@@ -1,11 +1,9 @@
 // @ts-check
 
-import * as vscode from "vscode";
 import fs from "node:fs";
+import * as vscode from "vscode";
 
-import {
-    resolveWorkspacePath
-} from "../services/workspace.js";
+import { resolveWorkspacePath } from "../services/workspace.js";
 
 /**
  * Build the resolution context used by every reference consumer.
@@ -17,22 +15,16 @@ import {
  * @returns {import("./resolver.js").ReferenceContext}
  */
 export function createReferenceContext(sourceDocumentPath) {
-    const workspaceFolder = sourceDocumentPath
-        ? vscode.workspace.getWorkspaceFolder(
-              vscode.Uri.file(sourceDocumentPath)
-          )
-        : undefined;
+  const workspaceFolder = sourceDocumentPath
+    ? vscode.workspace.getWorkspaceFolder(vscode.Uri.file(sourceDocumentPath))
+    : undefined;
 
-    return {
-        resolveTargetPath(relativePath) {
-            return resolveWorkspacePath(
-                relativePath,
-                workspaceFolder,
-                sourceDocumentPath
-            );
-        },
-        fs: createFileSystem()
-    };
+  return {
+    resolveTargetPath(relativePath) {
+      return resolveWorkspacePath(relativePath, workspaceFolder, sourceDocumentPath);
+    },
+    fs: createFileSystem(),
+  };
 }
 
 /**
@@ -42,34 +34,30 @@ export function createReferenceContext(sourceDocumentPath) {
  * @returns {import("./resolver.js").FileSystemLike}
  */
 export function createFileSystem() {
-    return {
-        exists(targetPath) {
-            return (
-                vscode.workspace.textDocuments.some(
-                    (candidate) =>
-                        candidate.uri.fsPath === targetPath
-                ) ||
-                fs.existsSync(targetPath)
-            );
-        },
+  return {
+    exists(targetPath) {
+      return (
+        vscode.workspace.textDocuments.some((candidate) => candidate.uri.fsPath === targetPath) ||
+        fs.existsSync(targetPath)
+      );
+    },
 
-        readText(targetPath) {
-            const open = vscode.workspace.textDocuments.find(
-                (candidate) =>
-                    candidate.uri.fsPath === targetPath
-            );
+    readText(targetPath) {
+      const open = vscode.workspace.textDocuments.find(
+        (candidate) => candidate.uri.fsPath === targetPath,
+      );
 
-            if (open) {
-                return open.getText();
-            }
+      if (open) {
+        return open.getText();
+      }
 
-            try {
-                return fs.readFileSync(targetPath, "utf8");
-            } catch {
-                return null;
-            }
-        }
-    };
+      try {
+        return fs.readFileSync(targetPath, "utf8");
+      } catch {
+        return null;
+      }
+    },
+  };
 }
 
 /**
@@ -82,26 +70,26 @@ export function createFileSystem() {
  * @returns {import("./resolver.js").FileSystemLike}
  */
 export function memoizeFileSystem(fs) {
-    /** @type {Map<string, string|null>} */
-    const cache = new Map();
+  /** @type {Map<string, string|null>} */
+  const cache = new Map();
 
-    return {
-        exists(targetPath) {
-            return fs.exists(targetPath);
-        },
+  return {
+    exists(targetPath) {
+      return fs.exists(targetPath);
+    },
 
-        readText(targetPath) {
-            const cached = cache.get(targetPath);
+    readText(targetPath) {
+      const cached = cache.get(targetPath);
 
-            if (cached !== undefined) {
-                return cached;
-            }
+      if (cached !== undefined) {
+        return cached;
+      }
 
-            const text = fs.readText(targetPath);
+      const text = fs.readText(targetPath);
 
-            cache.set(targetPath, text);
+      cache.set(targetPath, text);
 
-            return text;
-        }
-    };
+      return text;
+    },
+  };
 }

@@ -1,53 +1,30 @@
 // @ts-check
 
-import * as vscode from "vscode";
 import fs from "node:fs";
+import * as vscode from "vscode";
+import { getConfiguration } from "../config/configuration.js";
+import { getCommentRanges, getLanguageIdFromExtension } from "../parsers/languageSupport.js";
+import { documentFromText } from "../references/document.js";
+import { listAnchors } from "../services/anchorResolver.js";
+import { listSourceAnchors } from "../services/sourceResolver.js";
 
+import { resolveWorkspacePath, workspaceRelativePath } from "../services/workspace.js";
 import {
-    getCommentRanges,
-    getLanguageIdFromExtension
-} from "../parsers/languageSupport.js";
-
-import {
-    listAnchors
-} from "../services/anchorResolver.js";
-
-import {
-    listSourceAnchors
-} from "../services/sourceResolver.js";
-
-import {
-    documentFromText
-} from "../references/document.js";
-
-import {
-    extractDocFileAfterHash,
-    extractHeadingSourceBeforeDash,
-    anchorSuffixRange
+  anchorSuffixRange,
+  extractDocFileAfterHash,
+  extractHeadingSourceBeforeDash,
 } from "./suggestions.js";
-
-import {
-    resolveWorkspacePath,
-    workspaceRelativePath
-} from "../services/workspace.js";
-
-import {
-    getConfiguration
-} from "../config/configuration.js";
 
 /**
  * @param {string} text
  * @returns {vscode.CompletionItem}
  */
 function anchorCompletionItem(text) {
-    const item = new vscode.CompletionItem(
-        text,
-        vscode.CompletionItemKind.Value
-    );
+  const item = new vscode.CompletionItem(text, vscode.CompletionItemKind.Value);
 
-    item.insertText = text;
+  item.insertText = text;
 
-    return item;
+  return item;
 }
 
 /**
@@ -60,17 +37,13 @@ function anchorCompletionItem(text) {
  * @returns {{ inBlockComment: boolean, inString: string|null }}
  */
 function commentStateBefore(document, lineIndex, languageId) {
-    const state = { inBlockComment: false, inString: null };
+  const state = { inBlockComment: false, inString: null };
 
-    for (let i = 0; i < lineIndex; i++) {
-        getCommentRanges(
-            languageId,
-            document.lineAt(i).text,
-            state
-        );
-    }
+  for (let i = 0; i < lineIndex; i++) {
+    getCommentRanges(languageId, document.lineAt(i).text, state);
+  }
 
-    return state;
+  return state;
 }
 
 /**
@@ -83,21 +56,18 @@ function commentStateBefore(document, lineIndex, languageId) {
  *   comment starts on the line.
  */
 function commentTextUpTo(line, character, languageId, state) {
-    const ranges = getCommentRanges(languageId, line, state);
+  const ranges = getCommentRanges(languageId, line, state);
 
-    for (const range of ranges) {
-        if (
-            character > range.start &&
-            character <= range.end
-        ) {
-            return {
-                text: line.slice(range.start, character),
-                offset: range.start
-            };
-        }
+  for (const range of ranges) {
+    if (character > range.start && character <= range.end) {
+      return {
+        text: line.slice(range.start, character),
+        offset: range.start,
+      };
     }
+  }
 
-    return null;
+  return null;
 }
 
 /**
@@ -107,80 +77,61 @@ function commentTextUpTo(line, character, languageId, state) {
  * @implements {vscode.CompletionItemProvider}
  */
 export class CommentCompletionProvider {
-
-    /**
-     * @param {vscode.TextDocument} document
-     * @param {vscode.Position} position
-     */
-    provideCompletionItems(document, position) {
-        if (!getConfiguration().enableCompletion) {
-            return [];
-        }
-
-        const line = document.lineAt(position.line).text;
-
-        const comment = commentTextUpTo(
-            line,
-            position.character,
-            document.languageId,
-            commentStateBefore(
-                document,
-                position.line,
-                document.languageId
-            )
-        );
-
-        if (comment === null) {
-            return [];
-        }
-
-        const reference = extractDocFileAfterHash(
-            comment.text
-        );
-
-        if (!reference) {
-            return [];
-        }
-
-        const absolute = resolveWorkspacePath(
-            reference.file,
-            vscode.workspace.getWorkspaceFolder(document.uri),
-            document.uri.fsPath
-        );
-
-        if (
-            absolute === null ||
-            !fs.existsSync(absolute)
-        ) {
-            return [];
-        }
-
-        const anchors = listAnchors(
-            documentFromText(
-                fs.readFileSync(absolute, "utf8"),
-                "markdown"
-            )
-        );
-
-        const range = anchorSuffixRange(
-            comment.text,
-            reference.partialAnchor
-        );
-
-        return anchors.map((anchor) => {
-            const item = anchorCompletionItem(anchor);
-
-            item.range = new vscode.Range(
-                position.line,
-                comment.offset + range.start,
-                position.line,
-                comment.offset + range.end
-            );
-
-            return item;
-        });
+  /**
+   * @param {vscode.TextDocument} document
+   * @param {vscode.Position} position
+   */
+  provideCompletionItems(document, position) {
+    if (!getConfiguration().enableCompletion) {
+      return [];
     }
 
+    const line = document.lineAt(position.line).text;
+
+    const comment = commentTextUpTo(
+      line,
+      position.character,
+      document.languageId,
+      commentStateBefore(document, position.line, document.languageId),
+    );
+
+    if (comment === null) {
+      return [];
+    }
+
+    const reference = extractDocFileAfterHash(comment.text);
+
+    if (!reference) {
+      return [];
+    }
+
+    const absolute = resolveWorkspacePath(
+      reference.file,
+      vscode.workspace.getWorkspaceFolder(document.uri),
+      document.uri.fsPath,
+    );
+
+    if (absolute === null || !fs.existsSync(absolute)) {
+      return [];
+    }
+
+    const anchors = listAnchors(documentFromText(fs.readFileSync(absolute, "utf8"), "markdown"));
+
+    const range = anchorSuffixRange(comment.text, reference.partialAnchor);
+
+    return anchors.map((anchor) => {
+      const item = anchorCompletionItem(anchor);
+
+      item.range = new vscode.Range(
+        position.line,
+        comment.offset + range.start,
+        position.line,
+        comment.offset + range.end,
+      );
+
+      return item;
+    });
+  }
 }
 
 /**
@@ -190,75 +141,60 @@ export class CommentCompletionProvider {
  * @implements {vscode.CompletionItemProvider}
  */
 export class MarkdownCompletionProvider {
-
-    /**
-     * @param {vscode.TextDocument} document
-     * @param {vscode.Position} position
-     */
-    provideCompletionItems(document, position) {
-        if (!getConfiguration().enableCompletion) {
-            return [];
-        }
-
-        const line = document.lineAt(position.line).text;
-
-        const prefix = line.slice(0, position.character);
-
-        const heading = extractHeadingSourceBeforeDash(prefix);
-
-        if (!heading) {
-            return [];
-        }
-
-        const absolute = resolveWorkspacePath(
-            heading.source,
-            vscode.workspace.getWorkspaceFolder(document.uri),
-            document.uri.fsPath
-        );
-
-        if (
-            absolute === null ||
-            !fs.existsSync(absolute)
-        ) {
-            return [];
-        }
-
-        const languageId =
-            getLanguageIdFromExtension(heading.source);
-
-        if (languageId === null) {
-            return [];
-        }
-
-        const sourceDocument = documentFromText(
-            fs.readFileSync(absolute, "utf8"),
-            languageId
-        );
-
-        const anchors = listSourceAnchors(
-            sourceDocument,
-            workspaceRelativePath(
-                document.uri.fsPath,
-                vscode.workspace.getWorkspaceFolder(document.uri)
-            )
-        );
-
-        const needsLeadingSpace = !/\s$/.test(prefix);
-
-        return anchors.map((anchor) => {
-            const item = anchorCompletionItem(anchor);
-
-            if (needsLeadingSpace) {
-                item.insertText = ` ${anchor}`;
-
-                item.range = new vscode.Range(
-                    position,
-                    position
-                );
-            }
-
-            return item;
-        });
+  /**
+   * @param {vscode.TextDocument} document
+   * @param {vscode.Position} position
+   */
+  provideCompletionItems(document, position) {
+    if (!getConfiguration().enableCompletion) {
+      return [];
     }
 
+    const line = document.lineAt(position.line).text;
+
+    const prefix = line.slice(0, position.character);
+
+    const heading = extractHeadingSourceBeforeDash(prefix);
+
+    if (!heading) {
+      return [];
+    }
+
+    const absolute = resolveWorkspacePath(
+      heading.source,
+      vscode.workspace.getWorkspaceFolder(document.uri),
+      document.uri.fsPath,
+    );
+
+    if (absolute === null || !fs.existsSync(absolute)) {
+      return [];
+    }
+
+    const languageId = getLanguageIdFromExtension(heading.source);
+
+    if (languageId === null) {
+      return [];
+    }
+
+    const sourceDocument = documentFromText(fs.readFileSync(absolute, "utf8"), languageId);
+
+    const anchors = listSourceAnchors(
+      sourceDocument,
+      workspaceRelativePath(document.uri.fsPath, vscode.workspace.getWorkspaceFolder(document.uri)),
+    );
+
+    const needsLeadingSpace = !/\s$/.test(prefix);
+
+    return anchors.map((anchor) => {
+      const item = anchorCompletionItem(anchor);
+
+      if (needsLeadingSpace) {
+        item.insertText = ` ${anchor}`;
+
+        item.range = new vscode.Range(position, position);
+      }
+
+      return item;
+    });
+  }
 }

@@ -1,13 +1,9 @@
 // @ts-check
 
-import * as vscode from "vscode";
 import path from "node:path";
+import * as vscode from "vscode";
 
-import {
-    chooseRoot,
-    findCheckoutRoot,
-    resolveInRoot
-} from "./pathResolution.js";
+import { chooseRoot, findCheckoutRoot, resolveInRoot } from "./pathResolution.js";
 
 /**
  * Determine the root directory links in a document resolve against.
@@ -24,31 +20,27 @@ import {
  * @returns {string|null}
  */
 export function resolveWorkspaceRoot(workspaceFolder, contextPath) {
-    const workspace =
-        workspaceFolder ??
-        vscode.workspace.workspaceFolders?.[0];
+  const workspace = workspaceFolder ?? vscode.workspace.workspaceFolders?.[0];
 
-    const roots = [];
+  const roots = [];
 
-    if (workspace) {
-        roots.push(path.resolve(workspace.uri.fsPath));
+  if (workspace) {
+    roots.push(path.resolve(workspace.uri.fsPath));
+  }
+
+  if (contextPath) {
+    const checkout = findCheckoutRoot(path.dirname(contextPath));
+
+    if (checkout) {
+      roots.push(checkout);
     }
+  }
 
-    if (contextPath) {
-        const checkout = findCheckoutRoot(
-            path.dirname(contextPath)
-        );
+  if (roots.length === 0) {
+    return null;
+  }
 
-        if (checkout) {
-            roots.push(checkout);
-        }
-    }
-
-    if (roots.length === 0) {
-        return null;
-    }
-
-    return chooseRoot(roots, contextPath);
+  return chooseRoot(roots, contextPath);
 }
 
 /**
@@ -66,21 +58,14 @@ export function resolveWorkspaceRoot(workspaceFolder, contextPath) {
  *   File system path of the referencing document.
  * @returns {string|null}
  */
-export function resolveWorkspacePath(
-    relativePath,
-    workspaceFolder,
-    contextPath
-) {
-    const root = resolveWorkspaceRoot(
-        workspaceFolder,
-        contextPath
-    );
+export function resolveWorkspacePath(relativePath, workspaceFolder, contextPath) {
+  const root = resolveWorkspaceRoot(workspaceFolder, contextPath);
 
-    if (root === null) {
-        return null;
-    }
+  if (root === null) {
+    return null;
+  }
 
-    return resolveInRoot(root, relativePath);
+  return resolveInRoot(root, relativePath);
 }
 
 /**
@@ -92,26 +77,20 @@ export function resolveWorkspacePath(
  * @returns {string}
  */
 export function workspaceRelativePath(fsPath, workspaceFolder) {
-    const root = resolveWorkspaceRoot(
-        workspaceFolder,
-        fsPath
-    );
+  const root = resolveWorkspaceRoot(workspaceFolder, fsPath);
 
-    if (root) {
-        const relative = path.relative(root, fsPath);
+  if (root) {
+    const relative = path.relative(root, fsPath);
 
-        if (
-            relative !== "" &&
-            relative !== ".." &&
-            !relative.startsWith(`..${path.sep}`) &&
-            !path.isAbsolute(relative)
-        ) {
-            return relative.replace(/\\/g, "/");
-        }
+    if (
+      relative !== "" &&
+      relative !== ".." &&
+      !relative.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relative)
+    ) {
+      return relative.replace(/\\/g, "/");
     }
+  }
 
-    return vscode.workspace.asRelativePath(
-        vscode.Uri.file(fsPath),
-        false
-    );
+  return vscode.workspace.asRelativePath(vscode.Uri.file(fsPath), false);
 }

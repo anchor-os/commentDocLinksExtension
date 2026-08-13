@@ -8,11 +8,11 @@
  * @param {string} languageId
  */
 export function makeDocument(lines, languageId = "javascript") {
-    return {
-        languageId,
-        lineCount: lines.length,
-        lineAt(index) {
-            return { text: lines[index] };
-        }
-    };
+  return {
+    languageId,
+    lineCount: lines.length,
+    lineAt(index) {
+      return { text: lines[index] };
+    },
+  };
 }
