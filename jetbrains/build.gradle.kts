@@ -56,12 +56,8 @@ intellijPlatform {
     // Publishing + signing are configured from environment variables / project
     // properties so that the normal `build`/`test` tasks never require secrets.
     // `publishPlugin` / `signPlugin` only read these when actually executed.
-    signing {
-        certificateChain = providers.environmentVariable("JETBRAINS_CERTIFICATE_CHAIN")
-        privateKey = providers.environmentVariable("JETBRAINS_PRIVATE_KEY")
-        password = providers.environmentVariable("JETBRAINS_PRIVATE_KEY_PASSWORD")
-    }
-
+    // Signing uses the JetBrains Marketplace token (Marketplace signature API),
+    // so no separate code-signing certificate is required.
     publishing {
         token = providers.environmentVariable("JETBRAINS_MARKETPLACE_TOKEN")
         channels = providers.environmentVariable("JETBRAINS_MARKETPLACE_CHANNELS")
