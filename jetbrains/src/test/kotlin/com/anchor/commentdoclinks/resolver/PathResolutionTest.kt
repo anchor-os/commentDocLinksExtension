@@ -36,6 +36,18 @@ class PathResolutionTest {
     }
 
     @Test
+    fun `resolveInRoot rejects absolute path outside root`() {
+        val root = tempDir()
+        try {
+            // An absolute target with a different root must return null, never
+            // throw IllegalArgumentException from relativize.
+            assertNull(resolveInRoot(root.toString(), "/etc/passwd"))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun `resolveInRoot allows not-yet-created files`() {
         val root = tempDir()
         try {

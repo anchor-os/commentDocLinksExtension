@@ -86,13 +86,21 @@ fun resolveInRoot(root: String, relativePath: String): String? {
     val base = Paths.get(normalizedRoot)
     val resolved = base.resolve(relativePath).normalize()
 
-    val lexical = base.relativize(resolved)
+    val lexical = try {
+        base.relativize(resolved)
+    } catch (_: IllegalArgumentException) {
+        return null
+    }
     if (escapesRoot(lexical)) return null
 
     val rootReal = realpathPrefix(normalizedRoot) ?: return null
     val targetReal = realpathPrefix(resolved.toString()) ?: return null
 
-    val physical = Paths.get(rootReal.path).relativize(Paths.get(targetReal.path))
+    val physical = try {
+        Paths.get(rootReal.path).relativize(Paths.get(targetReal.path))
+    } catch (_: IllegalArgumentException) {
+        return null
+    }
     if (escapesRoot(physical)) return null
 
     return Paths.get(targetReal.path, *targetReal.suffix.toTypedArray()).toString()
