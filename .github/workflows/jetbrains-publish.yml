@@ -27,13 +27,18 @@ jobs:
         # can never shadow the intended release.
         env:
           RELEASE_REF: ${{ inputs.release_ref }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           if [[ ! "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::release_ref must be a version tag (e.g. v0.1.3), got '${RELEASE_REF}'."
             exit 1
           fi
-          if ! git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_REF}" >/dev/null 2>&1; then
+          # Query the remote directly: this step runs before actions/checkout,
+          # so no `origin` remote is configured yet. GITHUB_REPOSITORY is
+          # auto-provided by Actions; the token authenticates the request.
+          REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if ! git ls-remote --exit-code --tags "$REPO_URL" "refs/tags/${RELEASE_REF}" >/dev/null 2>&1; then
             echo "::error::Tag '${RELEASE_REF}' does not exist on the origin remote."
             exit 1
           fi
