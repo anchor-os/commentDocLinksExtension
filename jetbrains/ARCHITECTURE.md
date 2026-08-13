@@ -1,136 +1,110 @@
-# JetBrains Plugin Architecture
+# Architecture
 
-Design for the `Comment Doc Links` IntelliJ Platform plugin, ported behaviorally
-from the VS Code extension (see `BEHAVIOR_SPEC.md`).
+The plugin is a **port** of the VS Code extension. It keeps the same layered
+shape: a pure, framework-agnostic core (parsing + resolution) wrapped by a thin
+IntelliJ-boundary layer that feeds IDE data into the core and renders the
+results through IntelliJ extension points.
 
-## Principles
+> **Source of truth.** The VS Code extension under `src/` (and its `test/`,
+> `docs/`) defines the behavior. Every Kotlin module maps 1:1 to a VS Code
+> module (see `PARITY_MATRIX.md`). Do not invent behavior that is not in the
+> VS Code code.
 
-1. **Behavioral parity first.** Port the behavior/architecture/contracts from the
-   VS Code extension; do not translate JavaScript mechanically into Kotlin.
-2. **Pure core, thin platform shell.** Parsing, resolution core, anchor logic and
-   line counting are plain Kotlin — no IntelliJ dependency — so they are unit
-   testable without launching an IDE.
-3. **Use IntelliJ idioms at the boundary.** VFS, PSI, annotators, completion
-   providers, actions, `Editor` positioning all use IntelliJ Platform APIs.
-4. **No unnecessary abstraction layers.** Small services with clear responsibilities.
-5. **Independently buildable.** `jetbrains/` builds with Gradle alone; no npm coupling.
-
-## Package Layout
-
-Package root: `com.anchor.commentdoclinks`
+## Layers
 
 ```
-jetbrains/src/main/kotlin/com/anchor/commentdoclinks/
-├── model/          # Pure domain model (no IntelliJ imports)
-│   ├── Reference.kt          # parsed reference (type, raw, file, anchor, line, identifier, span)
-│   ├── ReferenceType.kt      # DOCUMENTATION, ISSUE, API
-│   ├── ResolutionStatus.kt   # VALID, MISSING_FILE, MISSING_ANCHOR, INVALID_LINE, INVALID_PATH, EXTERNAL
-│   ├── ResolutionResult.kt   # status + targetPath + line + message
-│   └── DocumentLike.kt       # minimal line-view over text (mirrors vscode TextDocument)
-├── parser/         # Pure parsing (no IntelliJ imports)
-│   ├── ReferenceParser.kt    # detectReferenceSpans, parseReference, parseComment
-│   ├── MarkdownParser.kt     # parseMarkdownHeading
-│   └── LanguageSupport.kt    # supported languages, comment styles, extension→language map
-├── resolver/       # Pure resolution core (no IntelliJ imports)
-│   ├── PathResolution.kt     # resolveInRoot, findCheckoutRoot, chooseRoot, realpath logic
-│   ├── AnchorResolver.kt     # markdownSlug, resolveAnchor, listAnchors
-│   ├── SourceReferenceResolver.kt  # resolveSourceReference, hasExactSourceReference, listSourceAnchors
-│   ├── ReferenceValidator.kt # validateReference + diagnostics messages
-│   └── LineCounter.kt        # countLines (LF/CRLF/CR)
-├── services/       # IntelliJ-backed services
-│   ├── WorkspaceRootService.kt  # workspace folder + git checkout root detection (worktrees)
-│   ├── VfsFileSystem.kt         # exists/readText over IntelliJ VirtualFileSystem
-│   └── CommentDocLinksApplication.kt  # plugin/service registration, app-level config
-├── navigation/     # IntelliJ navigation
-│   ├── ReferenceHyperlink.kt    # editor click → open target + reveal anchor/line
-│   ├── MarkdownHeadingHyperlink.kt # markdown → source navigation
-│   └── EditorRevealer.kt        # reveal line/anchor with correct 0-based conversion
-├── diagnostics/    # IntelliJ annotators + broken-reference scanning
-│   ├── BrokenReferenceAnnotator.kt  # per-file annotator, Warning severity on full span
-│   ├── BrokenReferenceScanner.kt    # pure scan: collect broken refs in a document
-│   └── ReferenceDependencyIndex.kt  # in-memory source→target index (session cache)
-├── completion/     # IntelliJ completion
-│   ├── CommentAnchorCompletionContributor.kt # after file.md# inside comments
-│   ├── MarkdownAnchorCompletionContributor.kt # after ## src/... — heading
-│   └── SuggestionExtractors.kt   # extractDocFileAfterHash, extractHeadingSourceBeforeDash, anchorSuffixRange
-├── commands/       # IntelliJ actions
-│   ├── OpenReferenceAction.kt
-│   ├── OpenDocumentationAction.kt
-│   └── OpenSourceAction.kt
-├── util/
-│   └── CommandUri.kt            # NOT needed in IntelliJ (no command URIs) — actions instead
-└── CommentDocLinksPlugin.kt     # plugin.xml entry point / service registration
+com.anchor.commentdoclinks
+├── model/          # Pure data: ParsedReference, ReferenceType, ResolutionStatus, ResolutionResult, DocumentLike
+├── parser/         # Pure: ReferenceParser (regex), LanguageSupport (comment scanner), DocumentScanner
+├── resolver/       # Pure: AnchorResolver, PathResolution, SourceReferenceResolver, ReferenceValidator, MarkdownParser, LineCounter
+├── services/       # IntelliJ boundary: DocumentAdapters, VfsFileSystem, WorkspaceRootService
+├── navigation/     # IntelliJ EP: CommentDocReference, CommentDocReferenceContributor, MarkdownSourceReference, MarkdownSourceLinkContributor
+├── decorations/     # IntelliJ EP: CommentDocLinkAnnotator (highlight + diagnostics)
+├── completion/      # IntelliJ EP: ReferenceCompletionContributor
+└── config/         # IntelliJ EP: CommentDocLinksConfig (commentDocLinks.* settings)
 ```
 
-## Data Flow
+### Pure core (no IntelliJ dependency)
+- `model/` — data classes and enums only.
+- `parser/` — turns raw text into `ParsedReference`s.
+  - `ReferenceParser` — reference regexes and `parseComment`/`parseReference`.
+  - `LanguageSupport` — per-language comment detection state machine (`getCommentRanges`).
+  - `DocumentScanner.scanDocumentForReferences` — the **single shared scan** used by every feature.
+- `resolver/` — resolves a parsed reference to a target.
+  - `AnchorResolver` — markdown slug + anchor location.
+  - `PathResolution` — git-root resolution, escape rejection, worktree-aware.
+  - `SourceReferenceResolver` — reverse navigation (doc heading → source comment).
+  - `ReferenceValidator` — single source of truth for `ResolutionStatus` + messages.
+  - `MarkdownParser` — `## src/file.js — anchor` heading parsing.
+  - `LineCounter` — line counting for line validation.
+
+All pure-core functions take explicit inputs (e.g. `DocumentLike`, `FileSystemLike`)
+so they are directly unit-testable without an IntelliJ fixture.
+
+### IntelliJ boundary (`services/`)
+- `DocumentAdapters` — `documentLikeFromDocument`, `languageIdFromVirtualFile`.
+- `VfsFileSystem : FileSystemLike` — exists/readText over the IntelliJ VFS; prefers the open editor document, then file bytes + charset.
+- `WorkspaceRootService` — resolves the git checkout root (cached per document path) and produces workspace-relative paths.
+
+### Extension points (`plugin.xml`)
+| Extension | Implementation | Behavior |
+|---|---|---|
+| `psi.referenceContributor` | `CommentDocReferenceContributor` | attaches `CommentDocReference`s (forward links) |
+| `psi.referenceContributor` | `MarkdownSourceLinkContributor` | attaches `MarkdownSourceReference`s (reverse links) |
+| `completion.contributor` | `ReferenceCompletionContributor` | anchor/source-anchor completion |
+| `annotator` (`language="ANY"`) | `CommentDocLinkAnnotator` | highlight + broken-reference diagnostics |
+
+## Data flow — forward navigation (comment → doc)
 
 ```
-source comment or markdown heading text
-        │  parser/ (pure Kotlin)
-        ▼
-model.Reference (typed, span+offset aware)
-        │  services/WorkspaceRootService + resolver/PathResolution
-        ▼
-absolute target path (worktree-aware)   ──►  VfsFileSystem.exists/readText
-        │  resolver/ReferenceValidator (+ AnchorResolver, LineCounter)
-        ▼
-model.ResolutionResult (status, targetPath, line, message)
-        │
-        ├── ► diagnostics + completion + hover + navigation all consume this
-        ▼
-IntelliJ API boundary (annotator on demand, completion contributor, actions)
+Annotator / ReferenceContributor (per PsiFile)
+  → scanDocumentForReferences(doc, languageId)            [parser/DocumentScanner]
+  → parseComment / parseReference                          [parser/ReferenceParser]
+  → validateReference(reference, ::resolveInRoot, VfsFileSystem)  [resolver/ReferenceValidator]
+        resolveInRoot(root, file)                          [resolver/PathResolution]
+        VfsFileSystem.exists / readText                    [services/VfsFileSystem]
+        listAnchors / resolveAnchor (for anchor refs)      [resolver/AnchorResolver]
+  → ResolutionResult { status, targetPath, line, message }
+  → CommentDocReference.resolve() opens target PsiFile at line/anchor
 ```
 
-## Worktree-Aware Path Handling (critical)
+## Data flow — reverse navigation (doc heading → source comment)
 
-- `WorkspaceRootService` mirrors `resolveWorkspaceRoot`:
-  candidate roots = IntelliJ project content/file roots + **nearest git checkout
-  root** (walked up from the referencing file's directory using VFS).
-- `.git` is detected as a **directory** (main checkout) OR a **file** whose first
-  line is `gitdir:` (linked worktree / submodule). Never assume `.git` is a dir.
-- Deepest root that contains the referencing document wins (`chooseRoot`).
-- `PathResolution.resolveInRoot` guards against escape both lexically (`..`)
-  and physically (realpath/symlink containment).
-- All path handling uses the IntelliJ project/VFS model — never the process CWD.
+```
+MarkdownSourceLinkContributor (per markdown heading)
+  → parseMarkdownHeading(line)                              [resolver/MarkdownParser]
+  → resolveSourceReference(doc, languageId, source, anchor) [resolver/SourceReferenceResolver]
+  → opens the source file at the commenting line
+```
 
-## IntelliJ Mapping
+## Configuration
 
-| VS Code concept | IntelliJ Platform equivalent |
+`config/CommentDocLinksConfig` persists `commentDocLinks.*` keys in IntelliJ's
+application `PropertiesComponent` (defaults = enabled):
+
+| Key | Effect |
 |---|---|
-| `TextDocument` | `Document` (via `FileDocumentManager`) |
-| `Document.uri` | `VirtualFile` |
-| Document link provider (comments) | `PsiReferenceContributor` + `PsiReference` or editor `ReferenceInjectable`; simplest: `PsiReferenceContributor` per language |
-| Document link provider (markdown headings) | `PsiReferenceContributor` on Markdown PSI or `ExternalAnnotator`-independent link via a dedicated `PsiReference` |
-| Hover | Hover via `ReferenceContributor` provides hover implicitly; optional `ExternalAnnotator` hover |
-| Decorations | `EditorMarkupModel` / `RangeHighlighter` (color per status) |
-| Diagnostics | `ExternalAnnotator` or `AnnotationHolder` annotator (Warning severity) |
-| Completion | `CompletionContributor` (two: comments trigger `#`, markdown headings trigger `—`/`-`) |
-| Commands | `AnAction` subclasses registered in `plugin.xml` |
-| Workspace folder + git root | `Project` + git root detection (worktree aware) |
-| Document change events | `FileDocumentManager` listeners / project `MessageBus` |
-| Config (`commentDocLinks.*`) | `PropertiesComponent` per-plugin setting |
+| `commentDocLinks.enableDecorations` | link-color highlighting on/off |
+| `commentDocLinks.enableDiagnostics` | broken-reference ERROR/WARNING on/off |
+| `commentDocLinks.enableCompletion` | completion suggestions on/off |
 
-## Line Number Semantics
+(`linkColor` / `linkUnderline` are accepted for VS Code parity but not yet wired into the highlighter.)
 
-- Users see **1-based** lines exactly like VS Code.
-- IntelliJ `Document` uses **0-based** line indexing.
-- Conversion is centralized in `EditorRevealer` and `ReferenceValidator`:
-  `userLine - 1` when converting to 0-based; validation range `1..lineCount`.
+## Resolution model
 
-## Dependency Direction
+`ReferenceType`: `DOCUMENTATION`, `ISSUE`, `API`. (`DOC-123` parses as a
+`DOCUMENTATION`-typed **external** reference.)
 
-- `model`, `parser`, `resolver` depend on nothing from the IntelliJ Platform.
-- `services`, `navigation`, `diagnostics`, `completion`, `commands` depend on
-  both the pure core and the IntelliJ Platform SDK.
-- The pure core carries the test matrix (deterministic, no IDE needed); the
-  IntelliJ layer gets lightweight integration tests in a headless test fixture.
+`ResolutionStatus`: `VALID`, `MISSING_FILE`, `MISSING_ANCHOR`, `INVALID_LINE`,
+`INVALID_PATH`, `EXTERNAL`. Navigation, hover, diagnostics, and decorations all
+consume `ResolutionResult` identically, so a reference is never "valid when
+clicked" but "broken in diagnostics".
 
-## Performance
+## Key invariants
 
-- Never enumerate the whole repository. Scan open documents + referenced targets only.
-- Cache resolved targets per document (`ReferenceDependencyIndex` keyed by
-  file version: `mtimeMs:size` on disk, `Document` version for open files).
-- The IntelliJ annotator should implement `doAnnotate` on committed documents and
-  be incremental-aware; heavyweight scanning stays out of the EDT.
-- Completion reads at most the single referenced file synchronously (small).
-- Debounce refresh events (250 ms) exactly like VS Code.
+- `#42` is a **heading anchor**, not a line reference. Only `:42`, `#L42`, `#l42` are line references.
+- Line numbers are 1-based for users; IntelliJ internals are 0-based.
+- `.git` may be a directory (checkout) or a file (worktree gitfile); never assume a directory.
+- Root = deepest git checkout root (or project base) that contains the referencing document.
+- Issue/API/`DOC-…` references are external: shown as info, never as broken diagnostics.
+- The plugin never enumerates the whole workspace; it scans only open + referenced documents.
