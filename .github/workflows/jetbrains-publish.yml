@@ -20,26 +20,34 @@ jobs:
     name: Build, sign and publish to JetBrains Marketplace
     runs-on: ubuntu-latest
     steps:
-      - name: Validate release tag
+      - name: Validate release ref (manual dispatch)
+        # Mirrors `.github/workflows/publish-openvsx.yml`: manual runs may be
+        # dispatched from any branch (e.g. main); the actual published content is
+        # the fully-qualified tag refs/tags/<release_ref>, so a same-named branch
+        # can never shadow the intended release.
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          if [ "${{ github.ref_type }}" != "tag" ]; then
-            echo "Publish may only run from a tag (got ref_type=${{ github.ref_type }})."
+          if [[ ! "$RELEASE_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::release_ref must be a version tag (e.g. v0.1.3), got '${RELEASE_REF}'."
             exit 1
           fi
-          if [[ "${{ github.ref_name }}" != v* ]]; then
-            echo "Release tag must start with 'v' (got ${{ github.ref_name }})."
+          # Query the remote directly: this step runs before actions/checkout,
+          # so no `origin` remote is configured yet. GITHUB_REPOSITORY is
+          # auto-provided by Actions; the token authenticates the request.
+          REPO_URL="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if ! git ls-remote --exit-code --tags "$REPO_URL" "refs/tags/${RELEASE_REF}" >/dev/null 2>&1; then
+            echo "::error::Tag '${RELEASE_REF}' does not exist on the origin remote."
             exit 1
           fi
-          if [ "${{ github.ref_name }}" != "${{ inputs.release_ref }}" ]; then
-            echo "Tag ${{ github.ref_name }} does not match release_ref input ${{ inputs.release_ref }}."
-            exit 1
-          fi
+          echo "release_ref '${RELEASE_REF}' is a valid version tag."
 
       - name: Checkout release ref
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.ref_name }}
+          ref: refs/tags/${{ inputs.release_ref }}
           persist-credentials: false
 
       - name: Set up JDK 21
