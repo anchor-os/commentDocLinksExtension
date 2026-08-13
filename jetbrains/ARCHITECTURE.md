@@ -49,6 +49,7 @@ so they are directly unit-testable without an IntelliJ fixture.
 - `WorkspaceRootService` — resolves the git checkout root (cached per document path) and produces workspace-relative paths.
 
 ### Extension points (`plugin.xml`)
+
 | Extension | Implementation | Behavior |
 |---|---|---|
 | `psi.referenceContributor` | `CommentDocReferenceContributor` | attaches `CommentDocReference`s (forward links) |

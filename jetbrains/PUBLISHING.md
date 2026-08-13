@@ -50,7 +50,7 @@ before it becomes public.
 
 Trigger **Publish JetBrains Plugin** from the Actions tab:
 
-- Input `release_ref` — a `vX.Y.Z` tag, e.g. `v0.1.3`.
+- Input `release_ref` — a `vX.Y.Z` tag, e.g. `v0.1.4`.
 - The workflow validates the tag shape and that the tag exists on `origin`
   (`git ls-remote`), then checks out the fully-qualified `refs/tags/<release_ref>`
   so a same-named branch cannot shadow the release.
@@ -59,9 +59,9 @@ Trigger **Publish JetBrains Plugin** from the Actions tab:
 Steps:
 
 ```bash
-git tag v0.1.3
-git push origin v0.1.3
-# Then: Actions → Publish JetBrains Plugin → Run workflow → release_ref = v0.1.3
+git tag v0.1.4
+git push origin v0.1.4
+# Then: Actions → Publish JetBrains Plugin → Run workflow → release_ref = v0.1.4
 ```
 
 ### Secrets / environment
@@ -76,4 +76,4 @@ git push origin v0.1.3
 ## Versioning
 
 `version` in `build.gradle.kts` must match the release tag (drop the leading `v`):
-tag `v0.1.3` ⇒ `version = "0.1.3"`. Bump both together.
+tag `v0.1.4` ⇒ `version = "0.1.4"`. Bump both together.

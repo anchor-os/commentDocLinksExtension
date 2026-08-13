@@ -19,6 +19,10 @@ jobs:
   publish:
     name: Build, sign and publish to JetBrains Marketplace
     runs-on: ubuntu-latest
+    # Secrets are stored as ENVIRONMENT secrets (not repository secrets), so the
+    # job must reference the environment for `secrets.JETBRAINS_MARKETPLACE_TOKEN`
+    # to resolve.
+    environment: marketplace-publish
     steps:
       - name: Validate release ref (manual dispatch)
         # Mirrors `.github/workflows/publish-openvsx.yml`: manual runs may be
