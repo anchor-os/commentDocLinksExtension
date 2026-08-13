@@ -2,6 +2,7 @@ package com.anchor.commentdoclinks.parser
 
 import com.anchor.commentdoclinks.model.DocumentLike
 import com.anchor.commentdoclinks.model.ParsedReference
+import com.anchor.commentdoclinks.model.TicketLink
 
 /**
  * A reference found in a document, tagged with the 0-based line it lives on.
@@ -22,11 +23,14 @@ data class ScannedReference(
  * [languageId] must be supplied by the caller (our [DocumentLike] only carries
  * line text); the IntelliJ service layer derives it from the PSI file.
  *
+ * @param ticketLinks Configured external ticket links (see
+ *   [com.anchor.commentdoclinks.config.CommentDocLinksConfig.ticketLinks]).
  * @return scanned references, in document order
  */
 fun scanDocumentForReferences(
     document: DocumentLike,
     languageId: String,
+    ticketLinks: List<TicketLink> = emptyList(),
 ): List<ScannedReference> {
     if (!supportsLanguage(languageId)) {
         return emptyList()
@@ -43,6 +47,7 @@ fun scanDocumentForReferences(
                 parseComment(
                     text.substring(range.start, range.end),
                     range.start,
+                    ticketLinks,
                 )
 
             for (reference in matches) {

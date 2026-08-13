@@ -2,7 +2,7 @@
 
 import * as vscode from "vscode";
 
-import { getConfiguration, linkColorValue } from "../config/configuration.js";
+import { getConfiguration, getTicketLinks, linkColorValue } from "../config/configuration.js";
 import { supportsLanguage } from "../parsers/languageSupport.js";
 import { scanDocumentForReferences } from "../references/documentScanner.js";
 import { RESOLUTION_STATUS } from "../references/referenceTypes.js";
@@ -123,7 +123,10 @@ export class ReferenceDecorationProvider {
     /** @type {vscode.Range[]} */
     const warningRanges = [];
 
-    for (const { reference, line } of scanDocumentForReferences(editor.document)) {
+    for (const { reference, line } of scanDocumentForReferences(
+      editor.document,
+      getTicketLinks(),
+    )) {
       const range = new vscode.Range(line, reference.start, line, reference.end);
 
       const result = validateReference(reference, memoContext);

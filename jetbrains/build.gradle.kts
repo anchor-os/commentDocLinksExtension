@@ -1,6 +1,7 @@
 plugins {
     id("org.jetbrains.intellij.platform") version "2.18.1"
     id("org.jetbrains.kotlin.jvm") version "2.4.0"
+    id("org.jetbrains.kotlin.plugin.serialization") version "2.4.0"
     id("com.diffplug.spotless") version "8.9.0"
 }
 
@@ -26,6 +27,8 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation("org.junit.vintage:junit-vintage-engine")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.0")
 }
 
 kotlin {

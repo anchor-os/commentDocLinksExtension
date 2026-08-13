@@ -175,14 +175,16 @@ test("issue, ticket and API references are external", () => {
       anchor: null,
       line: null,
       identifier: "123",
+      url: null,
     },
     {
-      type: "documentation",
-      raw: "DOC-123",
+      type: "ticket",
+      raw: "ENC-78305",
       file: null,
       anchor: null,
       line: null,
-      identifier: "DOC-123",
+      identifier: "ENC-78305",
+      url: "https://issues.example.com/browse/ENC-78305",
     },
     {
       type: "api",
@@ -191,12 +193,31 @@ test("issue, ticket and API references are external", () => {
       anchor: null,
       line: null,
       identifier: "Foo",
+      url: null,
     },
   ]) {
     const result = validateReference(reference, makeContext({}));
 
     assert.equal(result.status, "external");
   }
+});
+
+test("ticket reference carries its resolved url", () => {
+  const result = validateReference(
+    {
+      type: "ticket",
+      raw: "ENC-78305",
+      file: null,
+      anchor: null,
+      line: null,
+      identifier: "ENC-78305",
+      url: "https://issues.example.com/browse/ENC-78305",
+    },
+    makeContext({}),
+  );
+
+  assert.equal(result.status, "external");
+  assert.equal(result.url, "https://issues.example.com/browse/ENC-78305");
 });
 
 test("resolveReference rejects paths with no file", () => {

@@ -1,5 +1,6 @@
 package com.anchor.commentdoclinks.navigation
 
+import com.anchor.commentdoclinks.config.CommentDocLinksConfig
 import com.anchor.commentdoclinks.model.DocumentLike
 import com.anchor.commentdoclinks.parser.scanDocumentForReferences
 import com.anchor.commentdoclinks.services.documentLikeFromDocument
@@ -40,7 +41,7 @@ class CommentDocReferenceContributor : PsiReferenceContributor() {
         val document = file.viewProvider.document ?: return PsiReference.EMPTY_ARRAY
         val doc: DocumentLike = documentLikeFromDocument(document)
 
-        return scanDocumentForReferences(doc, languageId)
+        return scanDocumentForReferences(doc, languageId, CommentDocLinksConfig.ticketLinks)
             .map { CommentDocReference(file, it.reference, file) }
             .toTypedArray()
     }

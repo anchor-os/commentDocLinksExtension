@@ -1,8 +1,14 @@
 // @ts-check
 
 import { getCommentRanges, supportsLanguage } from "../parsers/languageSupport.js";
-
 import { parseComment } from "./referenceParser.js";
+
+/**
+ * @typedef {object} TicketLink
+ * @property {string} baseUrl
+ * @property {RegExp} regex
+ * @property {string|null} label
+ */
 
 /**
  * @typedef {object} DocumentLike
@@ -26,9 +32,10 @@ import { parseComment } from "./referenceParser.js";
  * handled here exactly once.
  *
  * @param {DocumentLike} document
+ * @param {TicketLink[]} [ticketLinks]
  * @returns {ScannedReference[]}
  */
-export function scanDocumentForReferences(document) {
+export function scanDocumentForReferences(document, ticketLinks = []) {
   if (!supportsLanguage(document.languageId)) {
     return [];
   }
@@ -42,7 +49,7 @@ export function scanDocumentForReferences(document) {
     const commentRanges = getCommentRanges(document.languageId, text, state);
 
     for (const range of commentRanges) {
-      const matches = parseComment(text.slice(range.start, range.end), range.start);
+      const matches = parseComment(text.slice(range.start, range.end), range.start, ticketLinks);
 
       for (const reference of matches) {
         results.push({ reference, line });

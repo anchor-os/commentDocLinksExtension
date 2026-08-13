@@ -63,17 +63,19 @@ class CommentDocLinkAnnotator : Annotator {
         val decorationsEnabled = CommentDocLinksConfig.enableDecorations
         val diagnosticsEnabled = CommentDocLinksConfig.enableDiagnostics
 
-        for ((reference, _) in scanDocumentForReferences(doc, languageId)) {
+        for ((reference, _) in scanDocumentForReferences(doc, languageId, CommentDocLinksConfig.ticketLinks)) {
             val result = validateReference(reference, { resolveInRoot(root, it) }, fs)
             val range = TextRange(reference.start, reference.end)
 
             when (result.status) {
                 ResolutionStatus.VALID, ResolutionStatus.EXTERNAL -> {
                     if (decorationsEnabled) {
+                        val tooltip = externalTooltip(reference, result)
                         holder
                             .newSilentAnnotation(HighlightSeverity.INFORMATION)
                             .range(range)
                             .textAttributes(LINK_KEY)
+                            .also { if (tooltip != null) it.tooltip(tooltip) }
                             .create()
                     }
                 }
@@ -101,6 +103,25 @@ class CommentDocLinkAnnotator : Annotator {
         if (diagnosticsEnabled && languageId == "markdown") {
             annotateMarkdownSourceReferences(element, document, root, fs, holder)
         }
+    }
+
+    /**
+     * Hover text for references that resolve externally (no local target).
+     * Ticket references show their label + URL; issue/API references explain
+     * they are tracked by an external system. Mirrors
+     * `buildHoverMarkdown` in `src/references/hoverContent.js`.
+     */
+    private fun externalTooltip(
+        reference: com.anchor.commentdoclinks.model.ParsedReference,
+        result: com.anchor.commentdoclinks.model.ResolutionResult,
+    ): String? {
+        if (reference.type == com.anchor.commentdoclinks.model.ReferenceType.TICKET) {
+            val parts = mutableListOf("Ticket reference")
+            if (reference.label != null) parts.add(reference.label)
+            if (result.url != null) parts.add(result.url)
+            return parts.joinToString(" — ")
+        }
+        return "Tracked by an external system."
     }
 
     /**

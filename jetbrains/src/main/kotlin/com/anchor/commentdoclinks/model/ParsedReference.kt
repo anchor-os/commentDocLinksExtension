@@ -14,6 +14,8 @@ data class ParsedReference(
     val anchor: String?,
     val line: Int?,
     val identifier: String?,
+    val url: String? = null,
+    val label: String? = null,
     val start: Int = 0,
     val end: Int = 0,
 ) {

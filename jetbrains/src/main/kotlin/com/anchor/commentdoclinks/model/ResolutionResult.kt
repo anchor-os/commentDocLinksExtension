@@ -10,4 +10,5 @@ data class ResolutionResult(
     val targetPath: String? = null,
     val line: Int? = null,
     val message: String? = null,
+    val url: String? = null,
 )

@@ -16,6 +16,7 @@ export const CONFIGURATION = {
   LINK_UNDERLINE: "linkUnderline",
   ENABLE_DIAGNOSTICS: "enableDiagnostics",
   ENABLE_COMPLETION: "enableCompletion",
+  TICKET_LINKS: "ticketLinks",
 };
 
 export { THEME_LINK_COLOR } from "./color.js";
@@ -27,6 +28,14 @@ export { THEME_LINK_COLOR } from "./color.js";
  * @property {boolean} linkUnderline
  * @property {boolean} enableDiagnostics
  * @property {boolean} enableCompletion
+ */
+
+/**
+ * @typedef {object} TicketLink
+ * @property {string} baseUrl URL prefix; the matched key is appended.
+ * @property {RegExp} regex Compiled ticket-key pattern (wrapped with a
+ *   leading `(?<!\w)` look-behind so keys inside words/URLs are ignored).
+ * @property {string|null} label Optional hover label.
  */
 
 /**
@@ -71,6 +80,59 @@ export function affectsDecorationConfiguration(event) {
     event.affectsConfiguration(`${CONFIGURATION.SECTION}.${CONFIGURATION.LINK_COLOR}`) ||
     event.affectsConfiguration(`${CONFIGURATION.SECTION}.${CONFIGURATION.LINK_UNDERLINE}`)
   );
+}
+
+/**
+ * Read and validate the `commentDocLinks.ticketLinks` setting.
+ *
+ * Each entry `{ baseUrl, pattern, label? }` is turned into a compiled
+ * `TicketLink`. The pattern is wrapped with a leading `(?<!\w)` look-behind so
+ * keys embedded in longer words or URLs are not matched. Invalid patterns are
+ * skipped with a warning (guards against bad regex / ReDoS from user input).
+ *
+ * @returns {TicketLink[]}
+ */
+export function getTicketLinks() {
+  const raw = vscode.workspace
+    .getConfiguration(CONFIGURATION.SECTION)
+    .get(CONFIGURATION.TICKET_LINKS);
+
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  /** @type {TicketLink[]} */
+  const links = [];
+
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+
+    const baseUrl = typeof entry.baseUrl === "string" ? entry.baseUrl : "";
+    const pattern = typeof entry.pattern === "string" ? entry.pattern : "";
+
+    if (baseUrl.length === 0 || pattern.length === 0) {
+      continue;
+    }
+
+    let regex;
+
+    try {
+      regex = new RegExp(`(?<!\\w)(${pattern})`, "g");
+    } catch {
+      console.warn(
+        `commentDocLinks.ticketLinks: skipping entry with invalid pattern "${pattern}".`,
+      );
+      continue;
+    }
+
+    const label = typeof entry.label === "string" && entry.label.length > 0 ? entry.label : null;
+
+    links.push({ baseUrl, regex, label });
+  }
+
+  return links;
 }
 
 /**

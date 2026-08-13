@@ -15,6 +15,8 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiReferenceBase
+import java.awt.Desktop
+import java.net.URI
 
 /**
  * A navigable reference living inside a source comment.
@@ -31,6 +33,13 @@ class CommentDocReference(
     private val sourceFile: PsiFile,
 ) : PsiReferenceBase<PsiElement>(element, TextRange(reference.start, reference.end), true) {
     override fun resolve(): PsiElement? {
+        // Ticket references open their configured URL in the browser on
+        // Ctrl/Cmd+Click (they have no local target to resolve to).
+        if (reference.type == com.anchor.commentdoclinks.model.ReferenceType.TICKET) {
+            reference.url?.let { openInBrowser(it) }
+            return null
+        }
+
         val project = sourceFile.project
         val virtualFile = sourceFile.virtualFile ?: return null
         val root = WorkspaceRootService(project).resolveWorkspaceRoot(virtualFile) ?: return null
@@ -68,6 +77,14 @@ class CommentDocReference(
         if (line < 0 || line >= document.lineCount) return file
         val offset = document.getLineStartOffset(line)
         return file.findElementAt(offset) ?: file
+    }
+
+    private fun openInBrowser(url: String) {
+        runCatching {
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().browse(URI(url))
+            }
+        }
     }
 
     override fun getVariants(): Array<com.intellij.codeInsight.lookup.LookupElement> =

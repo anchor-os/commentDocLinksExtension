@@ -47,12 +47,14 @@ and explained on hover:
 
 ```javascript
 // Fixes #123          — issue reference
-// See DOC-567         — documentation ticket
+// See ENC-78305       — configurable ticket link (opens your tracker)
 // Uses API:Checkout   — API reference
 ```
 
-These links open an informational panel explaining that the target is tracked
-by an external system.
+Issue and API references open an informational panel explaining that the target
+is tracked by an external system. Ticket links are configured through
+`commentDocLinks.ticketLinks` and open the matching URL directly in your
+browser.
 
 ## Features
 
@@ -129,6 +131,7 @@ This extension contributes the following settings:
 | `commentDocLinks.linkUnderline`         | `true`  | Underline valid reference highlights.                |
 | `commentDocLinks.enableDiagnostics`     | `true`  | Report broken references as editor warnings.         |
 | `commentDocLinks.enableCompletion`      | `true`  | Suggest anchors while typing.                        |
+| `commentDocLinks.ticketLinks`           | `[]`    | External ticket links: `[{ baseUrl, pattern, label? }]`. Each `pattern` is a regex for a ticket key (e.g. `ENC-\d+`); the match is appended to `baseUrl` and opened in the browser. |
 
 ## Commands
 

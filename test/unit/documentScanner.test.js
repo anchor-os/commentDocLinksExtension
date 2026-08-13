@@ -9,7 +9,7 @@ import { makeDocument } from "./helpers.js";
 
 test("scans references inside line comments", () => {
   const scanned = scanDocumentForReferences(
-    makeDocument(["// see documentation/a.md", "const x = 1; // DOC-42"]),
+    makeDocument(["// see documentation/a.md", "const x = 1; // DOC-42 and documentation/b.md"]),
   );
 
   assert.equal(scanned.length, 2);

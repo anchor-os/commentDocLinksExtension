@@ -12,6 +12,7 @@ export const REFERENCE_TYPE = {
   DOCUMENTATION: "documentation",
   ISSUE: "issue",
   API: "api",
+  TICKET: "ticket",
 };
 
 /**
@@ -48,4 +49,5 @@ export const REFERENCE_LABELS = {
   [REFERENCE_TYPE.DOCUMENTATION]: "Documentation",
   [REFERENCE_TYPE.ISSUE]: "Issue",
   [REFERENCE_TYPE.API]: "API",
+  [REFERENCE_TYPE.TICKET]: "Ticket",
 };

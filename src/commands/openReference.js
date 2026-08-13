@@ -16,10 +16,10 @@ import { openFile } from "../services/navigation.js";
  *
  *  - Documentation references open the target file and reveal the anchor
  *    or line.
- *  - Issue, API and DOC ticket references have no local target; an
- *    informational message is shown instead. DOC tickets parse as
- *    documentation references with a null file, so the shared
- *    `EXTERNAL` resolution status decides all three uniformly.
+ *  - Issue and API references have no local target; an informational
+ *    message is shown instead.
+ *  - Ticket references resolve to a configured external URL and are
+ *    opened in the system browser via `vscode.env.openExternal`.
  *
  * @param {object} reference A parsed reference (see `parseReference`).
  * @param {string} [sourceDocumentPath]
@@ -32,6 +32,12 @@ export async function openReference(reference, sourceDocumentPath) {
   const result = validateReference(reference, context);
 
   if (result.status === RESOLUTION_STATUS.EXTERNAL) {
+    if (result.url !== null) {
+      await vscode.env.openExternal(vscode.Uri.parse(result.url));
+
+      return null;
+    }
+
     vscode.window.showInformationMessage(
       "This reference has no local target — " + "it is tracked by an external system.",
     );
