@@ -1,6 +1,7 @@
 package com.anchor.commentdoclinks.services
 
 import com.anchor.commentdoclinks.resolver.FileSystemLike
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 
@@ -21,7 +22,10 @@ class VfsFileSystem : FileSystemLike {
         val file: VirtualFile =
             LocalFileSystem.getInstance().findFileByPath(targetPath) ?: return null
         return try {
-            String(file.contentsToByteArray())
+            // Prefer the editor document so unsaved changes are reflected;
+            // otherwise decode the VFS bytes using the file's own charset.
+            FileDocumentManager.getInstance().getDocument(file)?.text
+                ?: String(file.contentsToByteArray(), file.charset)
         } catch (_: Exception) {
             null
         }

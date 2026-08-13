@@ -19,10 +19,10 @@
             implementation="com.anchor.commentdoclinks.navigation.MarkdownSourceLinkContributor"/>
 
         <completion.contributor
-            implementation="com.anchor.commentdoclinks.completion.ReferenceCompletionContributor"/>
+            implementationClass="com.anchor.commentdoclinks.completion.ReferenceCompletionContributor"/>
 
         <annotator
             language="ANY"
-            implementation="com.anchor.commentdoclinks.decorations.CommentDocLinkAnnotator"/>
+            implementationClass="com.anchor.commentdoclinks.decorations.CommentDocLinkAnnotator"/>
     </extensions>
 </idea-plugin>

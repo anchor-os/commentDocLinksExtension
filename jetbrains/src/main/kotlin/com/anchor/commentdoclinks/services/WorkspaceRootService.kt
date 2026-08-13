@@ -7,6 +7,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.VirtualFile
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentMap
 
 /**
  * Determines the root directory that documentation links in a source file
@@ -27,9 +28,9 @@ class WorkspaceRootService(private val project: Project) {
      * session, so caching avoids re-walking `.git` up the directory tree on
      * every annotator/completion pass (which run on the EDT while typing).
      */
-    private val rootCache: MutableMap<String, String?> =
+    private val rootCache: ConcurrentMap<String, String> =
         project.getUserData(ROOT_CACHE_KEY)
-            ?: ConcurrentHashMap<String, String?>().also { project.putUserData(ROOT_CACHE_KEY, it) }
+            ?: ConcurrentHashMap<String, String>().also { project.putUserData(ROOT_CACHE_KEY, it) }
 
     /**
      * Root that links in [documentFile] resolve against, or null when it
@@ -37,7 +38,7 @@ class WorkspaceRootService(private val project: Project) {
      */
     fun resolveWorkspaceRoot(documentFile: VirtualFile): String? {
         val path = documentFile.path
-        if (path in rootCache) return rootCache[path]
+        rootCache[path]?.let { return if (it == NO_ROOT) null else it }
 
         val roots = mutableListOf<String>()
         project.basePath?.let { roots.add(it) }
@@ -47,7 +48,7 @@ class WorkspaceRootService(private val project: Project) {
         if (checkout != null) roots.add(checkout)
 
         val result = if (roots.isEmpty()) null else chooseRoot(roots, path)
-        rootCache[path] = result
+        rootCache[path] = result ?: NO_ROOT
         return result
     }
 
@@ -69,6 +70,7 @@ class WorkspaceRootService(private val project: Project) {
     }
 
     companion object {
-        private val ROOT_CACHE_KEY = Key.create<MutableMap<String, String?>>("cdl.workspaceRootCache")
+        private const val NO_ROOT = ""
+        private val ROOT_CACHE_KEY = Key.create<ConcurrentMap<String, String>>("cdl.workspaceRootCache")
     }
 }

@@ -777,12 +777,12 @@ Test:
 
 ## Line tests
 
-Test:
+Test (these are line references; `#42` is an anchor, not a line — see §3.3):
 
 ```text
 #L42
-#42
 :42
+#l42
 ```
 
 including:
