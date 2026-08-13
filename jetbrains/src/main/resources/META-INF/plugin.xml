@@ -1,0 +1,28 @@
+<idea-plugin>
+    <id>com.anchor.commentdoclinks</id>
+    <name>Comment Doc Links</name>
+    <vendor url="https://github.com/anchor-os/commentDocLinksExtension" email="">getanchor.io</vendor>
+
+    <description><![CDATA[
+        Navigate between source comments and markdown documentation with two-way links.
+        (getanchor.io)
+    ]]></description>
+
+    <!-- Compatibility with WebStorm and other IntelliJ-based IDEs. -->
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <psi.referenceContributor
+            implementation="com.anchor.commentdoclinks.navigation.CommentDocReferenceContributor"/>
+
+        <psi.referenceContributor
+            implementation="com.anchor.commentdoclinks.navigation.MarkdownSourceLinkContributor"/>
+
+        <completion.contributor
+            implementationClass="com.anchor.commentdoclinks.completion.ReferenceCompletionContributor"/>
+
+        <annotator
+            language="ANY"
+            implementationClass="com.anchor.commentdoclinks.decorations.CommentDocLinkAnnotator"/>
+    </extensions>
+</idea-plugin>

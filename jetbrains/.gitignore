@@ -1,0 +1,12 @@
+# Gradle / IntelliJ Platform build outputs & caches
+.gradle/
+build/
+.intellijPlatform/
+out/
+
+# IDEA module files
+*.iml
+.idea/
+
+# Keep the Gradle wrapper jar
+!gradle/wrapper/gradle-wrapper.jar
