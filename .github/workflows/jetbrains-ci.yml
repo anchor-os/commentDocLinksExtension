@@ -42,7 +42,7 @@ jobs:
 
       - name: Build, test and package plugin
         working-directory: jetbrains
-        run: ./gradlew buildPlugin
+        run: ./gradlew test buildPlugin
 
       - name: Upload plugin ZIP
         uses: actions/upload-artifact@v4

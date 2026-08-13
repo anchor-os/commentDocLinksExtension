@@ -202,7 +202,7 @@ Three representations, resolved in this order:
 2. **HTML anchors** — `<a id="legacy-anchor"></a>` (regex
    `<a id="([A-Za-z0-9_-]+)"></a>`).
 3. **Plain markdown headings** slugified (GitHub-style):
-   `## Checkout Flow!` → `checkout-flow`, `## API & Errors` → `api-errors`.
+   `## Checkout Flow!` → `checkout-flow`, `## API & Errors` → `api--errors`.
 
 ### Slug algorithm
 

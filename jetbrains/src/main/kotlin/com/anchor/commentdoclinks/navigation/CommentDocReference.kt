@@ -29,7 +29,7 @@ class CommentDocReference(
     element: PsiElement,
     private val reference: ParsedReference,
     private val sourceFile: PsiFile
-) : PsiReferenceBase<PsiElement>(element, TextRange(reference.start, reference.end), false) {
+) : PsiReferenceBase<PsiElement>(element, TextRange(reference.start, reference.end), true) {
 
     override fun resolve(): PsiElement? {
         val project = sourceFile.project

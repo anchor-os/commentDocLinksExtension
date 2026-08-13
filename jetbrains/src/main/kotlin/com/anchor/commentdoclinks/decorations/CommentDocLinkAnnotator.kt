@@ -11,6 +11,7 @@ import com.anchor.commentdoclinks.resolver.parseMarkdownHeading
 import com.anchor.commentdoclinks.resolver.resolveInRoot
 import com.anchor.commentdoclinks.resolver.validateReference
 import com.anchor.commentdoclinks.resolver.workspaceRelativePath
+import com.anchor.commentdoclinks.config.CommentDocLinksConfig
 import com.anchor.commentdoclinks.services.VfsFileSystem
 import com.anchor.commentdoclinks.services.WorkspaceRootService
 import com.anchor.commentdoclinks.services.documentLikeFromDocument
@@ -56,33 +57,42 @@ class CommentDocLinkAnnotator : Annotator {
         val doc = documentLikeFromDocument(document)
         val fs = VfsFileSystem()
 
+        val decorationsEnabled = CommentDocLinksConfig.enableDecorations
+        val diagnosticsEnabled = CommentDocLinksConfig.enableDiagnostics
+
         for ((reference, _) in scanDocumentForReferences(doc, languageId)) {
             val result = validateReference(reference, { resolveInRoot(root, it) }, fs)
             val range = TextRange(reference.start, reference.end)
 
             when (result.status) {
                 ResolutionStatus.VALID, ResolutionStatus.EXTERNAL -> {
-                    holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                        .range(range)
-                        .textAttributes(LINK_KEY)
-                        .create()
+                    if (decorationsEnabled) {
+                        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+                            .range(range)
+                            .textAttributes(LINK_KEY)
+                            .create()
+                    }
                 }
 
                 ResolutionStatus.MISSING_FILE, ResolutionStatus.INVALID_PATH -> {
-                    holder.newAnnotation(HighlightSeverity.ERROR, result.message ?: "Broken documentation reference")
-                        .range(range)
-                        .create()
+                    if (diagnosticsEnabled) {
+                        holder.newAnnotation(HighlightSeverity.ERROR, result.message ?: "Broken documentation reference")
+                            .range(range)
+                            .create()
+                    }
                 }
 
                 ResolutionStatus.MISSING_ANCHOR, ResolutionStatus.INVALID_LINE -> {
-                    holder.newAnnotation(HighlightSeverity.WARNING, result.message ?: "Broken documentation reference")
-                        .range(range)
-                        .create()
+                    if (diagnosticsEnabled) {
+                        holder.newAnnotation(HighlightSeverity.WARNING, result.message ?: "Broken documentation reference")
+                            .range(range)
+                            .create()
+                    }
                 }
             }
         }
 
-        if (languageId == "markdown") {
+        if (diagnosticsEnabled && languageId == "markdown") {
             annotateMarkdownSourceReferences(element, document, root, fs, holder)
         }
     }
