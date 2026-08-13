@@ -1,8 +1,6 @@
 // @ts-check
 
-import {
-    scanDocumentForReferences
-} from "../references/documentScanner.js";
+import { scanDocumentForReferences } from "../references/documentScanner.js";
 
 /**
  * @typedef {object} SourceReference
@@ -22,7 +20,7 @@ import {
  * @returns {string}
  */
 function normalizedFile(file) {
-    return file.startsWith("./") ? file.slice(2) : file;
+  return file.startsWith("./") ? file.slice(2) : file;
 }
 
 /**
@@ -48,48 +46,40 @@ function normalizedFile(file) {
  * @param {string|null} anchor
  * @returns {SourceReference}
  */
-export function resolveSourceReference(
-    document,
-    documentationFile,
-    anchor
-) {
-    let fallback = null;
+export function resolveSourceReference(document, documentationFile, anchor) {
+  let fallback = null;
 
-    for (const { reference, line } of
-        scanDocumentForReferences(document)) {
-        if (normalizedFile(reference.file) !== normalizedFile(documentationFile)) {
-            continue;
-        }
-
-        if (anchor && reference.anchor === anchor) {
-            return {
-                line,
-                character: 0,
-                anchorFound: true
-            };
-        }
-
-        if (
-            reference.anchor === null &&
-            fallback === null
-        ) {
-            fallback = {
-                line,
-                character: 0,
-                anchorFound: false
-            };
-        }
+  for (const { reference, line } of scanDocumentForReferences(document)) {
+    if (normalizedFile(reference.file) !== normalizedFile(documentationFile)) {
+      continue;
     }
 
-    if (fallback !== null) {
-        return fallback;
-    }
-
-    return {
-        line: 0,
+    if (anchor && reference.anchor === anchor) {
+      return {
+        line,
         character: 0,
-        anchorFound: false
-    };
+        anchorFound: true,
+      };
+    }
+
+    if (reference.anchor === null && fallback === null) {
+      fallback = {
+        line,
+        character: 0,
+        anchorFound: false,
+      };
+    }
+  }
+
+  if (fallback !== null) {
+    return fallback;
+  }
+
+  return {
+    line: 0,
+    character: 0,
+    anchorFound: false,
+  };
 }
 
 /**
@@ -101,26 +91,21 @@ export function resolveSourceReference(
  * @param {string} anchor
  * @returns {boolean}
  */
-export function hasExactSourceReference(
-    document,
-    documentationFile,
-    anchor
-) {
-    if (!anchor) {
-        return false;
-    }
-
-    for (const { reference } of
-        scanDocumentForReferences(document)) {
-        if (
-            normalizedFile(reference.file) === normalizedFile(documentationFile) &&
-            reference.anchor === anchor
-        ) {
-            return true;
-        }
-    }
-
+export function hasExactSourceReference(document, documentationFile, anchor) {
+  if (!anchor) {
     return false;
+  }
+
+  for (const { reference } of scanDocumentForReferences(document)) {
+    if (
+      normalizedFile(reference.file) === normalizedFile(documentationFile) &&
+      reference.anchor === anchor
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -131,21 +116,17 @@ export function hasExactSourceReference(
  * @param {string} documentationFile
  * @returns {string[]}
  */
-export function listSourceAnchors(
-    document,
-    documentationFile
-) {
-    const anchors = new Set();
+export function listSourceAnchors(document, documentationFile) {
+  const anchors = new Set();
 
-    for (const { reference } of
-        scanDocumentForReferences(document)) {
-        if (
-            normalizedFile(reference.file) === normalizedFile(documentationFile) &&
-            reference.anchor !== null
-        ) {
-            anchors.add(reference.anchor);
-        }
+  for (const { reference } of scanDocumentForReferences(document)) {
+    if (
+      normalizedFile(reference.file) === normalizedFile(documentationFile) &&
+      reference.anchor !== null
+    ) {
+      anchors.add(reference.anchor);
     }
+  }
 
-    return [...anchors];
+  return [...anchors];
 }

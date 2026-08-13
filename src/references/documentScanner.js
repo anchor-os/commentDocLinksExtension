@@ -1,12 +1,8 @@
 // @ts-check
 
-import {
-    getCommentRanges,
-    supportsLanguage
-} from "../parsers/languageSupport.js";
+import { getCommentRanges, supportsLanguage } from "../parsers/languageSupport.js";
 
-import { parseComment }
-    from "./referenceParser.js";
+import { parseComment } from "./referenceParser.js";
 
 /**
  * @typedef {object} DocumentLike
@@ -33,33 +29,26 @@ import { parseComment }
  * @returns {ScannedReference[]}
  */
 export function scanDocumentForReferences(document) {
-    if (!supportsLanguage(document.languageId)) {
-        return [];
+  if (!supportsLanguage(document.languageId)) {
+    return [];
+  }
+
+  const results = [];
+  const state = { inBlockComment: false, inString: null };
+
+  for (let line = 0; line < document.lineCount; line++) {
+    const text = document.lineAt(line).text;
+
+    const commentRanges = getCommentRanges(document.languageId, text, state);
+
+    for (const range of commentRanges) {
+      const matches = parseComment(text.slice(range.start, range.end), range.start);
+
+      for (const reference of matches) {
+        results.push({ reference, line });
+      }
     }
+  }
 
-    const results = [];
-    const state = { inBlockComment: false, inString: null };
-
-    for (let line = 0; line < document.lineCount; line++) {
-        const text = document.lineAt(line).text;
-
-        const commentRanges = getCommentRanges(
-            document.languageId,
-            text,
-            state
-        );
-
-        for (const range of commentRanges) {
-            const matches = parseComment(
-                text.slice(range.start, range.end),
-                range.start
-            );
-
-            for (const reference of matches) {
-                results.push({ reference, line });
-            }
-        }
-    }
-
-    return results;
+  return results;
 }

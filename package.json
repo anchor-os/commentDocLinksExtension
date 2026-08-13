@@ -85,12 +85,16 @@
     }
   },
   "scripts": {
-    "lint": "find src -name '*.js' -exec node --check {} +",
+    "lint": "biome check .",
+    "lint:biome": "biome check .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
     "test": "node --test test/unit/*.test.js",
     "test:e2e": "vscode-test",
     "package": "vsce package"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.8",
     "@types/vscode": "^1.106.0",
     "@vscode/test-cli": "^0.0.15",
     "@vscode/test-electron": "^3.1.0",

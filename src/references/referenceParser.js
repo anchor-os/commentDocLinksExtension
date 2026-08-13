@@ -1,8 +1,6 @@
 // @ts-check
 
-import {
-    REFERENCE_TYPE
-} from "./referenceTypes.js";
+import { REFERENCE_TYPE } from "./referenceTypes.js";
 
 /**
  * Documentation reference syntax recognized inside comments:
@@ -24,11 +22,11 @@ import {
  * backslash (`C:\docs\file.md`, UNC paths).
  */
 const DOCUMENTATION_REFERENCE_REGEX = new RegExp(
-    `(?<![\\w:./\\\\])([A-Za-z0-9_.-][A-Za-z0-9_./-]*\\.md)` +
+  `(?<![\\w:./\\\\])([A-Za-z0-9_.-][A-Za-z0-9_./-]*\\.md)` +
     `(?:(?::(\\d+))|` +
     `(?:#[Ll](\\d+))|` +
     `(?:#|\\s+-\\s+|\\s+\u2014\\s+)([A-Za-z0-9_-]+))?`,
-    "g"
+  "g",
 );
 
 /**
@@ -36,10 +34,10 @@ const DOCUMENTATION_REFERENCE_REGEX = new RegExp(
  * already-detected reference. Each group order mirrors the detection regex.
  */
 const DOCUMENTATION_REFERENCE_ANCHORED = new RegExp(
-    `^([A-Za-z0-9_.-][A-Za-z0-9_./-]*\\.md)` +
+  `^([A-Za-z0-9_.-][A-Za-z0-9_./-]*\\.md)` +
     `(?:(?::(\\d+))|` +
     `(?:#[Ll](\\d+))|` +
-    `(?:#|\\s+-\\s+|\\s+\u2014\\s+)([A-Za-z0-9_-]+))?$`
+    `(?:#|\\s+-\\s+|\\s+\u2014\\s+)([A-Za-z0-9_-]+))?$`,
 );
 
 /**
@@ -84,54 +82,43 @@ const API_REFERENCE_ANCHORED = /^API:([A-Za-z0-9_-]+)$/;
  * @returns {ReferenceSpan[]} Spans sorted by start offset.
  */
 export function detectReferenceSpans(text) {
-    const accepted = [];
-    const consumed = [];
+  const accepted = [];
+  const consumed = [];
 
-    const accept = (match) => {
-        const span = {
-            raw: match[0],
-            start: match.index,
-            end: match.index + match[0].length
-        };
-
-        for (const existing of consumed) {
-            if (
-                span.start < existing.end &&
-                existing.start < span.end
-            ) {
-                return;
-            }
-        }
-
-        consumed.push(span);
-        accepted.push(span);
+  const accept = (match) => {
+    const span = {
+      raw: match[0],
+      start: match.index,
+      end: match.index + match[0].length,
     };
 
-    for (const match of text.matchAll(
-        DOCUMENTATION_REFERENCE_REGEX
-    )) {
-        accept(match);
+    for (const existing of consumed) {
+      if (span.start < existing.end && existing.start < span.end) {
+        return;
+      }
     }
 
-    for (const match of text.matchAll(
-        ISSUE_REFERENCE_REGEX
-    )) {
-        accept(match);
-    }
+    consumed.push(span);
+    accepted.push(span);
+  };
 
-    for (const match of text.matchAll(
-        TICKET_REFERENCE_REGEX
-    )) {
-        accept(match);
-    }
+  for (const match of text.matchAll(DOCUMENTATION_REFERENCE_REGEX)) {
+    accept(match);
+  }
 
-    for (const match of text.matchAll(
-        API_REFERENCE_REGEX
-    )) {
-        accept(match);
-    }
+  for (const match of text.matchAll(ISSUE_REFERENCE_REGEX)) {
+    accept(match);
+  }
 
-    return accepted.sort((a, b) => a.start - b.start);
+  for (const match of text.matchAll(TICKET_REFERENCE_REGEX)) {
+    accept(match);
+  }
+
+  for (const match of text.matchAll(API_REFERENCE_REGEX)) {
+    accept(match);
+  }
+
+  return accepted.sort((a, b) => a.start - b.start);
 }
 
 /**
@@ -151,68 +138,66 @@ export function detectReferenceSpans(text) {
  * }|null}
  */
 export function parseReference(raw) {
-    const documentation = raw.match(
-        DOCUMENTATION_REFERENCE_ANCHORED
-    );
+  const documentation = raw.match(DOCUMENTATION_REFERENCE_ANCHORED);
 
-    if (documentation) {
-        const line =
-            documentation[2] !== undefined
-                ? Number(documentation[2]) :
-            documentation[3] !== undefined
-                ? Number(documentation[3]) :
-                null;
+  if (documentation) {
+    const line =
+      documentation[2] !== undefined
+        ? Number(documentation[2])
+        : documentation[3] !== undefined
+          ? Number(documentation[3])
+          : null;
 
-        return {
-            type: REFERENCE_TYPE.DOCUMENTATION,
-            raw,
-            file: documentation[1],
-            anchor: documentation[4] ?? null,
-            line,
-            identifier: null
-        };
-    }
+    return {
+      type: REFERENCE_TYPE.DOCUMENTATION,
+      raw,
+      file: documentation[1],
+      anchor: documentation[4] ?? null,
+      line,
+      identifier: null,
+    };
+  }
 
-    const issue = raw.match(ISSUE_REFERENCE_ANCHORED);
+  const issue = raw.match(ISSUE_REFERENCE_ANCHORED);
 
-    if (issue) {
-        return {
-            type: REFERENCE_TYPE.ISSUE,
-            raw,
-            file: null,
-            anchor: null,
-            line: null,
-            identifier: issue[1]
-        };
-    }
+  if (issue) {
+    return {
+      type: REFERENCE_TYPE.ISSUE,
+      raw,
+      file: null,
+      anchor: null,
+      line: null,
+      identifier: issue[1],
+    };
+  }
 
-    const ticket = raw.match(TICKET_REFERENCE_ANCHORED);
+  const ticket = raw.match(TICKET_REFERENCE_ANCHORED);
 
-    if (ticket) {
-        return {
-            type: REFERENCE_TYPE.DOCUMENTATION,
-            raw,
-            file: null,
-            anchor: null,
-            line: null,
-            identifier: raw
-        };
-    }
+  if (ticket) {
+    return {
+      type: REFERENCE_TYPE.DOCUMENTATION,
+      raw,
+      file: null,
+      anchor: null,
+      line: null,
+      identifier: raw,
+    };
+  }
 
-    const api = raw.match(API_REFERENCE_ANCHORED);
+  const api = raw.match(API_REFERENCE_ANCHORED);
 
-    if (api) {
-        return {
-            type: REFERENCE_TYPE.API,
-            raw,
-            file: null,
-            anchor: null,
-            line: null,
-            identifier: api[1]
-        };
-    }
+  if (api) {
+    return {
+      type: REFERENCE_TYPE.API,
+      raw,
+      file: null,
+      anchor: null,
+      line: null,
+      identifier: api[1],
+    };
+  }
 
-    return null;
+  return null;
 }
 
 /**
@@ -238,21 +223,21 @@ export function parseReference(raw) {
  * @returns {ParsedReference[]}
  */
 export function parseComment(text, offset = 0) {
-    const references = [];
+  const references = [];
 
-    for (const span of detectReferenceSpans(text)) {
-        const parsed = parseReference(span.raw);
+  for (const span of detectReferenceSpans(text)) {
+    const parsed = parseReference(span.raw);
 
-        if (parsed === null) {
-            continue;
-        }
-
-        references.push({
-            ...parsed,
-            start: offset + span.start,
-            end: offset + span.end
-        });
+    if (parsed === null) {
+      continue;
     }
 
-    return references;
+    references.push({
+      ...parsed,
+      start: offset + span.start,
+      end: offset + span.end,
+    });
+  }
+
+  return references;
 }

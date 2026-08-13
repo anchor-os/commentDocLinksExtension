@@ -1,16 +1,10 @@
 // @ts-check
 
-import {
-    listAnchors
-} from "../services/anchorResolver.js";
+import { listAnchors } from "../services/anchorResolver.js";
 
-import { countLines, documentFromText }
-    from "./document.js";
+import { countLines, documentFromText } from "./document.js";
 
-import {
-    RESOLUTION_STATUS,
-    REFERENCE_TYPE
-} from "./referenceTypes.js";
+import { REFERENCE_TYPE, RESOLUTION_STATUS } from "./referenceTypes.js";
 
 /**
  * @typedef {object} FileSystemLike
@@ -39,14 +33,10 @@ import {
  */
 
 const MESSAGES = {
-    [RESOLUTION_STATUS.MISSING_FILE]:
-        "Documentation file not found: ",
-    [RESOLUTION_STATUS.MISSING_ANCHOR]:
-        "Documentation anchor not found: ",
-    [RESOLUTION_STATUS.INVALID_LINE]:
-        "Documentation line out of range: ",
-    [RESOLUTION_STATUS.INVALID_PATH]:
-        "Documentation path is not allowed"
+  [RESOLUTION_STATUS.MISSING_FILE]: "Documentation file not found: ",
+  [RESOLUTION_STATUS.MISSING_ANCHOR]: "Documentation anchor not found: ",
+  [RESOLUTION_STATUS.INVALID_LINE]: "Documentation line out of range: ",
+  [RESOLUTION_STATUS.INVALID_PATH]: "Documentation path is not allowed",
 };
 
 /**
@@ -59,20 +49,17 @@ const MESSAGES = {
  *           { kind: "external" }}
  */
 export function resolveReference(reference, context) {
-    if (
-        reference.file === null ||
-        reference.file === undefined
-    ) {
-        return { kind: "external" };
-    }
+  if (reference.file === null || reference.file === undefined) {
+    return { kind: "external" };
+  }
 
-    const targetPath = context.resolveTargetPath(reference.file);
+  const targetPath = context.resolveTargetPath(reference.file);
 
-    if (targetPath === null) {
-        return { kind: "invalid-path" };
-    }
+  if (targetPath === null) {
+    return { kind: "invalid-path" };
+  }
 
-    return { kind: "file", targetPath };
+  return { kind: "file", targetPath };
 }
 
 /**
@@ -92,19 +79,16 @@ export function resolveReference(reference, context) {
  * @returns {ResolutionResult}
  */
 export function validateReference(reference, context) {
-    if (
-        reference.type === REFERENCE_TYPE.DOCUMENTATION &&
-        reference.file !== null
-    ) {
-        return validateDocumentationReference(reference, context);
-    }
+  if (reference.type === REFERENCE_TYPE.DOCUMENTATION && reference.file !== null) {
+    return validateDocumentationReference(reference, context);
+  }
 
-    return {
-        status: RESOLUTION_STATUS.EXTERNAL,
-        targetPath: null,
-        line: null,
-        message: null
-    };
+  return {
+    status: RESOLUTION_STATUS.EXTERNAL,
+    targetPath: null,
+    line: null,
+    message: null,
+  };
 }
 
 /**
@@ -117,61 +101,51 @@ export function validateReference(reference, context) {
  * @returns {ResolutionResult}
  */
 function validateDocumentationReference(reference, context) {
-    const resolution = resolveReference(reference, context);
+  const resolution = resolveReference(reference, context);
 
-    if (resolution.kind === "invalid-path") {
-        return {
-            status: RESOLUTION_STATUS.INVALID_PATH,
-            targetPath: null,
-            line: null,
-            message: MESSAGES[RESOLUTION_STATUS.INVALID_PATH]
-        };
-    }
-
-    if (resolution.kind === "external") {
-        return {
-            status: RESOLUTION_STATUS.EXTERNAL,
-            targetPath: null,
-            line: null,
-            message: null
-        };
-    }
-
-    const targetPath = resolution.targetPath;
-
-    if (!context.fs.exists(targetPath)) {
-        return {
-            status: RESOLUTION_STATUS.MISSING_FILE,
-            targetPath,
-            line: null,
-            message:
-                MESSAGES[RESOLUTION_STATUS.MISSING_FILE] +
-                reference.file
-        };
-    }
-
-    if (reference.line !== null) {
-        return validateDocumentationLine(
-            reference.line,
-            targetPath,
-            context
-        );
-    }
-
-    if (reference.anchor !== null) {
-        return validateDocumentationAnchor(
-            reference.anchor,
-            targetPath,
-            context
-        );
-    }
-
+  if (resolution.kind === "invalid-path") {
     return {
-        status: RESOLUTION_STATUS.VALID,
-        targetPath,
-        line: null,
-        message: null
+      status: RESOLUTION_STATUS.INVALID_PATH,
+      targetPath: null,
+      line: null,
+      message: MESSAGES[RESOLUTION_STATUS.INVALID_PATH],
     };
+  }
+
+  if (resolution.kind === "external") {
+    return {
+      status: RESOLUTION_STATUS.EXTERNAL,
+      targetPath: null,
+      line: null,
+      message: null,
+    };
+  }
+
+  const targetPath = resolution.targetPath;
+
+  if (!context.fs.exists(targetPath)) {
+    return {
+      status: RESOLUTION_STATUS.MISSING_FILE,
+      targetPath,
+      line: null,
+      message: MESSAGES[RESOLUTION_STATUS.MISSING_FILE] + reference.file,
+    };
+  }
+
+  if (reference.line !== null) {
+    return validateDocumentationLine(reference.line, targetPath, context);
+  }
+
+  if (reference.anchor !== null) {
+    return validateDocumentationAnchor(reference.anchor, targetPath, context);
+  }
+
+  return {
+    status: RESOLUTION_STATUS.VALID,
+    targetPath,
+    line: null,
+    message: null,
+  };
 }
 
 /**
@@ -181,36 +155,34 @@ function validateDocumentationReference(reference, context) {
  * @returns {ResolutionResult}
  */
 function validateDocumentationLine(line, targetPath, context) {
-    const text = context.fs.readText(targetPath);
+  const text = context.fs.readText(targetPath);
 
-    if (text === null) {
-        return {
-            status: RESOLUTION_STATUS.VALID,
-            targetPath,
-            line,
-            message: null
-        };
-    }
-
-    const lineCount = countLines(text);
-
-    if (line < 1 || line > lineCount) {
-        return {
-            status: RESOLUTION_STATUS.INVALID_LINE,
-            targetPath,
-            line: null,
-            message:
-                MESSAGES[RESOLUTION_STATUS.INVALID_LINE] +
-                String(line)
-        };
-    }
-
+  if (text === null) {
     return {
-        status: RESOLUTION_STATUS.VALID,
-        targetPath,
-        line,
-        message: null
+      status: RESOLUTION_STATUS.VALID,
+      targetPath,
+      line,
+      message: null,
     };
+  }
+
+  const lineCount = countLines(text);
+
+  if (line < 1 || line > lineCount) {
+    return {
+      status: RESOLUTION_STATUS.INVALID_LINE,
+      targetPath,
+      line: null,
+      message: MESSAGES[RESOLUTION_STATUS.INVALID_LINE] + String(line),
+    };
+  }
+
+  return {
+    status: RESOLUTION_STATUS.VALID,
+    targetPath,
+    line,
+    message: null,
+  };
 }
 
 /**
@@ -220,36 +192,30 @@ function validateDocumentationLine(line, targetPath, context) {
  * @returns {ResolutionResult}
  */
 function validateDocumentationAnchor(anchor, targetPath, context) {
-    const text = context.fs.readText(targetPath);
+  const text = context.fs.readText(targetPath);
 
-    if (text === null) {
-        return {
-            status: RESOLUTION_STATUS.VALID,
-            targetPath,
-            line: null,
-            message: null
-        };
-    }
-
-    if (
-        !listAnchors(
-            documentFromText(text, "markdown")
-        ).includes(anchor)
-    ) {
-        return {
-            status: RESOLUTION_STATUS.MISSING_ANCHOR,
-            targetPath,
-            line: null,
-            message:
-                MESSAGES[RESOLUTION_STATUS.MISSING_ANCHOR] +
-                anchor
-        };
-    }
-
+  if (text === null) {
     return {
-        status: RESOLUTION_STATUS.VALID,
-        targetPath,
-        line: null,
-        message: null
+      status: RESOLUTION_STATUS.VALID,
+      targetPath,
+      line: null,
+      message: null,
     };
+  }
+
+  if (!listAnchors(documentFromText(text, "markdown")).includes(anchor)) {
+    return {
+      status: RESOLUTION_STATUS.MISSING_ANCHOR,
+      targetPath,
+      line: null,
+      message: MESSAGES[RESOLUTION_STATUS.MISSING_ANCHOR] + anchor,
+    };
+  }
+
+  return {
+    status: RESOLUTION_STATUS.VALID,
+    targetPath,
+    line: null,
+    message: null,
+  };
 }

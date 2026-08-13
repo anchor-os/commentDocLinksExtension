@@ -1,7 +1,7 @@
 // @ts-check
 
-import path from "node:path";
 import fs from "node:fs";
+import path from "node:path";
 
 /**
  * True when the directory contains a `.git` entry (directory for the
@@ -11,15 +11,12 @@ import fs from "node:fs";
  * @returns {boolean}
  */
 function hasGitEntry(directory) {
-    try {
-        const gitPath = path.join(directory, ".git");
-        return (
-            fs.statSync(gitPath).isDirectory() ||
-            fs.lstatSync(gitPath).isFile()
-        );
-    } catch {
-        return false;
-    }
+  try {
+    const gitPath = path.join(directory, ".git");
+    return fs.statSync(gitPath).isDirectory() || fs.lstatSync(gitPath).isFile();
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -37,23 +34,23 @@ function hasGitEntry(directory) {
  * @returns {string|null}
  */
 export function findCheckoutRoot(directory, hasEntry) {
-    const check = hasEntry ?? hasGitEntry;
+  const check = hasEntry ?? hasGitEntry;
 
-    let current = path.resolve(directory);
+  let current = path.resolve(directory);
 
-    for (;;) {
-        if (check(current)) {
-            return current;
-        }
-
-        const parent = path.dirname(current);
-
-        if (parent === current) {
-            return null;
-        }
-
-        current = parent;
+  for (;;) {
+    if (check(current)) {
+      return current;
     }
+
+    const parent = path.dirname(current);
+
+    if (parent === current) {
+      return null;
+    }
+
+    current = parent;
+  }
 }
 
 /**
@@ -75,37 +72,29 @@ export function findCheckoutRoot(directory, hasEntry) {
  * @returns {string|null}
  */
 export function resolveInRoot(root, relativePath) {
-    const normalizedRoot = path.resolve(root);
-    const resolved = path.resolve(normalizedRoot, relativePath);
+  const normalizedRoot = path.resolve(root);
+  const resolved = path.resolve(normalizedRoot, relativePath);
 
-    const relative = path.relative(normalizedRoot, resolved);
+  const relative = path.relative(normalizedRoot, resolved);
 
-    if (
-        relative === ".." ||
-        relative.startsWith(`..${path.sep}`) ||
-        path.isAbsolute(relative)
-    ) {
-        return null;
-    }
+  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+    return null;
+  }
 
-    const rootReal = realpathPrefix(normalizedRoot);
-    const targetReal = realpathPrefix(resolved);
+  const rootReal = realpathPrefix(normalizedRoot);
+  const targetReal = realpathPrefix(resolved);
 
-    if (rootReal === null || targetReal === null) {
-        return null;
-    }
+  if (rootReal === null || targetReal === null) {
+    return null;
+  }
 
-    const physical = path.relative(rootReal.path, targetReal.path);
+  const physical = path.relative(rootReal.path, targetReal.path);
 
-    if (
-        physical === ".." ||
-        physical.startsWith(`..${path.sep}`) ||
-        path.isAbsolute(physical)
-    ) {
-        return null;
-    }
+  if (physical === ".." || physical.startsWith(`..${path.sep}`) || path.isAbsolute(physical)) {
+    return null;
+  }
 
-    return path.join(targetReal.path, ...targetReal.suffix);
+  return path.join(targetReal.path, ...targetReal.suffix);
 }
 
 /**
@@ -116,26 +105,26 @@ export function resolveInRoot(root, relativePath) {
  * @returns {{ path: string, suffix: string[] }|null}
  */
 function realpathPrefix(candidate) {
-    let current = candidate;
-    const suffix = [];
+  let current = candidate;
+  const suffix = [];
 
-    for (;;) {
-        try {
-            return {
-                path: fs.realpathSync(current),
-                suffix
-            };
-        } catch {
-            const parent = path.dirname(current);
+  for (;;) {
+    try {
+      return {
+        path: fs.realpathSync(current),
+        suffix,
+      };
+    } catch {
+      const parent = path.dirname(current);
 
-            if (parent === current) {
-                return null;
-            }
+      if (parent === current) {
+        return null;
+      }
 
-            suffix.unshift(path.basename(current));
-            current = parent;
-        }
+      suffix.unshift(path.basename(current));
+      current = parent;
     }
+  }
 }
 
 /**
@@ -146,14 +135,12 @@ function realpathPrefix(candidate) {
  * @returns {boolean}
  */
 function isAncestor(candidate, target) {
-    const relative = path.relative(candidate, target);
+  const relative = path.relative(candidate, target);
 
-    return (
-        relative === "" ||
-        (!relative.startsWith(`..${path.sep}`) &&
-            relative !== ".." &&
-            !path.isAbsolute(relative))
-    );
+  return (
+    relative === "" ||
+    (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative))
+  );
 }
 
 /**
@@ -170,25 +157,25 @@ function isAncestor(candidate, target) {
  * @returns {string}
  */
 export function chooseRoot(roots, contextPath) {
-    const candidates = roots.map((root) => path.resolve(root));
+  const candidates = roots.map((root) => path.resolve(root));
 
-    if (!contextPath || candidates.length <= 1) {
-        return candidates[0];
+  if (!contextPath || candidates.length <= 1) {
+    return candidates[0];
+  }
+
+  const context = path.resolve(contextPath);
+
+  let best = null;
+
+  for (const candidate of candidates) {
+    if (!isAncestor(candidate, context)) {
+      continue;
     }
 
-    const context = path.resolve(contextPath);
-
-    let best = null;
-
-    for (const candidate of candidates) {
-        if (!isAncestor(candidate, context)) {
-            continue;
-        }
-
-        if (best === null || candidate.length > best.length) {
-            best = candidate;
-        }
+    if (best === null || candidate.length > best.length) {
+      best = candidate;
     }
+  }
 
-    return best ?? candidates[0];
+  return best ?? candidates[0];
 }

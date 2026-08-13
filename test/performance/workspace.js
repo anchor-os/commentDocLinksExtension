@@ -1,18 +1,18 @@
 // @ts-check
 
+import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import assert from "node:assert/strict";
 
 /**
  * Sizes used for the performance workload. Large is deliberately big enough
  * that naive whole-workspace scanning would be visible.
  */
 export const WORKSPACE_SIZES = {
-    small: { sourceFiles: 10, docFiles: 10 },
-    medium: { sourceFiles: 100, docFiles: 100 },
-    large: { sourceFiles: 1000, docFiles: 1000 }
+  small: { sourceFiles: 10, docFiles: 10 },
+  medium: { sourceFiles: 100, docFiles: 100 },
+  large: { sourceFiles: 1000, docFiles: 1000 },
 };
 
 export const REFERENCES_PER_FILE = 5;
@@ -21,12 +21,12 @@ export const REFERENCES_PER_FILE = 5;
  * Deterministic pseudo-random generator so every run uses identical content.
  */
 function makeRandom(seed) {
-    let state = seed >>> 0;
+  let state = seed >>> 0;
 
-    return () => {
-        state = (state * 1664525 + 1013904223) >>> 0;
-        return state / 0x100000000;
-    };
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
 }
 
 /**
@@ -34,18 +34,18 @@ function makeRandom(seed) {
  * @returns {string}
  */
 function sourceContent(sourcePath) {
-    const base = path.basename(sourcePath, ".js");
-    const lines = [
-        "/**",
-        " * Module for the performance workload.",
-        ` * @see src/${base}.js`,
-        " */",
-        "export function run() {",
-        "    return 42;",
-        "}"
-    ];
+  const base = path.basename(sourcePath, ".js");
+  const lines = [
+    "/**",
+    " * Module for the performance workload.",
+    ` * @see src/${base}.js`,
+    " */",
+    "export function run() {",
+    "    return 42;",
+    "}",
+  ];
 
-    return lines.join("\n");
+  return lines.join("\n");
 }
 
 /**
@@ -57,25 +57,25 @@ function sourceContent(sourcePath) {
  * @returns {string}
  */
 function referencingSourceContent(sourcePath, docPath) {
-    const base = path.basename(sourcePath, ".js");
-    const docName = path.basename(docPath);
-    const lines = [
-        "/**",
-        " * Documentation for this module.",
-        ` * → documentation/${docName}#${base}`,
-        ` * → documentation/${docName}#section-one`,
-        ` * → documentation/${docName}#section-two`,
-        ` * → documentation/${docName}#section-three`,
-        ` * → documentation/${docName}#section-four`,
-        " *",
-        " * @see documentation/overview.md",
-        " */",
-        "export function run() {",
-        "    return 42;",
-        "}"
-    ];
+  const base = path.basename(sourcePath, ".js");
+  const docName = path.basename(docPath);
+  const lines = [
+    "/**",
+    " * Documentation for this module.",
+    ` * → documentation/${docName}#${base}`,
+    ` * → documentation/${docName}#section-one`,
+    ` * → documentation/${docName}#section-two`,
+    ` * → documentation/${docName}#section-three`,
+    ` * → documentation/${docName}#section-four`,
+    " *",
+    " * @see documentation/overview.md",
+    " */",
+    "export function run() {",
+    "    return 42;",
+    "}",
+  ];
 
-    return lines.join("\n");
+  return lines.join("\n");
 }
 
 /**
@@ -83,30 +83,30 @@ function referencingSourceContent(sourcePath, docPath) {
  * @returns {string}
  */
 function documentationContent(docPath) {
-    const base = path.basename(docPath, ".md");
-    const lines = [
-        `# ${base}`,
-        "",
-        `## src/${base}.js — ${base}`,
-        "",
-        "## Section One",
-        "",
-        "Content under section one.",
-        "",
-        "## Section Two",
-        "",
-        "Content under section two.",
-        "",
-        "## Section Three",
-        "",
-        "Content under section three.",
-        "",
-        "## Section Four",
-        "",
-        "Content under section four."
-    ];
+  const base = path.basename(docPath, ".md");
+  const lines = [
+    `# ${base}`,
+    "",
+    `## src/${base}.js — ${base}`,
+    "",
+    "## Section One",
+    "",
+    "Content under section one.",
+    "",
+    "## Section Two",
+    "",
+    "Content under section two.",
+    "",
+    "## Section Three",
+    "",
+    "Content under section three.",
+    "",
+    "## Section Four",
+    "",
+    "Content under section four.",
+  ];
 
-    return lines.join("\n");
+  return lines.join("\n");
 }
 
 /**
@@ -115,15 +115,15 @@ function documentationContent(docPath) {
  * @returns {string}
  */
 function overviewDocumentationContent(docPath, sourcePath) {
-    const base = path.basename(sourcePath, ".js");
+  const base = path.basename(sourcePath, ".js");
 
-    return [
-        "# Overview",
-        "",
-        `## src/${base}.js — ${base}`,
-        "",
-        "A shared overview that many source files reference."
-    ].join("\n");
+  return [
+    "# Overview",
+    "",
+    `## src/${base}.js — ${base}`,
+    "",
+    "A shared overview that many source files reference.",
+  ].join("\n");
 }
 
 /**
@@ -138,64 +138,54 @@ function overviewDocumentationContent(docPath, sourcePath) {
  * }}
  */
 export function createWorkspace(key) {
-    const sizes = WORKSPACE_SIZES[key];
+  const sizes = WORKSPACE_SIZES[key];
 
-    if (!sizes) {
-        throw new Error(`Unknown workspace size: ${key}`);
-    }
+  if (!sizes) {
+    throw new Error(`Unknown workspace size: ${key}`);
+  }
 
-    const root = fs.mkdtempSync(
-        path.join(os.tmpdir(), `cdl-perf-${key}-`)
-    );
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), `cdl-perf-${key}-`));
 
-    const srcDir = path.join(root, "src");
-    const docDir = path.join(root, "documentation");
+  const srcDir = path.join(root, "src");
+  const docDir = path.join(root, "documentation");
 
-    fs.mkdirSync(srcDir, { recursive: true });
-    fs.mkdirSync(docDir, { recursive: true });
+  fs.mkdirSync(srcDir, { recursive: true });
+  fs.mkdirSync(docDir, { recursive: true });
 
-    const random = makeRandom(1234);
-    const sourceFiles = [];
-    const docFiles = [];
+  const random = makeRandom(1234);
+  const sourceFiles = [];
+  const docFiles = [];
 
-    for (let i = 0; i < sizes.sourceFiles; i++) {
-        const shuffle = Math.floor(random() * sizes.docFiles);
-        const sourcePath = path.join(srcDir, `mod-${i}.js`);
-        const docPath = path.join(docDir, `doc-${shuffle}.md`);
+  for (let i = 0; i < sizes.sourceFiles; i++) {
+    const shuffle = Math.floor(random() * sizes.docFiles);
+    const sourcePath = path.join(srcDir, `mod-${i}.js`);
+    const docPath = path.join(docDir, `doc-${shuffle}.md`);
 
-        fs.writeFileSync(
-            sourcePath,
-            referencingSourceContent(sourcePath, docPath),
-            "utf8"
-        );
+    fs.writeFileSync(sourcePath, referencingSourceContent(sourcePath, docPath), "utf8");
 
-        sourceFiles.push(sourcePath);
-    }
+    sourceFiles.push(sourcePath);
+  }
 
-    for (let i = 0; i < sizes.docFiles; i++) {
-        const docPath = path.join(docDir, `doc-${i}.md`);
-        const sourcePath = path.join(srcDir, `mod-${i}.js`);
+  for (let i = 0; i < sizes.docFiles; i++) {
+    const docPath = path.join(docDir, `doc-${i}.md`);
+    const sourcePath = path.join(srcDir, `mod-${i}.js`);
 
-        fs.writeFileSync(
-            docPath,
-            documentationContent(docPath),
-            "utf8"
-        );
+    fs.writeFileSync(docPath, documentationContent(docPath), "utf8");
 
-        docFiles.push(docPath);
-    }
+    docFiles.push(docPath);
+  }
 
-    const overviewFile = path.join(docDir, "overview.md");
+  const overviewFile = path.join(docDir, "overview.md");
 
-    fs.writeFileSync(
-        overviewFile,
-        overviewDocumentationContent(overviewFile, sourceFiles[0]),
-        "utf8"
-    );
+  fs.writeFileSync(
+    overviewFile,
+    overviewDocumentationContent(overviewFile, sourceFiles[0]),
+    "utf8",
+  );
 
-    assertReferencedDocsExist(root, sourceFiles);
+  assertReferencedDocsExist(root, sourceFiles);
 
-    return { root, sourceFiles, docFiles, overviewFile };
+  return { root, sourceFiles, docFiles, overviewFile };
 }
 
 /**
@@ -208,27 +198,25 @@ export function createWorkspace(key) {
  * @param {string[]} sourceFiles
  */
 function assertReferencedDocsExist(root, sourceFiles) {
-    const referencePattern =
-        /→ documentation\/([^\s#]+\.md)#[A-Za-z0-9_-]+/g;
+  const referencePattern = /→ documentation\/([^\s#]+\.md)#[A-Za-z0-9_-]+/g;
 
-    for (const sourcePath of sourceFiles) {
-        const content = fs.readFileSync(sourcePath, "utf8");
+  for (const sourcePath of sourceFiles) {
+    const content = fs.readFileSync(sourcePath, "utf8");
 
-        for (const match of content.matchAll(referencePattern)) {
-            const docPath = path.join(root, "documentation", match[1]);
+    for (const match of content.matchAll(referencePattern)) {
+      const docPath = path.join(root, "documentation", match[1]);
 
-            assert.ok(
-                fs.existsSync(docPath),
-                `generated reference in ${sourcePath} points at ` +
-                    `missing documentation/${match[1]}`
-            );
-        }
+      assert.ok(
+        fs.existsSync(docPath),
+        `generated reference in ${sourcePath} points at ` + `missing documentation/${match[1]}`,
+      );
     }
+  }
 }
 
 /**
  * @param {string} root
  */
 export function removeWorkspace(root) {
-    fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(root, { recursive: true, force: true });
 }

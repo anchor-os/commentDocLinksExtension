@@ -5,5 +5,5 @@
  *   docs: documentation/foo.md#L7
  */
 export function multilineWorkflow() {
-    return true;
+  return true;
 }

@@ -7,10 +7,7 @@ import * as vscode from "vscode";
  * @returns {Promise<vscode.TextEditor>}
  */
 export async function openFile(file) {
+  const document = await vscode.workspace.openTextDocument(file);
 
-    const document =
-        await vscode.workspace.openTextDocument(file);
-
-    return vscode.window.showTextDocument(document);
-
+  return vscode.window.showTextDocument(document);
 }

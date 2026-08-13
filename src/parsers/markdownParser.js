@@ -1,9 +1,9 @@
 // @ts-check
 
 import {
-    ANCHOR_SEPARATOR,
-    MARKDOWN_SOURCE_SEPARATOR,
-    ALTERNATE_SOURCE_SEPARATOR
+  ALTERNATE_SOURCE_SEPARATOR,
+  ANCHOR_SEPARATOR,
+  MARKDOWN_SOURCE_SEPARATOR,
 } from "../constants.js";
 
 /**
@@ -17,9 +17,9 @@ import {
  * existing documents keep working.
  */
 const MARKDOWN_HEADING_REGEX = new RegExp(
-    `^#{2,}\\s+(.+?)(?:\\s+${MARKDOWN_SOURCE_SEPARATOR}\\s+|` +
+  `^#{2,}\\s+(.+?)(?:\\s+${MARKDOWN_SOURCE_SEPARATOR}\\s+|` +
     `\\s+${ALTERNATE_SOURCE_SEPARATOR}\\s+|${ANCHOR_SEPARATOR})` +
-    `([A-Za-z0-9_-]+)$`
+    `([A-Za-z0-9_-]+)$`,
 );
 
 /**
@@ -38,23 +38,19 @@ const MARKDOWN_HEADING_REGEX = new RegExp(
  * } | null}
  */
 export function parseMarkdownHeading(line) {
+  const match = line.match(MARKDOWN_HEADING_REGEX);
 
-    const match = line.match(MARKDOWN_HEADING_REGEX);
+  if (!match) {
+    return null;
+  }
 
-    if (!match) {
-        return null;
-    }
+  return {
+    source: match[1],
 
-    return {
+    anchor: match[2],
 
-        source: match[1],
+    start: line.indexOf(match[1]),
 
-        anchor: match[2],
-
-        start: line.indexOf(match[1]),
-
-        end: line.indexOf(match[1]) + match[1].length
-
-    };
-
+    end: line.indexOf(match[1]) + match[1].length,
+  };
 }

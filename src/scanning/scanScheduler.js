@@ -12,9 +12,9 @@
  * extension never enumerates the workspace.
  */
 export const PRIORITY = Object.freeze({
-    ACTIVE: 0,
-    OPEN: 1,
-    TARGET: 2
+  ACTIVE: 0,
+  OPEN: 1,
+  TARGET: 2,
 });
 
 /**
@@ -43,202 +43,198 @@ export const PRIORITY = Object.freeze({
  * `run` closure is enough to skip work that is no longer needed.
  */
 export class ScanScheduler {
+  /** @type {number} */
+  #concurrency;
 
-    /** @type {number} */
-    #concurrency;
+  /** @type {number} */
+  #running = 0;
 
-    /** @type {number} */
-    #running = 0;
+  /** @type {Map<string, { key: string, priority: number, run: () => Promise<void>|void }>} */
+  #pending = new Map();
 
-    /** @type {Map<string, { key: string, priority: number, run: () => Promise<void>|void }>} */
-    #pending = new Map();
+  /**
+   * Keys with a job currently running. A pending job whose key is in here
+   * waits its turn instead of racing the running job.
+   *
+   * @type {Set<string>}
+   */
+  #active = new Set();
 
-    /**
-     * Keys with a job currently running. A pending job whose key is in here
-     * waits its turn instead of racing the running job.
-     *
-     * @type {Set<string>}
-     */
-    #active = new Set();
+  /** @type {Array<() => void>} */
+  #waiters = [];
 
-    /** @type {Array<() => void>} */
-    #waiters = [];
+  /** @type {boolean} */
+  #pumpScheduled = false;
 
-    /** @type {boolean} */
-    #pumpScheduled = false;
+  /** @type {((error: unknown, key: string) => void)|undefined} */
+  #onError;
 
-    /** @type {((error: unknown, key: string) => void)|undefined} */
-    #onError;
+  /**
+   * @param {{ concurrency?: number, onError?: (error: unknown, key: string) => void }} [options]
+   */
+  constructor({ concurrency = 3, onError } = {}) {
+    this.#concurrency = concurrency;
+    this.#onError = onError;
+  }
 
-    /**
-     * @param {{ concurrency?: number, onError?: (error: unknown, key: string) => void }} [options]
-     */
-    constructor({ concurrency = 3, onError } = {}) {
-        this.#concurrency = concurrency;
-        this.#onError = onError;
-    }
+  /**
+   * Queue work for a document, or replace the pending job for the same
+   * key when the new priority is equal or higher.
+   *
+   * Jobs never start during `enqueue`: the first batch is deferred to a
+   * later tick, so calling `enqueue` (for example during `activate`) can
+   * never block on scanning work.
+   *
+   * @param {{
+   *   key: string,
+   *   priority: number,
+   *   run: () => Promise<void>|void
+   * }} job
+   */
+  enqueue({ key, priority, run }) {
+    const existing = this.#pending.get(key);
 
-    /**
-     * Queue work for a document, or replace the pending job for the same
-     * key when the new priority is equal or higher.
-     *
-     * Jobs never start during `enqueue`: the first batch is deferred to a
-     * later tick, so calling `enqueue` (for example during `activate`) can
-     * never block on scanning work.
-     *
-     * @param {{
-     *   key: string,
-     *   priority: number,
-     *   run: () => Promise<void>|void
-     * }} job
-     */
-    enqueue({ key, priority, run }) {
-        const existing = this.#pending.get(key);
-
-        if (existing) {
-            if (priority <= existing.priority) {
-                this.#pending.set(key, { key, priority, run });
-            }
-
-            return;
-        }
-
+    if (existing) {
+      if (priority <= existing.priority) {
         this.#pending.set(key, { key, priority, run });
+      }
 
+      return;
+    }
+
+    this.#pending.set(key, { key, priority, run });
+
+    this.#schedulePump();
+  }
+
+  /**
+   * Defer the start of the next batch so no job runs synchronously inside
+   * `enqueue`.
+   */
+  #schedulePump() {
+    if (this.#pumpScheduled) {
+      return;
+    }
+
+    this.#pumpScheduled = true;
+
+    setImmediate(() => {
+      this.#pumpScheduled = false;
+      this.#pump();
+    });
+  }
+
+  /**
+   * Start the next batch of jobs. Keeps no more than {@link #concurrency}
+   * jobs running and picks the highest-priority pending job first.
+   *
+   * Keys with a running job are skipped, not started: they are picked up
+   * again by the pump scheduled when that job finishes.
+   */
+  #pump() {
+    while (this.#running < this.#concurrency && this.#pending.size > 0) {
+      let bestKey = null;
+      let bestPriority = Infinity;
+
+      for (const [key, job] of this.#pending) {
+        if (this.#active.has(key)) {
+          continue;
+        }
+
+        if (job.priority < bestPriority) {
+          bestPriority = job.priority;
+          bestKey = key;
+        }
+      }
+
+      // A pending job can still lose the comparison when its priority
+      // is NaN, and every remaining key may be running already; stop
+      // rather than attempting to run `undefined`.
+      if (bestKey === null) {
+        break;
+      }
+
+      const job = this.#pending.get(bestKey);
+
+      this.#pending.delete(bestKey);
+      this.#active.add(bestKey);
+      this.#running++;
+
+      void this.#runJob(job);
+    }
+  }
+
+  /**
+   * @param {{ key: string, priority: number, run: () => Promise<void>|void }} job
+   */
+  async #runJob(job) {
+    try {
+      await job.run();
+    } catch (error) {
+      // Scanning is best-effort; one bad file never stops the queue.
+      this.#onError?.(error, job.key);
+    } finally {
+      this.#running--;
+      this.#active.delete(job.key);
+
+      // Let timers, input and rendering run before the next batch.
+      await new Promise((resolve) => setImmediate(resolve));
+
+      this.#notifyIfIdle();
+
+      if (this.#pending.size > 0) {
         this.#schedulePump();
+      }
+    }
+  }
+
+  /**
+   * @returns {boolean} True when nothing is queued or running.
+   */
+  isIdle() {
+    return this.#running === 0 && this.#pending.size === 0;
+  }
+
+  /**
+   * Resolves when the queue has drained.
+   *
+   * @returns {Promise<void>}
+   */
+  idle() {
+    if (this.isIdle()) {
+      return Promise.resolve();
     }
 
-    /**
-     * Defer the start of the next batch so no job runs synchronously inside
-     * `enqueue`.
-     */
-    #schedulePump() {
-        if (this.#pumpScheduled) {
-            return;
-        }
+    return new Promise((resolve) => {
+      this.#waiters.push(resolve);
+    });
+  }
 
-        this.#pumpScheduled = true;
+  /**
+   * @returns {number} Number of pending jobs.
+   */
+  get pendingCount() {
+    return this.#pending.size;
+  }
 
-        setImmediate(() => {
-            this.#pumpScheduled = false;
-            this.#pump();
-        });
+  /**
+   * @returns {number} Number of running jobs.
+   */
+  get runningCount() {
+    return this.#running;
+  }
+
+  #notifyIfIdle() {
+    if (!this.isIdle()) {
+      return;
     }
 
-    /**
-     * Start the next batch of jobs. Keeps no more than {@link #concurrency}
-     * jobs running and picks the highest-priority pending job first.
-     *
-     * Keys with a running job are skipped, not started: they are picked up
-     * again by the pump scheduled when that job finishes.
-     */
-    #pump() {
-        while (
-            this.#running < this.#concurrency &&
-            this.#pending.size > 0
-        ) {
-            let bestKey = null;
-            let bestPriority = Infinity;
+    const waiters = this.#waiters;
 
-            for (const [key, job] of this.#pending) {
-                if (this.#active.has(key)) {
-                    continue;
-                }
+    this.#waiters = [];
 
-                if (job.priority < bestPriority) {
-                    bestPriority = job.priority;
-                    bestKey = key;
-                }
-            }
-
-            // A pending job can still lose the comparison when its priority
-            // is NaN, and every remaining key may be running already; stop
-            // rather than attempting to run `undefined`.
-            if (bestKey === null) {
-                break;
-            }
-
-            const job = this.#pending.get(bestKey);
-
-            this.#pending.delete(bestKey);
-            this.#active.add(bestKey);
-            this.#running++;
-
-            void this.#runJob(job);
-        }
+    for (const resolve of waiters) {
+      resolve();
     }
-
-    /**
-     * @param {{ key: string, priority: number, run: () => Promise<void>|void }} job
-     */
-    async #runJob(job) {
-        try {
-            await job.run();
-        } catch (error) {
-            // Scanning is best-effort; one bad file never stops the queue.
-            this.#onError?.(error, job.key);
-        } finally {
-            this.#running--;
-            this.#active.delete(job.key);
-
-            // Let timers, input and rendering run before the next batch.
-            await new Promise((resolve) => setImmediate(resolve));
-
-            this.#notifyIfIdle();
-
-            if (this.#pending.size > 0) {
-                this.#schedulePump();
-            }
-        }
-    }
-
-    /**
-     * @returns {boolean} True when nothing is queued or running.
-     */
-    isIdle() {
-        return this.#running === 0 && this.#pending.size === 0;
-    }
-
-    /**
-     * Resolves when the queue has drained.
-     *
-     * @returns {Promise<void>}
-     */
-    idle() {
-        if (this.isIdle()) {
-            return Promise.resolve();
-        }
-
-        return new Promise((resolve) => {
-            this.#waiters.push(resolve);
-        });
-    }
-
-    /**
-     * @returns {number} Number of pending jobs.
-     */
-    get pendingCount() {
-        return this.#pending.size;
-    }
-
-    /**
-     * @returns {number} Number of running jobs.
-     */
-    get runningCount() {
-        return this.#running;
-    }
-
-    #notifyIfIdle() {
-        if (!this.isIdle()) {
-            return;
-        }
-
-        const waiters = this.#waiters;
-
-        this.#waiters = [];
-
-        for (const resolve of waiters) {
-            resolve();
-        }
-    }
+  }
 }
