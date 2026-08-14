@@ -130,6 +130,7 @@ function validateDocumentationReference(reference, context) {
       status: RESOLUTION_STATUS.EXTERNAL,
       targetPath: null,
       line: null,
+      url: null,
       message: null,
     };
   }

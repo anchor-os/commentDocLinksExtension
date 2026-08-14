@@ -58,9 +58,9 @@ data class ReferenceSpan(
  * in longer words or URLs are not matched. Invalid patterns are skipped
  * (logged) to guard against bad regex / ReDoS from user input.
  */
-private fun TicketLink.toRegex(): Regex? =
+internal fun TicketLink.toRegex(): Regex? =
     try {
-        Regex("""(?<!\w)($pattern)""")
+        Regex("""(?<!\w)($pattern)(?!\w)""")
     } catch (e: Exception) {
         println("commentDocLinks.ticketLinks: skipping invalid pattern \"$pattern\": ${e.message}")
         null
@@ -105,9 +105,9 @@ fun detectReferenceSpans(
         accepted.add(span)
     }
 
-    DOCUMENTATION_REGEX.findAll(text).forEach(::accept)
-    ISSUE_REGEX.findAll(text).forEach(::accept)
-    API_REGEX.findAll(text).forEach(::accept)
+    DOCUMENTATION_REGEX.findAll(text).forEach { match -> accept(match) }
+    ISSUE_REGEX.findAll(text).forEach { match -> accept(match) }
+    API_REGEX.findAll(text).forEach { match -> accept(match) }
 
     for (link in ticketLinks) {
         val regex = link.toRegex() ?: continue

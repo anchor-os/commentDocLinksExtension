@@ -119,27 +119,27 @@ test("ticket reference is labelled as a ticket and links to its url", () => {
   const markdown = buildHoverMarkdown(
     {
       type: "ticket",
-      raw: "ENC-78305",
+      raw: "ticketnumber-78305",
       file: null,
       anchor: null,
       line: null,
-      identifier: "ENC-78305",
+      identifier: "ticketnumber-78305",
       label: "Jira",
-      url: "https://issues.example.com/browse/ENC-78305",
+      url: "https://issues.example.com/browse/ticketnumber-78305",
     },
     {
       status: "external",
       targetPath: null,
       line: null,
-      url: "https://issues.example.com/browse/ENC-78305",
+      url: "https://issues.example.com/browse/ticketnumber-78305",
       message: null,
     },
   );
 
   assert.match(markdown, /Ticket reference/);
   assert.match(markdown, /Jira/);
-  assert.match(markdown, /ENC-78305/);
-  assert.match(markdown, /https:\/\/issues\.example\.com\/browse\/ENC-78305/);
+  assert.match(markdown, /ticketnumber-78305/);
+  assert.match(markdown, /https:\/\/issues\.example\.com\/browse\/ticketnumber-78305/);
   assert.doesNotMatch(markdown, /Documentation/);
 });
 

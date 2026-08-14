@@ -47,7 +47,7 @@ and explained on hover:
 
 ```javascript
 // Fixes #123          — issue reference
-// See ENC-78305       — configurable ticket link (opens your tracker)
+// See ticketnumber-78305       — configurable ticket link (opens your tracker)
 // Uses API:Checkout   — API reference
 ```
 
@@ -131,7 +131,7 @@ This extension contributes the following settings:
 | `commentDocLinks.linkUnderline`         | `true`  | Underline valid reference highlights.                |
 | `commentDocLinks.enableDiagnostics`     | `true`  | Report broken references as editor warnings.         |
 | `commentDocLinks.enableCompletion`      | `true`  | Suggest anchors while typing.                        |
-| `commentDocLinks.ticketLinks`           | `[]`    | External ticket links: `[{ baseUrl, pattern, label? }]`. Each `pattern` is a regex for a ticket key (e.g. `ENC-\d+`); the match is appended to `baseUrl` and opened in the browser. |
+| `commentDocLinks.ticketLinks`           | `[]`    | External ticket links: `[{ baseUrl, pattern, label? }]`. Each `pattern` is a regex for a ticket key (e.g. `ticketnumber-\d+`); the match is appended to `baseUrl` and opened in the browser. |
 
 ## Commands
 
@@ -146,8 +146,10 @@ This extension contributes the following settings:
 - Multi-root workspaces use the first workspace folder for path resolution.
 - Source anchors in Markdown headings are validated only for supported
   languages with a known file extension.
-- Issue, ticket and API references are recognized and explained, but are not
-  linked to any external system.
+- Issue and API references are recognized and explained, but are not linked to
+  any external system. Ticket references are linked only when
+  `commentDocLinks.ticketLinks` is configured (they open the matching URL in
+  your browser).
 
 ## Release Notes
 

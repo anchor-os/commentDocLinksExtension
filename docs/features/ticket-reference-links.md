@@ -1,16 +1,14 @@
 # Configurable external ticket links (Jira, etc.)
 
-Status: implemented on branch `chore/bump-github-actions` (stacked on the CI action-bump commit).
-
 ## Goal
 Users configure one or more external ticketing systems. A ticket key written in a
-comment (e.g. `ENC-78305`, `ENCHBG-555`) becomes a clickable link; clicking opens
+comment (e.g. `ticketnumber-78305`, `ticketnumber-555`) becomes a clickable link; clicking opens
 `baseUrl + key` in the browser. Implemented with parity in the VS Code extension (JS)
 and the JetBrains plugin (Kotlin).
 
 ## Decisions (locked)
 - **Detection:** bare keys — match any key that fits a configured `pattern` anywhere
-  in a comment. `Tix: ENC-78305` works because `ENC-78305` is the matched key;
+   in a comment. `Tix: ticketnumber-78305` works because `ticketnumber-78305` is the matched key;
   `Tix:` is just optional prose. Keeps the existing `(?<!\w)…\b` guards so keys
   inside URLs / longer words are not matched.
 - **`DOC-123`:** removed entirely (was a hardcoded fallback). Users configure any
@@ -22,8 +20,8 @@ and the JetBrains plugin (Kotlin).
 ## Settings
 ```json
 "commentDocLinks.ticketLinks": [
-  { "baseUrl": "https://hornblower.atlassian.net/browse/",
-    "pattern": "ENC-\\d+|ENCHBG-\\d+",
+  { "baseUrl": "https://organization.atlassian.net/browse/",
+    "pattern": "ticketnumber-\\d+",
     "label": "Jira" }
 ]
 ```

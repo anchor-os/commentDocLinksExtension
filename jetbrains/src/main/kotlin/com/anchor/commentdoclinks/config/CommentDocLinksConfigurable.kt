@@ -1,6 +1,7 @@
 package com.anchor.commentdoclinks.config
 
 import com.anchor.commentdoclinks.model.TicketLink
+import com.anchor.commentdoclinks.parser.toRegex
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.ui.components.JBCheckBox
@@ -34,7 +35,7 @@ class CommentDocLinksConfigurable : Configurable {
             [
               {
                 "baseUrl": "https://issues.example.com/browse/",
-                "pattern": "ENC-\\d+",
+                "pattern": "ticketnumber-\\d+",
                 "label": "Jira"
               }
             ]
@@ -85,6 +86,17 @@ class CommentDocLinksConfigurable : Configurable {
             } catch (e: Exception) {
                 throw ConfigurationException("Invalid ticket links JSON: ${e.message}")
             }
+
+        for (link in parsed) {
+            if (link.baseUrl.isBlank()) {
+                throw ConfigurationException("Each ticket link requires a non-blank baseUrl.")
+            }
+            if (link.pattern.isBlank()) {
+                throw ConfigurationException("Each ticket link requires a non-blank pattern.")
+            }
+            link.toRegex()
+                ?: throw ConfigurationException("Invalid ticket link pattern: \"${link.pattern}\"")
+        }
 
         CommentDocLinksConfig.enableDecorations = decorationsBox.isSelected
         CommentDocLinksConfig.enableDiagnostics = diagnosticsBox.isSelected

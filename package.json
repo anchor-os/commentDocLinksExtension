@@ -92,11 +92,11 @@
             "properties": {
               "baseUrl": {
                 "type": "string",
-                "markdownDescription": "Base URL; the matched ticket key is appended (e.g. `https://hornblower.atlassian.net/browse/`)."
+                "markdownDescription": "Base URL; the matched ticket key is appended (e.g. `https://organization.atlassian.net/browse/`)."
               },
               "pattern": {
                 "type": "string",
-                "markdownDescription": "Regular expression matching the ticket key, e.g. `ENC-\\d+|ENCHBG-\\d+`. Matched case-sensitively; may not start with a word character."
+                "markdownDescription": "Regular expression matching the ticket key, e.g. `ticketnumber-\\d+`. Matched case-sensitively; may not start with a word character."
               },
               "label": {
                 "type": "string",

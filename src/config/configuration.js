@@ -119,7 +119,7 @@ export function getTicketLinks() {
     let regex;
 
     try {
-      regex = new RegExp(`(?<!\\w)(${pattern})`, "g");
+      regex = new RegExp(`(?<!\\w)(${pattern})(?!\\w)`, "g");
     } catch {
       console.warn(
         `commentDocLinks.ticketLinks: skipping entry with invalid pattern "${pattern}".`,

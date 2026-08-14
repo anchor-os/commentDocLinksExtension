@@ -72,64 +72,80 @@ test("issue reference inside a file anchor is consumed by documentation", () => 
 
 test("parseReference ignores bare ticket keys (no longer a built-in type)", () => {
   assert.equal(parseReference("DOC-123"), null);
-  assert.equal(parseReference("ENC-78305"), null);
+  assert.equal(parseReference("ticketnumber-78305"), null);
 });
 
 test("configurable ticket link detects a key and attaches the url", () => {
   const links = [
     {
       baseUrl: "https://issues.example.com/browse/",
-      regex: /(?<!\w)(ENC-\d+)\b/g,
+      regex: /(?<!\w)(ticketnumber-\d+)\b/g,
       label: "Jira",
     },
   ];
 
-  const spans = detectReferenceSpans("see ENC-78305 for details", links);
+  const spans = detectReferenceSpans("see ticketnumber-78305 for details", links);
 
   assert.deepEqual(spans, [
     {
-      raw: "ENC-78305",
+      raw: "ticketnumber-78305",
       start: 4,
-      end: 4 + "ENC-78305".length,
-      url: "https://issues.example.com/browse/ENC-78305",
+      end: 4 + "ticketnumber-78305".length,
+      url: "https://issues.example.com/browse/ticketnumber-78305",
       label: "Jira",
     },
   ]);
 });
 
 test("ticket link key inside a word is not matched", () => {
-  const links = [{ baseUrl: "https://x/", regex: /(?<!\w)(ENC-\d+)\b/g, label: null }];
+  const links = [{ baseUrl: "https://x/", regex: /(?<!\w)(ticketnumber-\d+)\b/g, label: null }];
 
-  assert.deepEqual(detectReferenceSpans("prefixENC-78305", links), []);
+  assert.deepEqual(detectReferenceSpans("prefixticketnumber-78305", links), []);
 });
 
 test("first matching ticket link wins on overlap", () => {
   const links = [
-    { baseUrl: "https://a/", regex: /(?<!\w)(ENC-\d+)\b/g, label: "A" },
-    { baseUrl: "https://b/", regex: /(?<!\w)(ENC-\d+)\b/g, label: "B" },
+    { baseUrl: "https://a/", regex: /(?<!\w)(ticketnumber-\d+)\b/g, label: "A" },
+    { baseUrl: "https://b/", regex: /(?<!\w)(ticketnumber-\d+)\b/g, label: "B" },
   ];
 
-  const spans = detectReferenceSpans("ENC-1", links);
+  const spans = detectReferenceSpans("ticketnumber-1", links);
 
   assert.equal(spans.length, 1);
-  assert.equal(spans[0].url, "https://a/ENC-1");
+  assert.equal(spans[0].url, "https://a/ticketnumber-1");
   assert.equal(spans[0].label, "A");
 });
 
 test("parseComment emits a ticket reference with resolved url/label", () => {
-  const links = [{ baseUrl: "https://x/browse/", regex: /(?<!\w)(ENC-\d+)\b/g, label: "Jira" }];
+  const links = [
+    { baseUrl: "https://x/browse/", regex: /(?<!\w)(ticketnumber-\d+)\b/g, label: "Jira" },
+  ];
 
-  const matches = parseComment("fix ENC-78305 now", 0, links);
+  const matches = parseComment("fix ticketnumber-78305 now", 0, links);
 
   assert.equal(matches.length, 1);
   assert.equal(matches[0].type, "ticket");
-  assert.equal(matches[0].identifier, "ENC-78305");
-  assert.equal(matches[0].url, "https://x/browse/ENC-78305");
+  assert.equal(matches[0].identifier, "ticketnumber-78305");
+  assert.equal(matches[0].url, "https://x/browse/ticketnumber-78305");
   assert.equal(matches[0].label, "Jira");
 });
 
 test("ticket reference does not match a word suffix", () => {
   assert.deepEqual(detectReferenceSpans("DOC-123x"), []);
+});
+
+test("ticket link built from configuration rejects a word suffix", () => {
+  // Mirrors the regex produced by getTicketLinks() in configuration.js.
+  const regex = new RegExp(`(?<![\\w])(ticketnumber-\\d+)(?![\\w])`, "g");
+  const links = [{ baseUrl: "https://issues.example.com/browse/", regex, label: "Jira" }];
+
+  // A key continued into an identifier must not be matched (no partial key appended).
+  assert.deepEqual(detectReferenceSpans("see ticketnumber-78305x in text", links), []);
+
+  // A standalone key is detected and the full key is appended to baseUrl.
+  const spans = detectReferenceSpans("see ticketnumber-78305 in text", links);
+  assert.equal(spans.length, 1);
+  assert.equal(spans[0].url, "https://issues.example.com/browse/ticketnumber-78305");
 });
 
 test("detects an API reference", () => {

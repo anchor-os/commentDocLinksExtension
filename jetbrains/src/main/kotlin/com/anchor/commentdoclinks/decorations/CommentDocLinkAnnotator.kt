@@ -68,7 +68,17 @@ class CommentDocLinkAnnotator : Annotator {
             val range = TextRange(reference.start, reference.end)
 
             when (result.status) {
-                ResolutionStatus.VALID, ResolutionStatus.EXTERNAL -> {
+                ResolutionStatus.VALID -> {
+                    if (decorationsEnabled) {
+                        holder
+                            .newSilentAnnotation(HighlightSeverity.INFORMATION)
+                            .range(range)
+                            .textAttributes(LINK_KEY)
+                            .create()
+                    }
+                }
+
+                ResolutionStatus.EXTERNAL -> {
                     if (decorationsEnabled) {
                         val tooltip = externalTooltip(reference, result)
                         holder
