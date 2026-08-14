@@ -2,6 +2,7 @@ package com.anchor.commentdoclinks.parser
 
 import com.anchor.commentdoclinks.model.ParsedReference
 import com.anchor.commentdoclinks.model.ReferenceType
+import com.anchor.commentdoclinks.model.TicketLink
 
 /**
  * Documentation reference detection (global).
@@ -30,11 +31,6 @@ private val ISSUE_REGEX = Regex("""(?<![\w:#])#(\d+)\b""")
 
 private val ISSUE_ANCHORED = Regex("""^#(\d+)$""")
 
-/** Documentation ticket reference: `DOC-123`. */
-private val TICKET_REGEX = Regex("""(?<!\w)DOC-(\d+)\b""")
-
-private val TICKET_ANCHORED = Regex("""^DOC-(\d+)$""")
-
 /** API reference: `API:Foo`. */
 private val API_REGEX = Regex("""(?<!\w)API:([A-Za-z0-9_-]+)\b""")
 
@@ -42,32 +38,65 @@ private val API_ANCHORED = Regex("""^API:([A-Za-z0-9_-]+)$""")
 
 /**
  * A raw reference span with 0-based character offsets.
+ *
+ * @property url Resolved click URL for ticket references; `null` for all other
+ *   reference kinds.
+ * @property label Hover label for ticket references; `null` otherwise.
  */
 data class ReferenceSpan(
     val raw: String,
     val start: Int,
     val end: Int,
+    val url: String? = null,
+    val label: String? = null,
 )
+
+/**
+ * Compile a user-supplied ticket-key pattern into a detection regex.
+ *
+ * The pattern is wrapped with a leading `(?<!\w)` look-behind so keys embedded
+ * in longer words or URLs are not matched. Invalid patterns are skipped
+ * (logged) to guard against bad regex / ReDoS from user input.
+ */
+internal fun TicketLink.toRegex(): Regex? =
+    try {
+        Regex("""(?<!\w)($pattern)(?!\w)""")
+    } catch (e: Exception) {
+        println("commentDocLinks.ticketLinks: skipping invalid pattern \"$pattern\": ${e.message}")
+        null
+    }
 
 /**
  * Detect reference spans in text, in priority order.
  *
- * Documentation references win over the generic issue/ticket/API forms, so a
+ * Documentation references win over the generic issue/API forms, so a
  * reference inside an already-matched span (for example `file.md#123`) is
- * never reported twice with conflicting types. Overlapping spans are dropped.
+ * never reported twice with conflicting types. Ticket keys from
+ * [ticketLinks] are detected last; a span already consumed by a
+ * higher-priority reference is skipped and the first matching ticket entry
+ * wins.
  *
  * @return spans sorted by start offset
  */
-fun detectReferenceSpans(text: String): List<ReferenceSpan> {
+fun detectReferenceSpans(
+    text: String,
+    ticketLinks: List<TicketLink> = emptyList(),
+): List<ReferenceSpan> {
     val accepted = mutableListOf<ReferenceSpan>()
     val consumed = mutableListOf<ReferenceSpan>()
 
-    fun accept(match: MatchResult) {
+    fun accept(
+        match: MatchResult,
+        url: String? = null,
+        label: String? = null,
+    ) {
         val span =
             ReferenceSpan(
                 raw = match.value,
                 start = match.range.first,
                 end = match.range.last + 1,
+                url = url,
+                label = label,
             )
         for (existing in consumed) {
             if (span.start < existing.end && existing.start < span.end) return
@@ -76,10 +105,16 @@ fun detectReferenceSpans(text: String): List<ReferenceSpan> {
         accepted.add(span)
     }
 
-    DOCUMENTATION_REGEX.findAll(text).forEach(::accept)
-    ISSUE_REGEX.findAll(text).forEach(::accept)
-    TICKET_REGEX.findAll(text).forEach(::accept)
-    API_REGEX.findAll(text).forEach(::accept)
+    DOCUMENTATION_REGEX.findAll(text).forEach { match -> accept(match) }
+    ISSUE_REGEX.findAll(text).forEach { match -> accept(match) }
+    API_REGEX.findAll(text).forEach { match -> accept(match) }
+
+    for (link in ticketLinks) {
+        val regex = link.toRegex() ?: continue
+        regex.findAll(text).forEach { match ->
+            accept(match, link.baseUrl + match.value, link.label)
+        }
+    }
 
     return accepted.sortedBy { it.start }
 }
@@ -87,8 +122,10 @@ fun detectReferenceSpans(text: String): List<ReferenceSpan> {
 /**
  * Normalize a raw reference string into a typed [ParsedReference].
  *
- * A documentation reference carries a `file` plus optional `anchor`/`line`.
- * Issue/API/DOC-… references carry an `identifier`.
+ * Handles documentation, issue and API references. Ticket references are
+ * produced directly by [parseComment] from the spans detected by
+ * [detectReferenceSpans] (which carry the resolved URL/label), so they never
+ * rely on this function.
  */
 fun parseReference(raw: String): ParsedReference? {
     DOCUMENTATION_ANCHORED.matchEntire(raw)?.let { m ->
@@ -120,17 +157,6 @@ fun parseReference(raw: String): ParsedReference? {
         )
     }
 
-    TICKET_ANCHORED.matchEntire(raw)?.let {
-        return ParsedReference(
-            type = ReferenceType.DOCUMENTATION,
-            raw = raw,
-            file = null,
-            anchor = null,
-            line = null,
-            identifier = raw,
-        )
-    }
-
     API_ANCHORED.matchEntire(raw)?.let { m ->
         return ParsedReference(
             type = ReferenceType.API,
@@ -148,13 +174,32 @@ fun parseReference(raw: String): ParsedReference? {
 /**
  * Parse every reference found in comment text.
  *
+ * Ticket references are produced directly from the spans detected by
+ * [detectReferenceSpans] (which carries the resolved URL/label).
+ *
  * Offsets are relative to [offset], which should be the position of the
  * comment text inside its containing line.
  */
 fun parseComment(
     text: String,
     offset: Int = 0,
+    ticketLinks: List<TicketLink> = emptyList(),
 ): List<ParsedReference> =
-    detectReferenceSpans(text).mapNotNull { span ->
-        parseReference(span.raw)?.copy(start = offset + span.start, end = offset + span.end)
+    detectReferenceSpans(text, ticketLinks).mapNotNull { span ->
+        val parsed =
+            if (span.url != null) {
+                ParsedReference(
+                    type = ReferenceType.TICKET,
+                    raw = span.raw,
+                    file = null,
+                    anchor = null,
+                    line = null,
+                    identifier = span.raw,
+                    url = span.url,
+                    label = span.label,
+                )
+            } else {
+                parseReference(span.raw) ?: return@mapNotNull null
+            }
+        parsed.copy(start = offset + span.start, end = offset + span.end)
     }

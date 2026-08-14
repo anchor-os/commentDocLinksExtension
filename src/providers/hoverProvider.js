@@ -1,6 +1,7 @@
 // @ts-check
 
 import * as vscode from "vscode";
+import { getTicketLinks } from "../config/configuration.js";
 import { supportsLanguage } from "../parsers/languageSupport.js";
 import { scanDocumentForReferences } from "../references/documentScanner.js";
 
@@ -26,7 +27,7 @@ export class ReferenceHoverProvider {
 
     const context = createReferenceContext(document.uri.fsPath);
 
-    for (const { reference, line } of scanDocumentForReferences(document)) {
+    for (const { reference, line } of scanDocumentForReferences(document, getTicketLinks())) {
       if (
         line !== position.line ||
         position.character < reference.start ||

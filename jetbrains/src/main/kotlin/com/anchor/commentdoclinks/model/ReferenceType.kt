@@ -10,6 +10,7 @@ enum class ReferenceType(
     DOCUMENTATION("documentation"),
     ISSUE("issue"),
     API("api"),
+    TICKET("ticket"),
     ;
 
     companion object {

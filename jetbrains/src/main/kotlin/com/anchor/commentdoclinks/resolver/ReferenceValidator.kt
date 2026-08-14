@@ -42,7 +42,12 @@ fun validateReference(
     if (reference.type == ReferenceType.DOCUMENTATION && reference.file != null) {
         return validateDocumentationReference(reference, resolveTargetPath, fs)
     }
-    return ResolutionResult(ResolutionStatus.EXTERNAL, null, null, null)
+
+    if (reference.type == ReferenceType.TICKET) {
+        return ResolutionResult(ResolutionStatus.EXTERNAL, null, null, null, reference.url)
+    }
+
+    return ResolutionResult(ResolutionStatus.EXTERNAL, null, null, null, null)
 }
 
 private fun validateDocumentationReference(

@@ -274,9 +274,9 @@ test("references inside block comments are checked", () => {
   assert.equal(broken[0].message, "Documentation file not found: documentation/missing.md");
 });
 
-test("issue, DOC ticket and API references are external, not broken", () => {
+test("issue and API references are external, not broken", () => {
   const document = makeDocument([
-    "// track #123, DOC-42 and API:Checkout",
+    "// track #123 and API:Checkout",
     "// see documentation/missing.md",
   ]);
 

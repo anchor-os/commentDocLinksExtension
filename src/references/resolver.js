@@ -28,6 +28,7 @@ import { REFERENCE_TYPE, RESOLUTION_STATUS } from "./referenceTypes.js";
  * @property {string|null} targetPath Absolute path of the target file.
  * @property {number|null} line Validated 1-based line when the reference
  *   carries one.
+ * @property {string|null} url Resolved click URL for ticket references.
  * @property {string|null} message Human-readable explanation for broken
  *   references, null otherwise.
  */
@@ -73,7 +74,8 @@ export function resolveReference(reference, context) {
  *   file: string|null,
  *   anchor: string|null,
  *   line: number|null,
- *   identifier: string|null
+ *   identifier: string|null,
+ *   url: string|null
  * }} reference
  * @param {ReferenceContext} context
  * @returns {ResolutionResult}
@@ -83,10 +85,21 @@ export function validateReference(reference, context) {
     return validateDocumentationReference(reference, context);
   }
 
+  if (reference.type === REFERENCE_TYPE.TICKET) {
+    return {
+      status: RESOLUTION_STATUS.EXTERNAL,
+      targetPath: null,
+      line: null,
+      url: reference.url,
+      message: null,
+    };
+  }
+
   return {
     status: RESOLUTION_STATUS.EXTERNAL,
     targetPath: null,
     line: null,
+    url: null,
     message: null,
   };
 }
@@ -117,6 +130,7 @@ function validateDocumentationReference(reference, context) {
       status: RESOLUTION_STATUS.EXTERNAL,
       targetPath: null,
       line: null,
+      url: null,
       message: null,
     };
   }

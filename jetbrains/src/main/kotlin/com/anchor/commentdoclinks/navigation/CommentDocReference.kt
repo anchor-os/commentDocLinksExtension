@@ -15,6 +15,9 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiReferenceBase
+import com.intellij.psi.impl.FakePsiElement
+import java.awt.Desktop
+import java.net.URI
 
 /**
  * A navigable reference living inside a source comment.
@@ -31,6 +34,13 @@ class CommentDocReference(
     private val sourceFile: PsiFile,
 ) : PsiReferenceBase<PsiElement>(element, TextRange(reference.start, reference.end), true) {
     override fun resolve(): PsiElement? {
+        // Ticket references have no local target. We return a synthetic element
+        // whose navigate() opens the configured URL; the browser is only launched
+        // on an explicit Ctrl/Cmd+Click (never as a side effect of resolve()).
+        if (reference.type == com.anchor.commentdoclinks.model.ReferenceType.TICKET) {
+            return reference.url?.let { TicketUrlTarget(sourceFile, it) }
+        }
+
         val project = sourceFile.project
         val virtualFile = sourceFile.virtualFile ?: return null
         val root = WorkspaceRootService(project).resolveWorkspaceRoot(virtualFile) ?: return null
@@ -68,6 +78,31 @@ class CommentDocReference(
         if (line < 0 || line >= document.lineCount) return file
         val offset = document.getLineStartOffset(line)
         return file.findElementAt(offset) ?: file
+    }
+
+    /**
+     * Lightweight, navigable stand-in for an external ticket reference. It has no
+     * real PSI location; navigating to it opens [url] in the default browser.
+     */
+    private class TicketUrlTarget(
+        private val containingFile: PsiFile,
+        private val url: String,
+    ) : FakePsiElement() {
+        override fun getProject(): com.intellij.openapi.project.Project = containingFile.project
+
+        override fun getParent(): PsiElement = containingFile
+
+        override fun canNavigate(): Boolean = true
+
+        override fun canNavigateToSource(): Boolean = true
+
+        override fun navigate(requestFocus: Boolean) {
+            runCatching {
+                if (Desktop.isDesktopSupported()) {
+                    Desktop.getDesktop().browse(URI(url))
+                }
+            }
+        }
     }
 
     override fun getVariants(): Array<com.intellij.codeInsight.lookup.LookupElement> =

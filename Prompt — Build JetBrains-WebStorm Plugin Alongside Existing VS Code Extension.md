@@ -107,7 +107,7 @@ src/util/salesDashboardV2/getRevenueByBusinessCategory2.js
 with documentation such as:
 
 ```text
-documentation/claude/comments/ENC-74995.md
+documentation/claude/comments/ticketnumber-74995.md
 ```
 
 and anchors such as:
@@ -119,9 +119,9 @@ and anchors such as:
 Examples:
 
 ```text
-Totals reconcile to getRevenue; uncategorized rows kept — see documentation/claude/comments/ENC-74995.md
+Totals reconcile to getRevenue; uncategorized rows kept — see documentation/claude/comments/ticketnumber-74995.md
 
-Totals reconcile to getRevenue; uncategorized rows kept — see documentation/claude/comments/ENC-74995.md#reconciliation-guarantee
+Totals reconcile to getRevenue; uncategorized rows kept — see documentation/claude/comments/ticketnumber-74995.md#reconciliation-guarantee
 ```
 
 Markdown references:

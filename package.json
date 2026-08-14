@@ -2,7 +2,7 @@
   "name": "comment-doc-links",
   "displayName": "Comment Doc Links",
   "description": "Navigate between source comments and markdown documentation with two-way links. (getanchor.io)",
-  "version": "0.1.3",
+  "version": "0.1.5",
   "publisher": "manish-sharma-getanchorio",
   "license": "MIT",
   "repository": {
@@ -80,6 +80,30 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Suggest documentation anchors and source anchors while typing."
+        },
+        "commentDocLinks.ticketLinks": {
+          "type": "array",
+          "default": [],
+          "markdownDescription": "External ticketing systems (e.g. Jira). Each entry turns matching ticket keys in comments into clickable links that open `baseUrl` + the key in your browser.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["baseUrl", "pattern"],
+            "properties": {
+              "baseUrl": {
+                "type": "string",
+                "markdownDescription": "Base URL; the matched ticket key is appended (e.g. `https://organization.atlassian.net/browse/`)."
+              },
+              "pattern": {
+                "type": "string",
+                "markdownDescription": "Regular expression matching the ticket key, e.g. `ticketnumber-\\d+`. Matched case-sensitively; may not start with a word character."
+              },
+              "label": {
+                "type": "string",
+                "markdownDescription": "Optional label shown in hover/tooltip, e.g. `Jira`."
+              }
+            }
+          }
         }
       }
     }

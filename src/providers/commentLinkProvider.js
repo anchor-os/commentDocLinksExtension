@@ -1,6 +1,7 @@
 // @ts-check
 
 import * as vscode from "vscode";
+import { getTicketLinks } from "../config/configuration.js";
 import { COMMANDS } from "../constants.js";
 import { supportsLanguage } from "../parsers/languageSupport.js";
 import { scanDocumentForReferences } from "../references/documentScanner.js";
@@ -20,7 +21,7 @@ export class CommentLinkProvider {
 
     const links = [];
 
-    for (const { reference, line } of scanDocumentForReferences(document)) {
+    for (const { reference, line } of scanDocumentForReferences(document, getTicketLinks())) {
       const range = new vscode.Range(line, reference.start, line, reference.end);
 
       const target = createCommandUri(COMMANDS.OPEN_REFERENCE, reference, document.uri.fsPath);

@@ -115,26 +115,31 @@ test("API reference shows the identifier", () => {
   assert.match(markdown, /Checkout/);
 });
 
-test("DOC ticket reference is labelled as a ticket, not documentation", () => {
+test("ticket reference is labelled as a ticket and links to its url", () => {
   const markdown = buildHoverMarkdown(
     {
-      type: "documentation",
-      raw: "DOC-123",
+      type: "ticket",
+      raw: "ticketnumber-78305",
       file: null,
       anchor: null,
       line: null,
-      identifier: "DOC-123",
+      identifier: "ticketnumber-78305",
+      label: "Jira",
+      url: "https://issues.example.com/browse/ticketnumber-78305",
     },
     {
       status: "external",
       targetPath: null,
       line: null,
+      url: "https://issues.example.com/browse/ticketnumber-78305",
       message: null,
     },
   );
 
   assert.match(markdown, /Ticket reference/);
-  assert.match(markdown, /DOC-123/);
+  assert.match(markdown, /Jira/);
+  assert.match(markdown, /ticketnumber-78305/);
+  assert.match(markdown, /https:\/\/issues\.example\.com\/browse\/ticketnumber-78305/);
   assert.doesNotMatch(markdown, /Documentation/);
 });
 

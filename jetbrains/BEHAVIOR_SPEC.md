@@ -452,10 +452,10 @@ documentation reference requires the `\.md` suffix.
 
 ```
 src/util/salesDashboardV2/getRevenueByBusinessCategory2.js
-  → comments may reference documentation/claude/comments/ENC-74995.md
+  → comments may reference documentation/claude/comments/ticketnumber-74995.md
   → and anchors #reconciliation-guarantee
 
-documentation/claude/comments/ENC-74995.md
+documentation/claude/comments/ticketnumber-74995.md
   → headings like:
     ## src/util/salesDashboardV2/getRevenueByBusinessCategory2.js — reconciliation-guarantee
     ## src/util/salesDashboardV2/getRevenueByBusinessCategory2.js#reconciliation-guarantee

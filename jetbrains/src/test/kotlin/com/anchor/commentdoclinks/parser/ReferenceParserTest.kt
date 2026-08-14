@@ -1,9 +1,11 @@
 package com.anchor.commentdoclinks.parser
 
 import com.anchor.commentdoclinks.model.ReferenceType
+import com.anchor.commentdoclinks.model.TicketLink
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class ReferenceParserTest {
     // ---- detectReferenceSpans ----
@@ -124,16 +126,31 @@ class ReferenceParserTest {
     }
 
     @Test
-    fun `parses ticket doc reference`() {
-        val r = parseReference("DOC-123")!!
-        assertEquals(ReferenceType.DOCUMENTATION, r.type)
-        assertEquals("DOC-123", r.identifier)
-        assertNull(r.file)
+    fun `parseReference ignores bare ticket keys`() {
+        assertNull(parseReference("DOC-123"))
+        assertNull(parseReference("ticketnumber-78305"))
     }
 
     @Test
     fun `rejects ticket with trailing word`() {
         assertNull(parseReference("DOC-123x"))
+    }
+
+    @Test
+    fun `parseComment detects a configured ticket link with url and label`() {
+        val links = listOf(TicketLink("https://issues.example.com/browse/", "ticketnumber-\\d+", "Jira"))
+        val refs = parseComment("fix ticketnumber-78305 now", offset = 0, ticketLinks = links)
+        assertEquals(1, refs.size)
+        assertEquals(ReferenceType.TICKET, refs[0].type)
+        assertEquals("ticketnumber-78305", refs[0].identifier)
+        assertEquals("https://issues.example.com/browse/ticketnumber-78305", refs[0].url)
+        assertEquals("Jira", refs[0].label)
+    }
+
+    @Test
+    fun `ticket key inside a word is not matched`() {
+        val links = listOf(TicketLink("https://x/", "ticketnumber-\\d+", null))
+        assertTrue(detectReferenceSpans("prefixticketnumber-78305", links).isEmpty())
     }
 
     @Test

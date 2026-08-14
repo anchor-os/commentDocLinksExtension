@@ -51,18 +51,18 @@ const ISSUE_REFERENCE_REGEX = /(?<![\w:#])#(\d+)\b/g;
 const ISSUE_REFERENCE_ANCHORED = /^#(\d+)$/;
 
 /**
- * Documentation ticket reference: `DOC-123`.
- */
-const TICKET_REFERENCE_REGEX = /(?<!\w)DOC-(\d+)\b/g;
-
-const TICKET_REFERENCE_ANCHORED = /^DOC-(\d+)$/;
-
-/**
  * API reference: `API:Foo`.
  */
 const API_REFERENCE_REGEX = /(?<!\w)API:([A-Za-z0-9_-]+)\b/g;
 
 const API_REFERENCE_ANCHORED = /^API:([A-Za-z0-9_-]+)$/;
+
+/**
+ * @typedef {object} TicketLink
+ * @property {string} baseUrl URL prefix appended with the matched key.
+ * @property {RegExp} regex Compiled ticket-key pattern.
+ * @property {string|null} label Optional hover label.
+ */
 
 /**
  * @typedef {object} ReferenceSpan
@@ -72,25 +72,42 @@ const API_REFERENCE_ANCHORED = /^API:([A-Za-z0-9_-]+)$/;
  */
 
 /**
+ * @typedef {object} ReferenceSpan
+ * @property {string} raw
+ * @property {number} start
+ * @property {number} end
+ * @property {string} [url] Resolved click URL for ticket references.
+ * @property {string|null} [label] Hover label for ticket references.
+ */
+
+/**
  * Detect reference spans in a piece of text, in priority order.
  *
  * Documentation references win over the generic issue/ticket/API forms so a
  * reference inside an already-matched span (for example `file.md#123`) is
- * never reported twice with conflicting types.
+ * never reported twice with conflicting types. Ticket keys from
+ * `ticketLinks` are detected last; a span already consumed by a higher-priority
+ * reference is skipped, and the first matching ticket entry wins.
  *
  * @param {string} text
+ * @param {TicketLink[]} [ticketLinks]
  * @returns {ReferenceSpan[]} Spans sorted by start offset.
  */
-export function detectReferenceSpans(text) {
+export function detectReferenceSpans(text, ticketLinks = []) {
   const accepted = [];
   const consumed = [];
 
-  const accept = (match) => {
+  const accept = (match, meta) => {
     const span = {
       raw: match[0],
       start: match.index,
       end: match.index + match[0].length,
     };
+
+    if (meta) {
+      span.url = meta.url;
+      span.label = meta.label;
+    }
 
     for (const existing of consumed) {
       if (span.start < existing.end && existing.start < span.end) {
@@ -110,12 +127,14 @@ export function detectReferenceSpans(text) {
     accept(match);
   }
 
-  for (const match of text.matchAll(TICKET_REFERENCE_REGEX)) {
+  for (const match of text.matchAll(API_REFERENCE_REGEX)) {
     accept(match);
   }
 
-  for (const match of text.matchAll(API_REFERENCE_REGEX)) {
-    accept(match);
+  for (const entry of ticketLinks) {
+    for (const match of text.matchAll(entry.regex)) {
+      accept(match, { url: entry.baseUrl + match[0], label: entry.label });
+    }
   }
 
   return accepted.sort((a, b) => a.start - b.start);
@@ -134,7 +153,9 @@ export function detectReferenceSpans(text) {
  *   file: string|null,
  *   anchor: string|null,
  *   line: number|null,
- *   identifier: string|null
+ *   identifier: string|null,
+ *   url: string|null,
+ *   label: string|null
  * }|null}
  */
 export function parseReference(raw) {
@@ -171,19 +192,6 @@ export function parseReference(raw) {
     };
   }
 
-  const ticket = raw.match(TICKET_REFERENCE_ANCHORED);
-
-  if (ticket) {
-    return {
-      type: REFERENCE_TYPE.DOCUMENTATION,
-      raw,
-      file: null,
-      anchor: null,
-      line: null,
-      identifier: raw,
-    };
-  }
-
   const api = raw.match(API_REFERENCE_ANCHORED);
 
   if (api) {
@@ -208,6 +216,8 @@ export function parseReference(raw) {
  * @property {string|null} anchor
  * @property {number|null} line
  * @property {string|null} identifier
+ * @property {string|null} url Resolved click URL (ticket references only).
+ * @property {string|null} label Hover label (ticket references only).
  * @property {number} start
  * @property {number} end
  */
@@ -215,21 +225,43 @@ export function parseReference(raw) {
 /**
  * Parse every reference found in a comment text.
  *
+ * Ticket references are produced directly from the spans detected by
+ * {@link detectReferenceSpans} (which carries the resolved URL/label), so they
+ * never rely on `parseReference`. `parseReference` handles documentation,
+ * issue and API references only.
+ *
  * Offsets are relative to `offset`, which should be the position of the
  * comment text inside its containing line.
  *
  * @param {string} text
  * @param {number} [offset]
+ * @param {TicketLink[]} [ticketLinks]
  * @returns {ParsedReference[]}
  */
-export function parseComment(text, offset = 0) {
+export function parseComment(text, offset = 0, ticketLinks = []) {
   const references = [];
 
-  for (const span of detectReferenceSpans(text)) {
-    const parsed = parseReference(span.raw);
+  for (const span of detectReferenceSpans(text, ticketLinks)) {
+    /** @type {object} */
+    let parsed;
 
-    if (parsed === null) {
-      continue;
+    if (span.url !== undefined && span.url !== null) {
+      parsed = {
+        type: REFERENCE_TYPE.TICKET,
+        raw: span.raw,
+        file: null,
+        anchor: null,
+        line: null,
+        identifier: span.raw,
+        url: span.url,
+        label: span.label ?? null,
+      };
+    } else {
+      parsed = parseReference(span.raw);
+
+      if (parsed === null) {
+        continue;
+      }
     }
 
     references.push({
