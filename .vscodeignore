@@ -8,6 +8,9 @@ node_modules/**
 out/**
 test/**
 .github
+# JetBrains plugin sources/build artifacts are published separately and must
+# never be bundled into the VS Code .vsix (its sandbox + gradle caches are huge).
+jetbrains/**
 *.vsix
 *.tgz
 repomix-output.xml
