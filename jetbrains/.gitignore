@@ -3,7 +3,7 @@
 build/
 .intellijPlatform/
 out/
-
+.vscode/*
 # IDEA module files
 *.iml
 .idea/
