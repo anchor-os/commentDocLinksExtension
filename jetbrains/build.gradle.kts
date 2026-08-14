@@ -8,7 +8,7 @@ plugins {
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 group = "com.anchor"
-version = "0.1.5"
+version = "0.1.6"
 
 repositories {
     mavenCentral()
@@ -61,14 +61,21 @@ intellijPlatform {
     // properties so that the normal `build`/`test` tasks never require secrets.
     // `publishPlugin` / `signPlugin` only read these when actually executed.
     //
-    // Signing (`signPlugin`) uses certificate-based code signing and reads:
+    // JetBrains Marketplace requires every plugin to be signed. `signPlugin`
+    // runs automatically before `publishPlugin` once the certificate + key are
+    // provided, and reads:
     //   - JETBRAINS_CERTIFICATE_CHAIN      : the X.509 certificate chain (PEM).
     //   - JETBRAINS_PRIVATE_KEY            : the private key (PEM) matching the chain.
     //   - JETBRAINS_PRIVATE_KEY_PASSWORD   : password protecting the private key.
     // The public key that corresponds to JETBRAINS_PRIVATE_KEY must be registered
-    // in the JetBrains Marketplace profile (uploaded certificate) or verification
+    // in the plugin's Marketplace profile (Settings -> Public Key) or verification
     // during publishing will fail.
-    //
+    signing {
+        certificateChain = providers.environmentVariable("JETBRAINS_CERTIFICATE_CHAIN")
+        privateKey = providers.environmentVariable("JETBRAINS_PRIVATE_KEY")
+        password = providers.environmentVariable("JETBRAINS_PRIVATE_KEY_PASSWORD").orElse("")
+    }
+
     // JETBRAINS_MARKETPLACE_TOKEN is unrelated to signing: it is the credential
     // consumed by `publishPlugin` (below) to authenticate the upload to the
     // Marketplace. Keep these two concerns separate when provisioning secrets.
@@ -76,6 +83,7 @@ intellijPlatform {
         token = providers.environmentVariable("JETBRAINS_MARKETPLACE_TOKEN")
         channels = providers.environmentVariable("JETBRAINS_MARKETPLACE_CHANNELS")
             .orElse("default")
+            .map { raw -> if (raw.isBlank()) "default" else raw }
             .map { it.split(',').map { c -> c.trim() }.filter { c -> c.isNotEmpty() } }
     }
 }
