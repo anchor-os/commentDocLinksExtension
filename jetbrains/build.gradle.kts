@@ -76,6 +76,7 @@ intellijPlatform {
         token = providers.environmentVariable("JETBRAINS_MARKETPLACE_TOKEN")
         channels = providers.environmentVariable("JETBRAINS_MARKETPLACE_CHANNELS")
             .orElse("default")
+            .map { raw -> if (raw.isBlank()) "default" else raw }
             .map { it.split(',').map { c -> c.trim() }.filter { c -> c.isNotEmpty() } }
     }
 }
