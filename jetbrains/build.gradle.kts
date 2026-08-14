@@ -60,16 +60,18 @@ intellijPlatform {
     // Publishing + signing are configured from environment variables / project
     // properties so that the normal `build`/`test` tasks never require secrets.
     // `publishPlugin` / `signPlugin` only read these when actually executed.
-    // JetBrains Marketplace requires every plugin to be signed; `signPlugin`
-    // runs automatically before `publishPlugin` once the certificate + key are
-    // provided. The matching public key must also be uploaded to the plugin's
-    // Marketplace profile (plugin Settings -> Public Key).
-    signing {
-        certificateChain = providers.environmentVariable("JETBRAINS_CERTIFICATE_CHAIN")
-        privateKey = providers.environmentVariable("JETBRAINS_PRIVATE_KEY")
-        password = providers.environmentVariable("JETBRAINS_PRIVATE_KEY_PASSWORD").orElse("")
-    }
-
+    //
+    // Signing (`signPlugin`) uses certificate-based code signing and reads:
+    //   - JETBRAINS_CERTIFICATE_CHAIN      : the X.509 certificate chain (PEM).
+    //   - JETBRAINS_PRIVATE_KEY            : the private key (PEM) matching the chain.
+    //   - JETBRAINS_PRIVATE_KEY_PASSWORD   : password protecting the private key.
+    // The public key that corresponds to JETBRAINS_PRIVATE_KEY must be registered
+    // in the JetBrains Marketplace profile (uploaded certificate) or verification
+    // during publishing will fail.
+    //
+    // JETBRAINS_MARKETPLACE_TOKEN is unrelated to signing: it is the credential
+    // consumed by `publishPlugin` (below) to authenticate the upload to the
+    // Marketplace. Keep these two concerns separate when provisioning secrets.
     publishing {
         token = providers.environmentVariable("JETBRAINS_MARKETPLACE_TOKEN")
         channels = providers.environmentVariable("JETBRAINS_MARKETPLACE_CHANNELS")
