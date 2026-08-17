@@ -263,7 +263,7 @@ The Rust linter is the single source of truth. The IDE adapters
 (`src/lint/` for VS Code, `jetbrains/src/main/kotlin/.../lint/` for
 WebStorm) share the same JSON contract:
 
-```
+```text
 custom-biome-lint <file> --format json   →   JSON   →   IDE diagnostics / fixes
 ```
 
