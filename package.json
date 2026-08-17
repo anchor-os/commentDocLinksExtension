@@ -2,7 +2,7 @@
   "name": "comment-doc-links",
   "displayName": "Comment Doc Links",
   "description": "Navigate between source comments and markdown documentation with two-way links. (getanchor.io)",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "publisher": "manish-sharma-getanchorio",
   "license": "MIT",
   "repository": {

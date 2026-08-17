@@ -134,7 +134,7 @@ class LintQuickFix(
         val document = psi.containingFile?.viewProvider?.document ?: return
 
         val offsets =
-            edits.mapNotNull { edit ->
+            edits.map { edit ->
                 val startLine = (edit.start.line - 1).coerceAtLeast(0)
                 val endLine = (edit.end.line - 1).coerceAtLeast(0)
                 if (startLine >= document.lineCount || endLine >= document.lineCount) {
@@ -150,7 +150,11 @@ class LintQuickFix(
                 }
             }
 
-        for (offset in offsets.sortedByDescending { it.start }) {
+        // All-or-nothing: if any supplied edit is out of range, skip the whole
+        // fix rather than mutating the document into an inconsistent state.
+        if (offsets.any { it == null }) return
+
+        for (offset in offsets.filterNotNull().sortedByDescending { it.start }) {
             document.replaceString(offset.start, offset.end, offset.text)
         }
     }

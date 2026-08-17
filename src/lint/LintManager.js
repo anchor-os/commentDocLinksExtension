@@ -141,6 +141,9 @@ export class LintManager {
     this.#clearTimer(fsPath);
     this.#controllers.get(fsPath)?.abort();
     this.#controllers.delete(fsPath);
+    // Bump the request id so any in-flight result fails the stale guard and
+    // cannot publish diagnostics onto a document that was just cleared/closed.
+    this.#latestRequestId.set(fsPath, (this.#latestRequestId.get(fsPath) ?? 0) + 1);
     this.host.clearDiagnostics(document);
   }
 

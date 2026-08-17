@@ -41,7 +41,7 @@ export class LintHoverProvider {
       const markdown = new vscode.MarkdownString();
 
       markdown.appendMarkdown(`**custom-biome-lint/${descriptor.rule}**\n\n`);
-      markdown.appendMarkdown(`${descriptor.message.split("\n\n")[0]}\n\n`);
+      markdown.appendMarkdown(`${descriptor.message}\n\n`);
       markdown.appendMarkdown(`Severity: ${descriptor.severity}\n`);
 
       if (descriptor.docsUrl) {
