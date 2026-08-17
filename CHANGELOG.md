@@ -6,6 +6,27 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] - 2026-08-17
+
+### Added
+
+- Optional `custom-biome-lint` IDE linting, integrated into the same extension
+  (VS Code and JetBrains) without a separate package.
+- Auto-detection of the workspace-installed `custom-biome-lint` package; the
+  feature is silently disabled when the package is missing.
+- Lint diagnostics (error/warning) for JavaScript and JSX, mapped from the
+  Rust linter's JSON output.
+- Quick fix ("Apply safe fix") and suppression ("Suppress &lt;rule&gt;") code
+  actions that apply the exact text edits returned by the Rust linter.
+- Lint hover experience showing the rule id, message, severity and a link to
+  rule documentation.
+- Settings `commentDocLinks.lint.enabled` and `commentDocLinks.lint.autoDetect`.
+- Commands `commentDocLinks.lint.file`, `commentDocLinks.lint.restart` and
+  `commentDocLinks.lint.status`.
+- Isolated `src/lint/` subsystem that never re-implements lint rules and keeps
+  the rest of the extension unaware of the CLI (see
+  `docs/custom-biome-lint-integration.md`).
+
 ## [0.1.7] - 2026-08-17
 
 ### Added

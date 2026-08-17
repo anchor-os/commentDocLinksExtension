@@ -9,6 +9,7 @@ import com.anchor.commentdoclinks.resolver.validateReference
 import com.anchor.commentdoclinks.services.VfsFileSystem
 import com.anchor.commentdoclinks.services.WorkspaceRootService
 import com.anchor.commentdoclinks.services.documentLikeFromDocument
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiElement
@@ -49,16 +50,22 @@ class CommentDocReference(
         val project = sourceFile.project
         val virtualFile = sourceFile.virtualFile ?: return null
         val root = WorkspaceRootService(project).resolveWorkspaceRoot(virtualFile) ?: return null
+        LOG.debug("FORWARD resolve: root=$root file=${reference.file} anchor=${reference.anchor}")
 
         val fs: FileSystemLike = VfsFileSystem()
         val result = validateReference(reference, { rel -> resolveInRoot(root, rel) }, fs)
+        LOG.debug("FORWARD validate: status=${result.status} targetPath=${result.targetPath}")
 
         if (result.status == ResolutionStatus.EXTERNAL || result.targetPath == null) {
             return null
         }
 
-        val targetFile = LocalFileSystem.getInstance().findFileByPath(result.targetPath) ?: return null
-        val targetPsi = PsiManager.getInstance(project).findFile(targetFile) ?: return null
+        val targetFile = LocalFileSystem.getInstance().findFileByPath(result.targetPath)
+        LOG.debug("FORWARD targetVf=${targetFile?.path} existsOnDisk=${targetFile?.let { java.io.File(it.path).exists() }}")
+        if (targetFile == null) return null
+        val targetPsi = PsiManager.getInstance(project).findFile(targetFile)
+        LOG.debug("FORWARD targetPsi=${targetPsi?.virtualFile?.path}")
+        if (targetPsi == null) return null
 
         if (reference.line != null) {
             return elementAtLine(targetPsi, reference.line - 1)
@@ -112,4 +119,8 @@ class CommentDocReference(
 
     override fun getVariants(): Array<com.intellij.codeInsight.lookup.LookupElement> =
         com.intellij.codeInsight.lookup.LookupElement.EMPTY_ARRAY
+
+    companion object {
+        private val LOG = Logger.getInstance(CommentDocReference::class.java)
+    }
 }

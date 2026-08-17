@@ -14,6 +14,11 @@ import {
   documentsToRefresh,
   ReferenceDependencyIndex,
 } from "./diagnostics/referenceDependencyIndex.js";
+import { CustomBiomeLintProvider } from "./lint/CustomBiomeLintProvider.js";
+import { LintCodeActionProvider } from "./lint/LintCodeActionProvider.js";
+import { resolveLintConfig } from "./lint/LintConfig.js";
+import { LintHoverProvider } from "./lint/LintHoverProvider.js";
+import { isLintableLanguage, LintManager } from "./lint/LintManager.js";
 import { documentSelector } from "./parsers/languageSupport.js";
 import { CommentLinkProvider } from "./providers/commentLinkProvider.js";
 import { ReferenceDecorationProvider } from "./providers/decorationProvider.js";
@@ -69,6 +74,129 @@ export function activate(context) {
   );
 
   context.subscriptions.push(diagnosticsManager);
+
+  // --- Custom Biome Lint subsystem -------------------------------------------------
+  // Optional: only active when the workspace has `custom-biome-lint` installed.
+  // Kept fully isolated from the reference/link feature above. The manager
+  // never imports `vscode`; all IDE plumbing is injected through `lintHost`.
+
+  const lintOutput = vscode.window.createOutputChannel("Custom Biome Lint");
+
+  const lintCollection = vscode.languages.createDiagnosticCollection("custom-biome-lint");
+
+  /** @type {import("./lint/LintManager.js").LintHost} */
+  const lintHost = {
+    getConfig() {
+      const configuration = vscode.workspace.getConfiguration("commentDocLinks");
+
+      return resolveLintConfig({
+        enabled: configuration.get("lint.enabled"),
+        autoDetect: configuration.get("lint.autoDetect"),
+      });
+    },
+    setDiagnostics(document, descriptors) {
+      const diagnostics = descriptors.map((descriptor) => {
+        const diagnostic = new vscode.Diagnostic(
+          new vscode.Range(
+            descriptor.range.startLine,
+            descriptor.range.startChar,
+            descriptor.range.endLine,
+            descriptor.range.endChar,
+          ),
+          descriptor.message,
+          descriptor.severity === "error"
+            ? vscode.DiagnosticSeverity.Error
+            : vscode.DiagnosticSeverity.Warning,
+        );
+
+        diagnostic.source = descriptor.source;
+        diagnostic.code = descriptor.code;
+        // Recover the parsed descriptor (fix/suppression/docs) in the code
+        // action + hover providers.
+        diagnostic["custom-biome-lint"] = descriptor;
+
+        return diagnostic;
+      });
+
+      lintCollection.set(document.uri, diagnostics);
+    },
+    clearDiagnostics(document) {
+      lintCollection.delete(document.uri);
+    },
+    log(message) {
+      lintOutput.appendLine(message);
+    },
+  };
+
+  const lintProvider = new CustomBiomeLintProvider();
+  const lintManager = new LintManager({ host: lintHost, provider: lintProvider });
+
+  context.subscriptions.push(lintCollection, lintOutput, lintProvider, lintManager);
+
+  context.subscriptions.push(
+    vscode.languages.registerCodeActionsProvider(
+      [{ language: "javascript" }, { language: "javascriptreact" }],
+      new LintCodeActionProvider(),
+      { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] },
+    ),
+    vscode.languages.registerHoverProvider(
+      [{ language: "javascript" }, { language: "javascriptreact" }],
+      new LintHoverProvider(),
+    ),
+  );
+
+  /** Lint a single document immediately (open / save / explicit command). */
+  const lintNow = (document) => {
+    if (document) {
+      lintManager.lintDocument(document, { immediate: true });
+    }
+  };
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("commentDocLinks.lint.file", () => {
+      const editor = vscode.window.activeTextEditor;
+
+      if (!editor || !isLintableLanguage(editor.document.languageId)) {
+        vscode.window.showInformationMessage(
+          "Custom Biome Lint: open a JavaScript/JSX file to lint.",
+        );
+        return;
+      }
+
+      lintNow(editor.document);
+
+      const status = lintManager.statusFor(editor.document.uri.fsPath);
+
+      if (status === "NOT_INSTALLED") {
+        vscode.window.showInformationMessage(
+          "Custom Biome Lint: custom-biome-lint is not installed in this workspace.",
+        );
+      }
+    }),
+    vscode.commands.registerCommand("commentDocLinks.lint.restart", () => {
+      lintProvider.clearCache();
+      lintManager.restart(vscode.workspace.textDocuments);
+      vscode.window.showInformationMessage("Custom Biome Lint: restarted.");
+    }),
+    vscode.commands.registerCommand("commentDocLinks.lint.status", () => {
+      const editor = vscode.window.activeTextEditor;
+
+      if (!editor || !isLintableLanguage(editor.document.languageId)) {
+        vscode.window.showInformationMessage("Custom Biome Lint: no active JavaScript/JSX file.");
+        return;
+      }
+
+      const fsPath = editor.document.uri.fsPath;
+      const status = lintManager.statusFor(fsPath);
+      const error = lintManager.lastErrorFor(fsPath);
+
+      vscode.window.showInformationMessage(
+        `Custom Biome Lint: ${status}${error ? ` — ${error}` : ""}`,
+      );
+    }),
+  );
+
+  // --- End Custom Biome Lint subsystem ----------------------------------------------
 
   const dependencyIndex = new ReferenceDependencyIndex();
 
@@ -169,6 +297,10 @@ export function activate(context) {
       // reference (for example a previously missing file that was
       // just created), so revalidate its dependents too.
       refreshDependentsOf(document.uri.fsPath);
+
+      // Lint the freshly opened file (no-op for unsupported languages
+      // and when custom-biome-lint is not installed).
+      lintNow(document);
     }),
     vscode.workspace.onDidChangeTextDocument((event) => {
       // Editing a referenced document invalidates the diagnostics
@@ -190,10 +322,14 @@ export function activate(context) {
           scheduleDependentRefresh(fsPath);
         }
       }
+
+      // Re-lint on edits, debounced so a keystroke burst coalesces.
+      lintManager.lintDocument(event.document);
     }),
     vscode.workspace.onDidCloseTextDocument((document) => {
       dependencyIndex.remove(document.uri.fsPath);
       diagnosticsManager.clear(document.uri);
+      lintManager.clearDocument(document);
     }),
     vscode.workspace.onDidCreateFiles((event) => {
       for (const uri of event.files) {
@@ -245,12 +381,25 @@ export function activate(context) {
         // background.
         dependencyIndex.reset();
         queueAllOpenDocuments();
+
+        // A lint setting (enabled / autoDetect) may have changed:
+        // re-evaluate every open JS/JSX file (lintManager clears
+        // diagnostics for disabled / non-applicable files).
+        for (const document of vscode.workspace.textDocuments) {
+          if (isLintableLanguage(document.languageId)) {
+            lintManager.lintDocument(document, { immediate: true });
+          }
+        }
       }
     }),
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       if (editor) {
         updateDiagnostics(editor.document);
       }
+    }),
+    vscode.workspace.onDidSaveTextDocument((document) => {
+      // Lint on save so results reflect the persisted file.
+      lintNow(document);
     }),
   );
 

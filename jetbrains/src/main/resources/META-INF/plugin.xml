@@ -13,6 +13,10 @@
     <!-- Compatibility with WebStorm and other IntelliJ-based IDEs. -->
     <depends>com.intellij.modules.platform</depends>
 
+    <!-- The custom-biome-lint inspection only applies to JavaScript/JSX, so it
+         is registered only when the JavaScript plugin is present. -->
+    <depends optional="true" config-file="withJavaScript.xml">com.intellij.javascript</depends>
+
     <extensions defaultExtensionNs="com.intellij">
         <psi.referenceContributor
             implementation="com.anchor.commentdoclinks.navigation.CommentDocReferenceContributor"/>

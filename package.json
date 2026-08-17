@@ -2,7 +2,7 @@
   "name": "comment-doc-links",
   "displayName": "Comment Doc Links",
   "description": "Navigate between source comments and markdown documentation with two-way links. (getanchor.io)",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "publisher": "manish-sharma-getanchorio",
   "license": "MIT",
   "repository": {
@@ -51,6 +51,18 @@
       {
         "command": "commentDocLinks.openSource",
         "title": "Open Source"
+      },
+      {
+        "command": "commentDocLinks.lint.file",
+        "title": "Custom Biome Lint: Lint Current File"
+      },
+      {
+        "command": "commentDocLinks.lint.restart",
+        "title": "Custom Biome Lint: Restart"
+      },
+      {
+        "command": "commentDocLinks.lint.status",
+        "title": "Custom Biome Lint: Show Status"
       }
     ],
     "configuration": {
@@ -104,6 +116,16 @@
               }
             }
           }
+        },
+        "commentDocLinks.lint.enabled": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Enable custom-biome-lint IDE linting. Requires the `custom-biome-lint` package to be installed in the workspace; when it is missing the feature stays off silently."
+        },
+        "commentDocLinks.lint.autoDetect": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Automatically detect `custom-biome-lint` per file/workspace. Disable to turn the feature fully off regardless of installation."
         }
       }
     }

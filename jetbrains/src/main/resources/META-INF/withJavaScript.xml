@@ -1,0 +1,13 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <localInspection
+            language="JavaScript"
+            shortName="CustomBiomeLint"
+            displayName="Custom Biome Lint"
+            groupPath="Comment Doc Links"
+            groupName="Comment Doc Links"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="com.anchor.commentdoclinks.lint.CustomBiomeLintInspection"/>
+    </extensions>
+</idea-plugin>
