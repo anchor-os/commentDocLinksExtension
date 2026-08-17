@@ -132,6 +132,8 @@ This extension contributes the following settings:
 | `commentDocLinks.enableDiagnostics`     | `true`  | Report broken references as editor warnings.         |
 | `commentDocLinks.enableCompletion`      | `true`  | Suggest anchors while typing.                        |
 | `commentDocLinks.ticketLinks`           | `[]`    | External ticket links: `[{ baseUrl, pattern, label? }]`. Each `pattern` is a regex for a ticket key (e.g. `ticketnumber-\d+`); the match is appended to `baseUrl` and opened in the browser. |
+| `commentDocLinks.lint.enabled`          | `true`  | Enable `custom-biome-lint` IDE linting (requires the package to be installed). |
+| `commentDocLinks.lint.autoDetect`       | `true`  | Auto-detect `custom-biome-lint` per file/workspace. Disable to turn linting fully off. |
 
 ## Commands
 
@@ -140,6 +142,106 @@ This extension contributes the following settings:
 | `commentDocLinks.openReference`     | Open Reference     | Clicking any recognized reference in a source comment         |
 | `commentDocLinks.openDocumentation` | Open Documentation | Legacy: clicking a `file.md[#anchor]` or `file.md[:42]` link  |
 | `commentDocLinks.openSource`        | Open Source        | Clicking a `## src/file.js — anchor` heading link in Markdown |
+| `commentDocLinks.lint.file`         | Custom Biome Lint: Lint Current File | Manual lint of the active JS/JSX file                  |
+| `commentDocLinks.lint.restart`      | Custom Biome Lint: Restart          | Re-detect the package and re-lint open files             |
+| `commentDocLinks.lint.status`       | Custom Biome Lint: Show Status      | Report whether the package is installed for the active file |
+
+## Custom Biome Lint Integration
+
+The extension can surface lint diagnostics from
+[`custom-biome-lint`](https://github.com/anchor-os/custom-biome-lint) — an
+ESLint-like experience backed by a Rust lint engine — directly in the editor.
+
+### Requirement
+
+The feature is **optional**. The project must have the package installed:
+
+```bash
+npm install --save-dev custom-biome-lint
+```
+
+or via yarn/pnpm. The extension uses the **workspace-installed** package; it
+does **not** bundle a binary, does **not** auto-install, and does **not**
+require a global binary. If `custom-biome-lint` is not installed:
+
+- linting is silently disabled,
+- no errors are shown,
+- no noisy notifications appear,
+- all existing Comment Doc Links features keep working exactly as before.
+
+Detection walks up from the file to the nearest
+`node_modules/custom-biome-lint`, so monorepos resolve the correct install and
+the correct `package.json` configuration per package.
+
+### Supported files
+
+Linting applies only to JavaScript and JSX:
+
+- `.js` → language `javascript`
+- `.jsx` → language `javascriptreact`
+
+Markdown, YAML, Terraform, Velocity, GraphQL and every other supported file
+type are **not** linted — the linter is JS/JSX only.
+
+### Diagnostics
+
+When the Rust linter reports a violation:
+
+- `error` → red squiggle,
+- `warn` → orange/yellow squiggle.
+
+The diagnostic message names the rule, e.g.:
+
+```text
+Use Immutable.js Map instead of native Map.
+
+custom-biome-lint/no-native-map
+```
+
+### Quick Fix and Suppression
+
+When the Rust linter supplies a safe fix, a **💡 Apply safe fix** quick fix is
+offered and applied via the editor's native undoable edit. When the linter
+supplies a suppression edit, a **Suppress &lt;rule&gt;** quick fix inserts the
+correct ignore comment, e.g.:
+
+```javascript
+// custom-biome-ignore-next-line no-native-map
+const map = new Map();
+```
+
+The extension never computes fix or suppression placement itself — it applies
+exactly the text edits the Rust linter returns.
+
+### Rule configuration stays in `package.json`
+
+Rule severity is owned by the Rust linter via
+`ignoreBiomeExtensionRules` in the project's `package.json`:
+
+```json
+{
+  "ignoreBiomeExtensionRules": {
+    "no-native-map": "off",
+    "no-for-statement": "warn"
+  }
+}
+```
+
+The extension does **not** re-read or duplicate this configuration; it simply
+displays what the linter reports. `off` rules produce no diagnostic.
+
+### Architecture
+
+The Rust linter is the single source of truth. The IDE adapters
+(`src/lint/` for VS Code, `jetbrains/src/main/kotlin/.../lint/` for
+WebStorm) share the same JSON contract:
+
+```
+custom-biome-lint <file> --format json   →   JSON   →   IDE diagnostics / fixes
+```
+
+See [docs/custom-biome-lint-integration.md](docs/custom-biome-lint-integration.md)
+for the full contract and architecture assessment.
 
 ## Known limitations
 

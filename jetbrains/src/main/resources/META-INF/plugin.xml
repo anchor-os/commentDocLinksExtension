@@ -27,6 +27,16 @@
             language="ANY"
             implementationClass="com.anchor.commentdoclinks.decorations.CommentDocLinkAnnotator"/>
 
+        <localInspection
+            language="JavaScript"
+            shortName="CustomBiomeLint"
+            displayName="Custom Biome Lint"
+            groupPath="Comment Doc Links"
+            groupName="Comment Doc Links"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="com.anchor.commentdoclinks.lint.CustomBiomeLintInspection"/>
+
         <applicationConfigurable
             instance="com.anchor.commentdoclinks.config.CommentDocLinksConfigurable"
             displayName="Comment Doc Links"
