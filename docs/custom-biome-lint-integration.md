@@ -40,7 +40,7 @@ workspace, no lint process runs and nothing errors or nags.
 
 ## 2. Lint subsystem layout (new, isolated)
 
-```
+```text
 src/lint/
   installation.js        # detect + resolve custom-biome-lint (NO vscode)
   LintResultParser.js     # JSON -> LintResult (NO vscode)

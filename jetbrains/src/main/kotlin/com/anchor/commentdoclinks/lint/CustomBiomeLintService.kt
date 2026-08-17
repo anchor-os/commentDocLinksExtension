@@ -1,11 +1,11 @@
 package com.anchor.commentdoclinks.lint
 
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.jsonObject
+import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.CapturingProcessHandler
+import kotlinx.serialization.json.*
 import java.io.File
+import java.util.Optional
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Detection + execution of the optional `custom-biome-lint` package.
@@ -26,11 +26,11 @@ object CustomBiomeLintService {
         val executable: String,
     )
 
-    private val cache = mutableMapOf<String, Install?>()
+    private val cache = ConcurrentHashMap<String, Optional<Install>>()
 
     /** Resolve (and cache) the install for a file's workspace. */
     fun findInstall(startPath: String): Install? {
-        cache[startPath]?.let { return it }
+        cache[startPath]?.let { return it.orElse(null) }
 
         var dir = File(startPath).absoluteFile
         if (dir.isFile) dir = dir.parentFile ?: dir
@@ -46,7 +46,7 @@ object CustomBiomeLintService {
                     } else {
                         null
                     }
-                cache[startPath] = install
+                cache[startPath] = Optional.ofNullable(install)
                 return install
             }
 
@@ -54,7 +54,7 @@ object CustomBiomeLintService {
             dir = parent
         }
 
-        cache[startPath] = null
+        cache[startPath] = Optional.empty()
         return null
     }
 
@@ -84,19 +84,33 @@ object CustomBiomeLintService {
 
     fun clearCache() = cache.clear()
 
+    /** Raised when the linter fails to run (missing binary, timeout, crash). */
+    class LintExecutionException(message: String) : Exception(message)
+
     /** Run the linter and parse its JSON stdout. */
     fun runLint(
         executable: String,
         file: String,
         cwd: String,
     ): LintResult {
-        val process =
-            ProcessBuilder(executable, file, "--format", "json")
-                .directory(File(cwd))
-                .redirectErrorStream(false)
-                .start()
-        val stdout = process.inputStream.bufferedReader().readText()
-        process.waitFor()
+        val commandLine =
+            GeneralCommandLine(executable, file, "--format", "json")
+                .withWorkDirectory(cwd)
+                .withRedirectErrorStream(false)
+
+        val output = CapturingProcessHandler(commandLine).runProcess(30_000, true)
+
+        if (output.isTimeout) {
+            throw LintExecutionException("custom-biome-lint timed out after 30s")
+        }
+
+        val stdout = output.stdout
+        if (stdout.isBlank()) {
+            val stderr = output.stderr.trim()
+            if (stderr.isNotBlank()) throw LintExecutionException(stderr)
+            return LintResult(emptyList())
+        }
+
         return parseLintResult(stdout)
     }
 

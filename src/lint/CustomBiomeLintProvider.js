@@ -30,6 +30,9 @@ export class CustomBiomeLintProvider extends LintProvider {
     this.#cache = new Map();
   }
 
+  /** @type {Map<string, ReturnType<typeof findCustomBiomeLint>>} */
+  #cache;
+
   /** @type {typeof findCustomBiomeLint} */
   #findInstall;
 
