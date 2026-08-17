@@ -1,5 +1,6 @@
 package com.anchor.commentdoclinks.lint
 
+import com.intellij.codeInspection.InspectionManager
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
@@ -32,24 +33,26 @@ class CustomBiomeLintInspection : LocalInspectionTool() {
 
     override fun checkFile(
         file: PsiFile,
-        manager: ProblemsHolder,
+        manager: InspectionManager,
         isOnTheFly: Boolean,
-    ) {
+    ): Array<ProblemDescriptor> {
         val language = file.language.id
         if (language != "JavaScript" && language != "JavaScript JSX" && language != "ECMAScript") {
-            return
+            return emptyArray()
         }
 
-        val virtualFile = file.virtualFile ?: return
-        val install = CustomBiomeLintService.findInstall(virtualFile.path) ?: return
-        val document = file.viewProvider.document ?: return
+        val virtualFile = file.virtualFile ?: return emptyArray()
+        val install = CustomBiomeLintService.findInstall(virtualFile.path) ?: return emptyArray()
+        val document = file.viewProvider.document ?: return emptyArray()
 
         val result =
             try {
                 CustomBiomeLintService.runLint(install.executable, virtualFile.path, install.workspaceDir)
             } catch (_: Exception) {
-                return
+                return emptyArray()
             }
+
+        val holder = ProblemsHolder(manager, file, isOnTheFly)
 
         for (diagnostic in result.diagnostics) {
             val range = toRange(document, diagnostic.range) ?: continue
@@ -72,14 +75,16 @@ class CustomBiomeLintInspection : LocalInspectionTool() {
                 }
             }
 
-            manager.registerProblem(
+            holder.registerProblem(
                 file,
-                range,
                 buildDescription(diagnostic),
                 highlight,
+                range,
                 *fixes.toTypedArray(),
             )
         }
+
+        return holder.results
     }
 
     private fun buildDescription(diagnostic: LintDiagnostic): String {
