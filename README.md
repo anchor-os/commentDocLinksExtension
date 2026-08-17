@@ -120,6 +120,33 @@ does not depend on npm, and the npm build does not depend on Gradle.
 - **WebStorm 2026.2.1 or other IntelliJ-based IDEs** (JetBrains plugin in
   `jetbrains/`).
 
+## Building
+
+### VS Code extension
+
+```sh
+npm install
+npm run lint        # biome check
+npm test            # unit tests
+npm run test:e2e    # integration tests (downloads VS Code)
+npm run package     # produce the .vsix
+```
+
+### JetBrains plugin
+
+The plugin is a standalone Gradle/Kotlin project under `jetbrains/`. The Gradle
+toolchain requires **JDK 21** (newer JDKs such as 26 will not satisfy the
+configured toolchain), so point `JAVA_HOME` at a JDK 21 install before running
+Gradle:
+
+```sh
+cd jetbrains
+export JAVA_HOME=/opt/homebrew/opt/openjdk@21   # adjust to your JDK 21 path
+./gradlew test buildPlugin
+```
+
+`buildPlugin` produces the plugin ZIP under `jetbrains/build/distributions/`.
+
 ## Extension Settings
 
 This extension contributes the following settings:
