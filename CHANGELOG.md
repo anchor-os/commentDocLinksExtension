@@ -6,6 +6,15 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2026-08-18
+
+### Fixed
+
+- JetBrains: the `custom-biome-lint` inspection now loads correctly. The
+  JavaScript dependency was declared with the wrong id (`com.intellij.javascript`
+  instead of `com.intellij.modules.javascript`), which caused the plugin to
+  exclude the inspection's config file in WebStorm and other JS-capable IDEs.
+
 ## [0.1.8] - 2026-08-17
 
 ### Added
