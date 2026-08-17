@@ -32,7 +32,12 @@ class CommentDocReference(
     element: PsiElement,
     private val reference: ParsedReference,
     private val sourceFile: PsiFile,
-) : PsiReferenceBase<PsiElement>(element, TextRange(reference.start, reference.end), true) {
+    private val lineOffset: Int = 0,
+) : PsiReferenceBase<PsiElement>(
+        element,
+        TextRange(reference.start + lineOffset, reference.end + lineOffset),
+        true,
+    ) {
     override fun resolve(): PsiElement? {
         // Ticket references have no local target. We return a synthetic element
         // whose navigate() opens the configured URL; the browser is only launched

@@ -6,7 +6,7 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.7] - 2026-08-17
 
 ### Added
 
@@ -41,6 +41,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The dedicated documentation-link regex module (`src/utils/regex.js`),
   replaced by the shared reference parser.
+
+### Fixed
+
+- JetBrains plugin: documentation-reference links in source comments on lines
+  after the first (`// see docs/...md#anchor`) now resolve to the correct
+  document location instead of a dangling, non-clickable range. The reference
+  range is shifted by the line start offset so it is document-absolute.
+- JetBrains plugin: clicking the `#anchor` portion of a documentation heading
+  (`## src/file.js#anchor`) now navigates back to the source comment.
 
 ## [0.1.0] - 2026-08-08
 
