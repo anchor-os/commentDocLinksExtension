@@ -34,15 +34,23 @@ class CommentDocReferenceContributor : PsiReferenceContributor() {
         )
     }
 
-    private fun referencesForFile(element: PsiElement): Array<PsiReference> {
+    internal fun referencesForFile(element: PsiElement): Array<PsiReference> {
         val file = element as? PsiFile ?: return PsiReference.EMPTY_ARRAY
         val virtualFile = file.virtualFile ?: return PsiReference.EMPTY_ARRAY
         val languageId = languageIdFromVirtualFile(virtualFile) ?: return PsiReference.EMPTY_ARRAY
         val document = file.viewProvider.document ?: return PsiReference.EMPTY_ARRAY
         val doc: DocumentLike = documentLikeFromDocument(document)
 
-        return scanDocumentForReferences(doc, languageId, CommentDocLinksConfig.ticketLinks)
-            .map { CommentDocReference(file, it.reference, file) }
-            .toTypedArray()
+        val references = mutableListOf<PsiReference>()
+        for (scanned in scanDocumentForReferences(doc, languageId, CommentDocLinksConfig.ticketLinks)) {
+            // `scanDocumentForReferences` reports offsets relative to the start of
+            // the reference's own line; IntelliJ expects document-absolute ranges,
+            // so shift by the line's start offset. Without this, every reference on
+            // a line other than the first is created at the wrong location and is
+            // not clickable.
+            val lineStart = document.getLineStartOffset(scanned.line)
+            references.add(CommentDocReference(file, scanned.reference, file, lineStart))
+        }
+        return references.toTypedArray()
     }
 }

@@ -29,7 +29,7 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
         )
     }
 
-    private fun referencesForFile(element: PsiElement): Array<PsiReference> {
+    internal fun referencesForFile(element: PsiElement): Array<PsiReference> {
         val file = element as? PsiFile ?: return PsiReference.EMPTY_ARRAY
         val virtualFile = file.virtualFile ?: return PsiReference.EMPTY_ARRAY
         val languageId = languageIdFromVirtualFile(virtualFile) ?: return PsiReference.EMPTY_ARRAY
@@ -47,12 +47,17 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
                 )
             val heading = parseMarkdownHeading(lineText) ?: continue
             val lineStart = document.getLineStartOffset(line)
+            // Make the whole `## src/file.js — anchor` (or `#anchor`) heading
+            // clickable, not just the source-path span — the anchor is the part
+            // a reader naturally clicks. `heading.start` is the path start; the
+            // slug (if any) runs to the end of the line.
+            val rangeEnd = document.getLineEndOffset(line)
             references.add(
                 MarkdownSourceReference(
                     file,
                     heading,
                     file,
-                    TextRange(lineStart + heading.start, lineStart + heading.end),
+                    TextRange(lineStart + heading.start, rangeEnd),
                 ),
             )
         }
