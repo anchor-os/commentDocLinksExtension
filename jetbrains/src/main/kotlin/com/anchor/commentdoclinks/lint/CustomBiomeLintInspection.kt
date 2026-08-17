@@ -84,7 +84,7 @@ class CustomBiomeLintInspection : LocalInspectionTool() {
             )
         }
 
-        return holder.results
+        return holder.results.toTypedArray()
     }
 
     private fun buildDescription(diagnostic: LintDiagnostic): String {

@@ -55,5 +55,5 @@ data class LintDiagnostic(
 
 @Serializable
 data class LintResult(
-    val diagnostics: List<LintDiagnostic> = emptyList(),
+    val diagnostics: List<LintDiagnostic>,
 )
