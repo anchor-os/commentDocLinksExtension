@@ -9,6 +9,7 @@ import com.anchor.commentdoclinks.resolver.workspaceRelativePath
 import com.anchor.commentdoclinks.services.VfsFileSystem
 import com.anchor.commentdoclinks.services.WorkspaceRootService
 import com.anchor.commentdoclinks.services.languageIdFromVirtualFile
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiElement
@@ -34,18 +35,27 @@ class MarkdownSourceReference(
         val project = markdownFile.project
         val virtualFile = markdownFile.virtualFile ?: return null
         val root = WorkspaceRootService(project).resolveWorkspaceRoot(virtualFile) ?: return null
+        LOG.debug("BACK resolve: root=$root source=${heading.source} anchor=${heading.anchor}")
 
-        val sourcePath = resolveInRoot(root, heading.source) ?: return null
-        val sourceVf = LocalFileSystem.getInstance().findFileByPath(sourcePath) ?: return null
-        val sourcePsi = PsiManager.getInstance(project).findFile(sourceVf) ?: return null
+        val sourcePath = resolveInRoot(root, heading.source)
+        LOG.debug("BACK sourcePath=$sourcePath")
+        if (sourcePath == null) return null
+        val sourceVf = LocalFileSystem.getInstance().findFileByPath(sourcePath)
+        LOG.debug("BACK sourceVf=${sourceVf?.path}")
+        if (sourceVf == null) return null
+        val sourcePsi = PsiManager.getInstance(project).findFile(sourceVf)
+        LOG.debug("BACK sourcePsi=${sourcePsi?.virtualFile?.path}")
+        if (sourcePsi == null) return sourcePsi
         val sourceLanguageId = languageIdFromVirtualFile(sourceVf) ?: return sourcePsi
 
         val documentationFile = workspaceRelativePath(virtualFile.path, root) ?: return sourcePsi
+        LOG.debug("BACK documentationFile=$documentationFile")
         val fs: FileSystemLike = VfsFileSystem()
         val sourceText = fs.readText(sourcePath) ?: return sourcePsi
         val sourceDoc = stringDocument(sourceText)
 
         val location = resolveSourceReference(sourceDoc, sourceLanguageId, documentationFile, heading.anchor)
+        LOG.debug("BACK resolvedLine=${location.line} anchorFound=${location.anchorFound}")
         return elementAtLine(sourcePsi, location.line)
     }
 
@@ -61,4 +71,8 @@ class MarkdownSourceReference(
 
     override fun getVariants(): Array<com.intellij.codeInsight.lookup.LookupElement> =
         com.intellij.codeInsight.lookup.LookupElement.EMPTY_ARRAY
+
+    companion object {
+        private val LOG = Logger.getInstance(MarkdownSourceReference::class.java)
+    }
 }
