@@ -30,16 +30,32 @@ class CommentDocReferenceContributor : PsiReferenceContributor() {
                 override fun getReferencesByElement(
                     element: PsiElement,
                     context: ProcessingContext,
-                ): Array<PsiReference> = referencesForFile(element)
+                ): Array<PsiReference> {
+                    LOG.info("CDL PROVIDER invoked for ${element::class.simpleName}")
+                    return referencesForFile(element)
+                }
             },
         )
     }
 
     internal fun referencesForFile(element: PsiElement): Array<PsiReference> {
-        val file = element as? PsiFile ?: return PsiReference.EMPTY_ARRAY
-        val virtualFile = file.virtualFile ?: return PsiReference.EMPTY_ARRAY
-        val languageId = languageIdFromVirtualFile(virtualFile) ?: return PsiReference.EMPTY_ARRAY
-        val document = file.viewProvider.document ?: return PsiReference.EMPTY_ARRAY
+        LOG.info("CDL CONTRIB entry: element=${element::class.simpleName}")
+        val file = element as? PsiFile ?: run {
+            LOG.info("CDL CONTRIB skip: not a PsiFile")
+            return PsiReference.EMPTY_ARRAY
+        }
+        val virtualFile = file.virtualFile ?: run {
+            LOG.info("CDL CONTRIB skip: virtualFile null")
+            return PsiReference.EMPTY_ARRAY
+        }
+        val languageId = languageIdFromVirtualFile(virtualFile) ?: run {
+            LOG.info("CDL CONTRIB skip: languageId null for ${virtualFile.path}")
+            return PsiReference.EMPTY_ARRAY
+        }
+        val document = file.viewProvider.document ?: run {
+            LOG.info("CDL CONTRIB skip: document null")
+            return PsiReference.EMPTY_ARRAY
+        }
         val doc: DocumentLike = documentLikeFromDocument(document)
 
         val references = mutableListOf<PsiReference>()

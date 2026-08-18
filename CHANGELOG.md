@@ -6,6 +6,20 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] - 2026-08-18
+
+### Fixed
+
+- JetBrains: corrected the optional JavaScript dependency id from
+  `com.intellij.modules.javascript` to `JavaScript`. The previous id was treated
+  as an unresolvable plugin id (`plugin com.intellij.modules.javascript is not
+  resolved`), which excluded `withJavaScript.xml` and may have prevented the
+  plugin's other extensions (navigation reference contributors) from
+  registering in WebStorm. The `custom-biome-lint` inspection and source↔doc
+  navigation now load.
+- JetBrains: added diagnostic logging (`CDL PROVIDER` / `CDL CONTRIB` /
+  `CDL MD CONTRIB` + per-skip reasons) to trace reference creation in WebStorm.
+
 ## [0.1.9] - 2026-08-18
 
 ### Fixed

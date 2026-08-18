@@ -14,8 +14,8 @@
     <depends>com.intellij.modules.platform</depends>
 
     <!-- The custom-biome-lint inspection only applies to JavaScript/JSX, so it
-         is registered only when the JavaScript module is present. -->
-    <depends optional="true" config-file="withJavaScript.xml">com.intellij.modules.javascript</depends>
+         is registered only when the JavaScript plugin is present. -->
+    <depends optional="true" config-file="withJavaScript.xml">JavaScript</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <psi.referenceContributor

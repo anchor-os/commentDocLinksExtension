@@ -24,17 +24,36 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
                 override fun getReferencesByElement(
                     element: PsiElement,
                     context: ProcessingContext,
-                ): Array<PsiReference> = referencesForFile(element)
+                ): Array<PsiReference> {
+                    LOG.info("CDL MD PROVIDER invoked for ${element::class.simpleName}")
+                    return referencesForFile(element)
+                }
             },
         )
     }
 
     internal fun referencesForFile(element: PsiElement): Array<PsiReference> {
-        val file = element as? PsiFile ?: return PsiReference.EMPTY_ARRAY
-        val virtualFile = file.virtualFile ?: return PsiReference.EMPTY_ARRAY
-        val languageId = languageIdFromVirtualFile(virtualFile) ?: return PsiReference.EMPTY_ARRAY
-        if (languageId != "markdown") return PsiReference.EMPTY_ARRAY
-        val document = file.viewProvider.document ?: return PsiReference.EMPTY_ARRAY
+        LOG.info("CDL MD CONTRIB entry: element=${element::class.simpleName}")
+        val file = element as? PsiFile ?: run {
+            LOG.info("CDL MD CONTRIB skip: not a PsiFile")
+            return PsiReference.EMPTY_ARRAY
+        }
+        val virtualFile = file.virtualFile ?: run {
+            LOG.info("CDL MD CONTRIB skip: virtualFile null")
+            return PsiReference.EMPTY_ARRAY
+        }
+        val languageId = languageIdFromVirtualFile(virtualFile) ?: run {
+            LOG.info("CDL MD CONTRIB skip: languageId null for ${virtualFile.path}")
+            return PsiReference.EMPTY_ARRAY
+        }
+        if (languageId != "markdown") {
+            LOG.info("CDL MD CONTRIB skip: languageId=$languageId not markdown")
+            return PsiReference.EMPTY_ARRAY
+        }
+        val document = file.viewProvider.document ?: run {
+            LOG.info("CDL MD CONTRIB skip: document null")
+            return PsiReference.EMPTY_ARRAY
+        }
 
         val references = mutableListOf<PsiReference>()
         for (line in 0 until document.lineCount) {
@@ -62,5 +81,9 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
             )
         }
         return references.toTypedArray()
+    }
+
+    companion object {
+        private val LOG = com.intellij.openapi.diagnostic.Logger.getInstance(MarkdownSourceLinkContributor::class.java)
     }
 }
