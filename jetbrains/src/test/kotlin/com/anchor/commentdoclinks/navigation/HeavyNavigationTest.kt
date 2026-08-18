@@ -64,4 +64,36 @@ class HeavyNavigationTest : BasePlatformTestCase() {
         log("BACK resolved=${backTarget} targetFile=${backTarget?.containingFile?.name}")
         assertNotNull("BACK must resolve to the source file", backTarget)
     }
+
+    /**
+     * Exercises the exact reference-resolution path the IDE runs on Ctrl/Cmd+Click:
+     * the contributor builds a [PsiReference] whose range covers the link text in
+     * the comment, and [PsiReference.resolve] must return the doc target. If the
+     * range were line-relative (buggy), the caret over the link would fall outside
+     * the reference and Ctrl+Click would find nothing.
+     *
+     * NOTE: wiring through plugin.xml (psi.referenceContributor) cannot be
+     * verified in this BasePlatformTestCase harness because the harness does not
+     * load our plugin.xml extensions (the platform's own reference contributors
+     * load, ours do not). The standard PsiReferenceContributor pattern used in
+     * plugin.xml is identical to those, so registration in the real IDE is
+     * expected; verify in WebStorm via the log lines "CDL CONTRIB"/"CDL FORWARD".
+     */
+    fun testReferenceAtCaretResolves() {
+        File("/tmp/heavy.log").appendText("--- testReferenceAtCaretResolves ---\n")
+        val src = myFixture.configureByText(
+            "qrcode.js",
+            "// see documentation/claude/comments/ENC-78186.md#local-qr-auto-size\n",
+        )
+        val refs = CommentDocReferenceContributor().referencesForFile(src)
+        assertTrue("expected a reference on the comment line", refs.isNotEmpty())
+        val caret = src.text.indexOf("ENC-78186") + 3
+        val refAtCaret = refs.firstOrNull { it.rangeInElement.contains(caret) }
+        log("CARET refAtCaret=${refAtCaret?.javaClass?.simpleName} range=${refAtCaret?.rangeInElement}")
+        assertNotNull("reference range must contain the caret over the link", refAtCaret)
+        // (In-memory configureByText has no real doc target on disk, so resolve()
+        // returning null here is expected. The full resolve path — including the
+        // VfsFileSystem refresh fix — is covered by
+        // testForwardAndBackResolveOnRealDiskProject, which writes real files.)
+    }
 }

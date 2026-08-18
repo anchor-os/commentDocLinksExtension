@@ -18,7 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Usages on a documentation file) now resolves. The VFS lookup used
   `findFileByPath`, which returns null for documentation files not already loaded
   in the VFS; switched to `refreshAndFindFileByPath` so the target is located on
-  disk. Added INFO diagnostics (`CDL CONTRIB` / `CDL FORWARD`) to the log.
+  disk. This was applied to all four resolution paths: the forward
+  `CommentDocReference`, the `VfsFileSystem` helper, the backward
+  `MarkdownSourceReference`, and the completion contributor's language
+  detection. Added INFO diagnostics (`CDL CONTRIB` / `CDL FORWARD`) to the log.
 
 ## [0.1.8] - 2026-08-17
 

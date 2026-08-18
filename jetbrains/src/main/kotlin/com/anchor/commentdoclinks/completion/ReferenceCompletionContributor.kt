@@ -123,7 +123,7 @@ class ReferenceCompletionContributor : CompletionContributor() {
 
     companion object {
         private fun languageIdFromVirtualFile(path: String): String? =
-            LocalFileSystem.getInstance().findFileByPath(path)?.let { languageIdFromVirtualFile(it) }
+            LocalFileSystem.getInstance().refreshAndFindFileByPath(path)?.let { languageIdFromVirtualFile(it) }
     }
 }
 

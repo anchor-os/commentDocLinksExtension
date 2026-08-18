@@ -40,7 +40,7 @@ class MarkdownSourceReference(
         val sourcePath = resolveInRoot(root, heading.source)
         LOG.debug("BACK sourcePath=$sourcePath")
         if (sourcePath == null) return null
-        val sourceVf = LocalFileSystem.getInstance().findFileByPath(sourcePath)
+        val sourceVf = LocalFileSystem.getInstance().refreshAndFindFileByPath(sourcePath)
         LOG.debug("BACK sourceVf=${sourceVf?.path}")
         if (sourceVf == null) return null
         val sourcePsi = PsiManager.getInstance(project).findFile(sourceVf)
