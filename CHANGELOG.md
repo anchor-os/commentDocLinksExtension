@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   JavaScript dependency was declared with the wrong id (`com.intellij.javascript`
   instead of `com.intellij.modules.javascript`), which caused the plugin to
   exclude the inspection's config file in WebStorm and other JS-capable IDEs.
+- JetBrains: source→doc navigation (Go to Declaration from a comment link, Find
+  Usages on a documentation file) now resolves. The VFS lookup used
+  `findFileByPath`, which returns null for documentation files not already loaded
+  in the VFS; switched to `refreshAndFindFileByPath` so the target is located on
+  disk. Added INFO diagnostics (`CDL CONTRIB` / `CDL FORWARD`) to the log.
 
 ## [0.1.8] - 2026-08-17
 

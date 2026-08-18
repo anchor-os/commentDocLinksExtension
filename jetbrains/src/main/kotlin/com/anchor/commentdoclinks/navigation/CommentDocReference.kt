@@ -57,11 +57,12 @@ class CommentDocReference(
         LOG.debug("FORWARD validate: status=${result.status} targetPath=${result.targetPath}")
 
         if (result.status == ResolutionStatus.EXTERNAL || result.targetPath == null) {
+            LOG.info("CDL FORWARD: no local target (status=${result.status}, targetPath=${result.targetPath}) for '${reference.file}'")
             return null
         }
 
-        val targetFile = LocalFileSystem.getInstance().findFileByPath(result.targetPath)
-        LOG.debug("FORWARD targetVf=${targetFile?.path} existsOnDisk=${targetFile?.let { java.io.File(it.path).exists() }}")
+        val targetFile = LocalFileSystem.getInstance().refreshAndFindFileByPath(result.targetPath)
+        LOG.info("CDL FORWARD: targetVf=${targetFile?.path} for '${reference.file}#${reference.anchor ?: ""}'")
         if (targetFile == null) return null
         val targetPsi = PsiManager.getInstance(project).findFile(targetFile)
         LOG.debug("FORWARD targetPsi=${targetPsi?.virtualFile?.path}")

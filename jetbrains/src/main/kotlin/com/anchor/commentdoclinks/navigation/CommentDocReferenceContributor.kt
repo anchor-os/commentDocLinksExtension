@@ -12,6 +12,7 @@ import com.intellij.psi.PsiReference
 import com.intellij.psi.PsiReferenceContributor
 import com.intellij.psi.PsiReferenceProvider
 import com.intellij.psi.PsiReferenceRegistrar
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.util.ProcessingContext
 
 /**
@@ -43,6 +44,7 @@ class CommentDocReferenceContributor : PsiReferenceContributor() {
 
         val references = mutableListOf<PsiReference>()
         for (scanned in scanDocumentForReferences(doc, languageId, CommentDocLinksConfig.ticketLinks)) {
+            LOG.info("CDL CONTRIB: found ref '${scanned.reference.file}' in ${virtualFile.path} (lang=$languageId)")
             // `scanDocumentForReferences` reports offsets relative to the start of
             // the reference's own line; IntelliJ expects document-absolute ranges,
             // so shift by the line's start offset. Without this, every reference on
@@ -52,5 +54,9 @@ class CommentDocReferenceContributor : PsiReferenceContributor() {
             references.add(CommentDocReference(file, scanned.reference, file, lineStart))
         }
         return references.toTypedArray()
+    }
+
+    companion object {
+        private val LOG = Logger.getInstance(CommentDocReferenceContributor::class.java)
     }
 }
