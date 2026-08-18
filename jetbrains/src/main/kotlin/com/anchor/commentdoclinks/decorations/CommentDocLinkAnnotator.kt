@@ -22,6 +22,7 @@ import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.openapi.editor.DefaultLanguageHighlighterColors
 import com.intellij.openapi.editor.colors.TextAttributesKey
 import com.intellij.openapi.util.TextRange
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 
@@ -48,11 +49,20 @@ val LINK_KEY: TextAttributesKey =
  * shared scan used by navigation and diagnostics in the VS Code extension.
  */
 class CommentDocLinkAnnotator : Annotator {
+    companion object {
+        private val LOG = Logger.getInstance(CommentDocLinkAnnotator::class.java)
+    }
+
+    init {
+        LOG.info("CDL ANNOTATE class loaded")
+    }
+
     override fun annotate(
         element: PsiElement,
         holder: AnnotationHolder,
     ) {
         if (element !is PsiFile) return
+        LOG.info("CDL ANNOTATE invoked for ${element.virtualFile?.path}")
         val virtualFile = element.virtualFile ?: return
         val languageId = languageIdFromVirtualFile(virtualFile) ?: return
         val document = element.viewProvider.document ?: return

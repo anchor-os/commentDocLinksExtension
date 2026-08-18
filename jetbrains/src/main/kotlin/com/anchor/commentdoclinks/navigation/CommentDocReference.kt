@@ -10,6 +10,7 @@ import com.anchor.commentdoclinks.services.VfsFileSystem
 import com.anchor.commentdoclinks.services.WorkspaceRootService
 import com.anchor.commentdoclinks.services.documentLikeFromDocument
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.navigation.ItemPresentation
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.psi.PsiElement
@@ -44,7 +45,7 @@ class CommentDocReference(
         // whose navigate() opens the configured URL; the browser is only launched
         // on an explicit Ctrl/Cmd+Click (never as a side effect of resolve()).
         if (reference.type == com.anchor.commentdoclinks.model.ReferenceType.TICKET) {
-            return reference.url?.let { TicketUrlTarget(sourceFile, it) }
+            return reference.url?.let { TicketUrlTarget(sourceFile, it, reference.label) }
         }
 
         val project = sourceFile.project
@@ -99,6 +100,7 @@ class CommentDocReference(
     private class TicketUrlTarget(
         private val containingFile: PsiFile,
         private val url: String,
+        private val label: String?,
     ) : FakePsiElement() {
         override fun getProject(): com.intellij.openapi.project.Project = containingFile.project
 
@@ -107,6 +109,17 @@ class CommentDocReference(
         override fun canNavigate(): Boolean = true
 
         override fun canNavigateToSource(): Boolean = true
+
+        override fun getName(): String = label ?: "Ticket reference"
+
+        override fun getPresentation(): ItemPresentation =
+            object : ItemPresentation {
+                override fun getPresentableText(): String = label ?: "Ticket reference"
+
+                override fun getLocationString(): String? = null
+
+                override fun getIcon(unused: Boolean) = null
+            }
 
         override fun navigate(requestFocus: Boolean) {
             runCatching {

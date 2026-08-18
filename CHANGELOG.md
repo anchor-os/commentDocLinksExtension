@@ -6,6 +6,140 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.18] - 2026-08-18
+
+### Fixed
+
+- JetBrains: Markdown headings now resolve **both** source links and ticket
+  links. Previously `MarkdownSourceLinkContributor` only matched the strict
+  `## src/file.js — anchor` whole-heading format and never produced ticket
+  references, so a heading like
+  `## src/util/qrcode.js#local-qr-auto-size ENC-78788` resolved neither part.
+  The contributor now scans each `MarkdownHeader` line for source references
+  (`src/file.js#anchor`, `src/file.js — anchor`, `src/file.js - anchor`;
+  `.md` targets excluded as forward links) and for configured
+  `commentDocLinks.ticketLinks`, emitting a separate `MarkdownSourceReference`
+  (source) and `CommentDocReference` (ticket) per match. Registration stays on
+  `PlatformPatterns.psiElement().withLanguage("Markdown")` scoped to heading
+  element types (`ATX_1`..`ATX_6`/`SETEXT_1`..`SETEXT_2`), so each heading fires
+  once and ancestor blocks do not duplicate references.
+
+## [0.1.17] - 2026-08-18
+
+### Fixed
+
+- JetBrains: de-duplicated the ticket-reference hover. The URL was shown twice
+  on Ctrl/Cmd+Hover — once from the annotator's `EXTERNAL` tooltip and once from
+  the resolved `TicketUrlTarget` navigation target. `TicketUrlTarget` now
+  exposes only the ticket `label` via `getPresentation()`/`getName()`, so the
+  URL appears exactly once (in the annotator tooltip) while Ctrl/Cmd+Click still
+  opens the browser.
+
+## [0.1.16] - 2026-08-18
+
+### Fixed
+
+- JetBrains: Markdown → source reverse navigation now resolves. The
+  `MarkdownSourceLinkContributor` was registered on the dead
+  `PlatformPatterns.psiFile()` pattern (never invoked during highlighting), so
+  clicking `## src/file.js — anchor` headings did nothing. Re-registered on an
+  element-level `PlatformPatterns.psiElement().withLanguage("Markdown")` pattern;
+  each heading fires as a dedicated `MarkdownHeader` PSI element whose text is
+  exactly that heading line, so `parseMarkdownHeading` matches only the heading
+  (its token children and ancestor blocks do not), producing exactly one
+  reference per heading with no duplicates.
+
+## [0.1.15] - 2026-08-18
+
+### Fixed
+
+- JetBrains: references now resolve. The `CommentDocReferenceContributor`
+  registered its provider on `PlatformPatterns.psiFile()`, but IntelliJ's daemon
+  only invokes **element-level** reference providers (comments, literals, …)
+  during highlighting — file-level providers are never called, so no links were
+  ever produced. Re-registered on `PlatformPatterns.psiComment()` and rewrote
+  `referencesForFile` to scan the whole document once (cached per document
+  stamp) and return only the references whose range falls inside each comment.
+- JetBrains: the `CommentDocLinkAnnotator` was declared with
+  `language="ANY"`, which silently prevents the extension from being
+  instantiated, so decorations and broken-link diagnostics never ran. Removed
+  the attribute so the annotator applies to all languages.
+
+## [0.1.14] - 2026-08-18
+
+### Changed
+
+- JetBrains: diagnostic rebuild to isolate why registered extensions are never
+  invoked during real highlighting. Added a `CDL ANNOTATE class loaded` /
+  `CDL ANNOTATE called` log and a second `psiComment()` reference provider
+  (`CDL PROVIDER(comment)`) alongside the existing `psiFile()` one, to
+  determine whether file-level providers are skipped by the daemon's reference
+  pass while element-level (comment) providers are invoked.
+
+## [0.1.13] - 2026-08-18
+
+### Changed
+
+- JetBrains: expanded startup diagnostics. The re-highlight pass now logs, for
+  each already-open file, its path, language, and whether it is in the project
+  content roots or excluded, then forces `psi.references` and reports how many
+  `CommentDocReference`s were produced. This isolates "extension never invoked"
+  from "invoked but produced no references" and from "file is excluded / not in
+  project".
+
+## [0.1.12] - 2026-08-18
+
+### Fixed
+
+- JetBrains: references and annotations now appear on files that were already
+  open when the plugin finished loading. Restored tabs are highlighted by the
+  IDE before our contributors register (plugin load finishes a few seconds
+  after startup restores the previous session's editors), and IntelliJ does not
+  re-highlight those files when a new plugin's contributors appear. The
+  contributor now re-runs highlighting on every already-open editor once it is
+  registered (`CDL REHIGHLIGHT` log line), so source↔doc links show without
+  re-opening the file.
+
+## [0.1.11] - 2026-08-18
+
+### Fixed
+
+- JetBrains: added entry-point diagnostic logging to confirm whether the
+  reference contributors and annotator are instantiated/invoked at runtime in
+  WebStorm (`CDL REGISTER` / `CDL MD REGISTER` / `CDL ANNOTATE`). This isolates
+  "extensions never load" from "providers load but are never invoked".
+
+## [0.1.10] - 2026-08-18
+
+### Fixed
+
+- JetBrains: corrected the optional JavaScript dependency id from
+  `com.intellij.modules.javascript` to `JavaScript`. The previous id was treated
+  as an unresolvable plugin id (`plugin com.intellij.modules.javascript is not
+  resolved`), which excluded `withJavaScript.xml` and may have prevented the
+  plugin's other extensions (navigation reference contributors) from
+  registering in WebStorm. The `custom-biome-lint` inspection and source↔doc
+  navigation now load.
+- JetBrains: added diagnostic logging (`CDL PROVIDER` / `CDL CONTRIB` /
+  `CDL MD CONTRIB` + per-skip reasons) to trace reference creation in WebStorm.
+
+## [0.1.9] - 2026-08-18
+
+### Fixed
+
+- JetBrains: the `custom-biome-lint` inspection now loads correctly. The
+  JavaScript dependency was declared with the wrong id (`com.intellij.javascript`
+  instead of `com.intellij.modules.javascript`), which caused the plugin to
+  exclude the inspection's config file in WebStorm and other JS-capable IDEs.
+- JetBrains: source→doc navigation (Go to Declaration from a comment link, Find
+  Usages on a documentation file) now resolves. The VFS lookup used
+  `findFileByPath`, which returns null for documentation files not already loaded
+  in the VFS; switched to `refreshAndFindFileByPath` so the target is located on
+  disk. This was applied to all four resolution paths: the forward
+  `CommentDocReference`, the `VfsFileSystem` helper, the backward
+  `MarkdownSourceReference`, and the completion contributor's language
+  detection. Added INFO diagnostics (`CDL CONTRIB` / `CDL FORWARD`) to the log.
+
 ## [0.1.8] - 2026-08-17
 
 ### Added
