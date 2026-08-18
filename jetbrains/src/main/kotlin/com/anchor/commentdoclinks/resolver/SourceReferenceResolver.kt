@@ -109,7 +109,7 @@ fun listSourceAnchors(
             normalizedFile(reference.file ?: "") == normalizedFile(documentationFile) &&
             reference.anchor != null
         ) {
-            anchors.add(reference.anchor!!)
+            anchors.add(reference.anchor)
         }
     }
 

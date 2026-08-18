@@ -1,6 +1,7 @@
 package com.anchor.commentdoclinks.navigation
 
 import com.anchor.commentdoclinks.config.CommentDocLinksConfig
+import com.anchor.commentdoclinks.services.languageIdFromVirtualFile
 import com.anchor.commentdoclinks.model.ParsedReference
 import com.anchor.commentdoclinks.model.ReferenceType
 import com.anchor.commentdoclinks.resolver.ParsedHeading
@@ -60,6 +61,63 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
                 return referencesForElement(element)
             }
         }
+
+    /**
+     * File-level entry point used by tests (and any callers that hold a
+     * [PsiFile] rather than an individual heading element). Scans every line of
+     * the document for heading lines and produces source + ticket references,
+     * mirroring [referencesForElement] but with file-relative ranges.
+     */
+    internal fun referencesForFile(element: PsiElement): Array<PsiReference> {
+        val file = element as? PsiFile ?: return PsiReference.EMPTY_ARRAY
+        val virtualFile = file.virtualFile ?: return PsiReference.EMPTY_ARRAY
+        val languageId = languageIdFromVirtualFile(virtualFile) ?: return PsiReference.EMPTY_ARRAY
+        if (languageId != "markdown") return PsiReference.EMPTY_ARRAY
+        val document = file.viewProvider.document ?: return PsiReference.EMPTY_ARRAY
+
+        val references = mutableListOf<PsiReference>()
+        for (line in 0 until document.lineCount) {
+            val lineStart = document.getLineStartOffset(line)
+            val lineEnd = document.getLineEndOffset(line)
+            val lineText = document.getText(TextRange(lineStart, lineEnd))
+            if (!HEADING_LINE_PREFIX.matches(lineText)) continue
+
+            for (src in findMarkdownSourceReferences(lineText)) {
+                val heading = ParsedHeading(src.source, src.anchor, src.start, src.end)
+                references.add(
+                    MarkdownSourceReference(
+                        file,
+                        heading,
+                        file,
+                        TextRange(lineStart + src.start, lineStart + src.end),
+                    ),
+                )
+            }
+            for (span in detectReferenceSpans(lineText, CommentDocLinksConfig.ticketLinks)) {
+                if (span.url == null) continue
+                references.add(
+                    CommentDocReference(
+                        file,
+                        ParsedReference(
+                            type = ReferenceType.TICKET,
+                            raw = span.raw,
+                            file = null,
+                            anchor = null,
+                            line = null,
+                            identifier = span.raw,
+                            url = span.url,
+                            label = span.label,
+                            start = span.start,
+                            end = span.end,
+                        ),
+                        file,
+                        lineStart,
+                    ),
+                )
+            }
+        }
+        return references.toTypedArray()
+    }
 
     private fun referencesForElement(element: PsiElement): Array<PsiReference> {
         val file = element.containingFile ?: return EMPTY
