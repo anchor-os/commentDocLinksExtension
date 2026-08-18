@@ -8,7 +8,7 @@ plugins {
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 group = "com.anchor"
-version = "0.1.10"
+version = "0.1.11"
 
 repositories {
     mavenCentral()

@@ -18,6 +18,7 @@ import com.intellij.util.ProcessingContext
  */
 class MarkdownSourceLinkContributor : PsiReferenceContributor() {
     override fun registerReferenceProviders(registrar: PsiReferenceRegistrar) {
+        LOG.info("CDL MD REGISTER providers (contributor instantiated)")
         registrar.registerReferenceProvider(
             PlatformPatterns.psiFile(),
             object : PsiReferenceProvider() {

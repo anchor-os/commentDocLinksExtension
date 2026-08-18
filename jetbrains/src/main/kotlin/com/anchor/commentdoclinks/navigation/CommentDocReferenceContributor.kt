@@ -24,6 +24,7 @@ import com.intellij.util.ProcessingContext
  */
 class CommentDocReferenceContributor : PsiReferenceContributor() {
     override fun registerReferenceProviders(registrar: PsiReferenceRegistrar) {
+        LOG.info("CDL REGISTER providers (contributor instantiated)")
         registrar.registerReferenceProvider(
             PlatformPatterns.psiFile(),
             object : PsiReferenceProvider() {
