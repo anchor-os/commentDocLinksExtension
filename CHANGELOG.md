@@ -20,9 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `.md` targets excluded as forward links) and for configured
   `commentDocLinks.ticketLinks`, emitting a separate `MarkdownSourceReference`
   (source) and `CommentDocReference` (ticket) per match. Registration stays on
-  `PlatformPatterns.psiElement().withLanguage("Markdown")` scoped to heading
-  element types (`ATX_1`..`ATX_6`/`SETEXT_1`..`SETEXT_2`), so each heading fires
-  once and ancestor blocks do not duplicate references.
+  `PlatformPatterns.psiElement().withLanguage("Markdown")`; each
+  `MarkdownHeader` is filtered by a text-based ATX/Setext heading check (so
+  ancestor blocks and non-heading tokens do not produce duplicate references),
+  and both ATX (`#`/`##`…) and Setext (`===`/`---` underline) headings resolve.
 
 ## [0.1.17] - 2026-08-18
 

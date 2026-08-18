@@ -62,7 +62,7 @@ class CommentDocLinkAnnotator : Annotator {
         holder: AnnotationHolder,
     ) {
         if (element !is PsiFile) return
-        LOG.info("CDL ANNOTATE invoked for ${element.virtualFile?.path}")
+        LOG.debug("CDL ANNOTATE invoked")
         val virtualFile = element.virtualFile ?: return
         val languageId = languageIdFromVirtualFile(virtualFile) ?: return
         val document = element.viewProvider.document ?: return

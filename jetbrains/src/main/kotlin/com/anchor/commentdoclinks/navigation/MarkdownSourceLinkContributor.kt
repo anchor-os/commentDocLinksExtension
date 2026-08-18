@@ -80,7 +80,19 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
             val lineStart = document.getLineStartOffset(line)
             val lineEnd = document.getLineEndOffset(line)
             val lineText = document.getText(TextRange(lineStart, lineEnd))
-            if (!HEADING_LINE_PREFIX.matches(lineText)) continue
+            val isHeadingLine =
+                HEADING_LINE_PREFIX.matches(lineText) ||
+                    (line + 1 < document.lineCount &&
+                        isSetextUnderline(
+                            document
+                                .getText(
+                                    TextRange(
+                                        document.getLineStartOffset(line + 1),
+                                        document.getLineEndOffset(line + 1),
+                                    ),
+                                ).trim(),
+                        ))
+            if (!isHeadingLine) continue
 
             for (src in findMarkdownSourceReferences(lineText)) {
                 val heading = ParsedHeading(src.source, src.anchor, src.start, src.end)
@@ -121,14 +133,8 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
 
     private fun referencesForElement(element: PsiElement): Array<PsiReference> {
         val file = element.containingFile ?: return EMPTY
-        val text = element.text.trimEnd('\n', '\r')
-        // Only single-line heading elements fire. Ancestor blocks/sections are
-        // multi-line (rejected here), and child tokens that begin with '#'
-        // (e.g. the "## " marker) carry no link of their own.
-        if (text.contains('\n') || text.contains('\r')) return EMPTY
-        if (!HEADING_LINE_PREFIX.matches(text)) return EMPTY
-        LOG.debug("CDL MD PROVIDER heading lineText=${text.take(80)}")
-        val lineText = text
+        val lineText = headingLineText(element.text) ?: return EMPTY
+        LOG.debug("CDL MD PROVIDER heading lineText=${lineText.take(80)}")
 
         val references = mutableListOf<PsiReference>()
 
@@ -170,6 +176,26 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
 
         return references.toTypedArray()
     }
+
+    /**
+     * Determine the scannable heading line for an element's text, or `null` if
+     * the element is not a heading. Handles both ATX headings (`#`/`##`…, single
+     * line) and Setext headings (a text line followed by an `=`/`=` or `-`
+     * underline). The returned line is the one that may carry source/ticket
+     * references.
+     */
+    private fun headingLineText(rawText: String): String? {
+        val text = rawText.trimEnd('\n', '\r')
+        if (!text.contains('\n') && !text.contains('\r')) {
+            if (!HEADING_LINE_PREFIX.matches(text)) return null
+            return text
+        }
+        val lines = text.split('\n', '\r')
+        if (lines.size == 2 && isSetextUnderline(lines[1].trim())) return lines[0]
+        return null
+    }
+
+    private fun isSetextUnderline(line: String): Boolean = line.isNotBlank() && line.all { it == '=' || it == '-' }
 
     /**
      * Find source references (`src/file.js#anchor`, `src/file.js — anchor`,

@@ -72,19 +72,20 @@ class CommentDocReferenceContributor : PsiReferenceContributor() {
 
     private fun scanCache(document: Document, file: PsiFile, languageId: String): List<ScannedRef> {
         val stamp = document.modificationStamp
+        val revision = CommentDocLinksConfig.currentTicketLinksRevision
         val cached = CACHE[document]
-        if (cached != null && cached.first == stamp) return cached.second
+        if (cached != null && cached.first == stamp && cached.second == revision) return cached.third
         val doc: DocumentLike = documentLikeFromDocument(document)
         val list =
             scanDocumentForReferences(doc, languageId, CommentDocLinksConfig.ticketLinks).map { s ->
                 ScannedRef(s.reference, document.getLineStartOffset(s.line))
             }
-        CACHE[document] = stamp to list
+        CACHE[document] = Triple(stamp, revision, list)
         return list
     }
 
     companion object {
         private val LOG = Logger.getInstance(CommentDocReferenceContributor::class.java)
-        private val CACHE = ConcurrentHashMap<Document, Pair<Long, List<ScannedRef>>>()
+        private val CACHE = ConcurrentHashMap<Document, Triple<Long, Int, List<ScannedRef>>>()
     }
 }

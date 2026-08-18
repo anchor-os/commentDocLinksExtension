@@ -64,4 +64,28 @@ class HeavyNavigationTest : BasePlatformTestCase() {
         log("BACK resolved=${backTarget} targetFile=${backTarget?.containingFile?.name}")
         assertNotNull("BACK must resolve to the source file", backTarget)
     }
+
+    fun testSetextBackResolveOnRealDiskProject() {
+        val root = myFixture.tempDirPath
+        File(root, ".git").mkdirs()
+        val sourceText =
+            "// see documentation/claude/comments/ENC-78186.md#local-qr-auto-size\n"
+        writeReal("src/util/qrcode.js", sourceText)
+
+        // Setext level 2 (dash underline)
+        val l2 = "src/util/qrcode.js#local-qr-auto-size\n-----------------------------------\n"
+        assertSetextResolves(writeReal("documentation/claude/comments/setext2.md", l2))
+
+        // Setext level 1 (equals underline)
+        val l1 = "src/util/qrcode.js#local-qr-auto-size\n===================================\n"
+        assertSetextResolves(writeReal("documentation/claude/comments/setext1.md", l1))
+    }
+
+    private fun assertSetextResolves(docAbs: String) {
+        val docVf = LocalFileSystem.getInstance().findFileByPath(docAbs)!!
+        val docPsi = myFixture.psiManager.findFile(docVf)!!
+        val backRefs = MarkdownSourceLinkContributor().referencesForFile(docPsi)
+        assertTrue("setext back reference should be created", backRefs.isNotEmpty())
+        assertNotNull("SETEXT must resolve to the source file", backRefs.first().resolve())
+    }
 }
