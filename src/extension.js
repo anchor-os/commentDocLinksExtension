@@ -168,9 +168,10 @@ export function activate(context) {
 
       lintNow(editor.document);
 
-      const status = lintManager.statusFor(editor.document.uri.fsPath);
-
-      if (status === "NOT_INSTALLED") {
+      // Decide the "not installed" message from real package availability, not
+      // the transient lint status (which is NOT_INSTALLED until the first pass
+      // finishes and would cause a false warning on first run).
+      if (LintManager.isLintNotInstalled(lintProvider, editor.document.uri.fsPath)) {
         vscode.window.showInformationMessage(
           "Custom Biome Lint: custom-biome-lint is not installed in this workspace.",
         );

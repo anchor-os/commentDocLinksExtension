@@ -1,6 +1,8 @@
 // @ts-check
 
 import { execFile } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import { LintParseError, parseLintResult, parseRules } from "./LintResultParser.js";
 
 /**
@@ -51,13 +53,23 @@ import { LintParseError, parseLintResult, parseRules } from "./LintResultParser.
 export const defaultExecutor = (executable, args, cwd, signal, inputText) =>
   new Promise((resolve, reject) => {
     // On Windows a `.js` CLI cannot be executed directly (no shebang
-    // handling by CreateProcess). Always relaunch JS launchers through the
-    // current Node/Electron runtime (`process.execPath`) so the same command
-    // works on macOS, Linux, and Windows. Native binaries (no JS extension)
-    // are spawned as-is.
+    // handling by CreateProcess). Relaunch JS launchers through a REAL Node.js
+    // executable resolved from `PATH` — never `process.execPath`, which inside
+    // the VS Code Extension Host is the Electron binary and cannot run a `.js`
+    // file. Native binaries (no JS extension) are spawned as-is.
     const isJsLauncher = /\.(?:js|cjs|mjs)$/i.test(executable);
-    const command = isJsLauncher ? process.execPath : executable;
-    const finalArgs = isJsLauncher ? [executable, ...args] : args;
+    let command = executable;
+    let finalArgs = args;
+    if (isJsLauncher) {
+      const node = findNodeExecutable();
+      if (node) {
+        command = node;
+        finalArgs = [executable, ...args];
+      }
+      // Without a resolvable Node runtime we still attempt the script directly;
+      // on Unix the OS shebang runs it, while Windows without Node surfaces a
+      // clean spawn error rather than a false "clean" result.
+    }
 
     const child = execFile(
       command,
@@ -106,6 +118,35 @@ export const defaultExecutor = (executable, args, cwd, signal, inputText) =>
   });
 
 /**
+ * Locate a real Node.js executable to launch JS launchers.
+ *
+ * Inside the VS Code Extension Host `process.execPath` is the Electron binary,
+ * not Node — spawning a `.js` file with it loads an Electron app instead of
+ * running the script. We resolve an actual `node` from `PATH` instead. The
+ * workspace installed `custom-biome-lint` via npm, so `node` is on `PATH` in
+ * every realistic environment. Returns `null` when none is found.
+ *
+ * @returns {string|null}
+ */
+export function findNodeExecutable(platform = process.platform) {
+  const pathEnv = process.env.PATH ?? "";
+  const isWindows = platform === "win32";
+  const names = isWindows ? ["node.exe", "nodejs.exe"] : ["node", "nodejs"];
+  for (const dir of pathEnv.split(path.delimiter)) {
+    if (!dir) continue;
+    for (const name of names) {
+      const candidate = path.join(dir, name);
+      try {
+        if (fs.statSync(candidate).isFile()) return candidate;
+      } catch {
+        // Not present in this directory; keep looking.
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * @param {LintRunOptions} options
  * @param {LintExecutor} [executor]
  * @returns {Promise<LintResult>}
@@ -124,9 +165,16 @@ export async function runLint(options, executor = defaultExecutor) {
   }
 
   try {
-    if (outcome.stdout.trim().length === 0 && outcome.stderr.trim().length > 0) {
+    // A valid lint run always emits the v1 envelope on stdout. Empty stdout
+    // means the linter produced no JSON at all — a timeout, crash, killed
+    // process, or a spawn failure surfaced here — and must NEVER be treated as
+    // a clean result, because that would silently clear real diagnostics.
+    // Surface an execution error instead so existing diagnostics are preserved.
+    if (outcome.stdout.trim().length === 0) {
+      const stderr = outcome.stderr.trim();
+      const detail = stderr.length > 0 ? `: ${stderr}` : "";
       throw new LintExecutionError(
-        `custom-biome-lint failed (exit ${outcome.exitCode}): ${outcome.stderr.trim()}`,
+        `custom-biome-lint produced no lint output (exit ${outcome.exitCode})${detail}`,
       );
     }
     return parseLintResult(outcome.stdout);
@@ -158,11 +206,13 @@ export async function runRules(options, executor = defaultExecutor) {
   }
 
   try {
-    // A failed --rules invocation that writes only stderr must not become a
-    // successful empty rule list.
-    if (outcome.stdout.trim().length === 0 && outcome.stderr.trim().length > 0) {
+    // A valid --rules run always emits JSON. Empty stdout (timeout, crash, or
+    // spawn failure) must not become a successful empty rule list.
+    if (outcome.stdout.trim().length === 0) {
+      const stderr = outcome.stderr.trim();
+      const detail = stderr.length > 0 ? `: ${stderr}` : "";
       throw new LintExecutionError(
-        `custom-biome-lint --rules failed (exit ${outcome.exitCode}): ${outcome.stderr.trim()}`,
+        `custom-biome-lint --rules produced no output (exit ${outcome.exitCode})${detail}`,
       );
     }
     return parseRules(outcome.stdout);

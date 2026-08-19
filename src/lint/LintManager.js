@@ -183,6 +183,26 @@ export class LintManager {
   }
 
   /**
+   * Whether the "custom-biome-lint is not installed" message should be shown
+   * for a file.
+   *
+   * This uses the actual package availability (a synchronous filesystem
+   * resolution), NOT the transient per-file lint {@link LintStatus}. The status
+   * starts as `NOT_INSTALLED` and is only updated once a lint pass finishes, so
+   * reading it immediately after triggering a lint would surface a false "not
+   * installed" warning on the very first run. Availability is correct from the
+   * first command, so the message is shown only when the package truly is
+   * absent.
+   *
+   * @param {{ isAvailable: (file: string) => boolean }} provider
+   * @param {string} fsPath
+   * @returns {boolean}
+   */
+  static isLintNotInstalled(provider, fsPath) {
+    return !provider.isAvailable(fsPath);
+  }
+
+  /**
    * @param {LintDocument} document
    */
   async #run(document) {
