@@ -121,7 +121,7 @@ export function createDocumentScanner(deps) {
    * @param {ScannerDocument} document
    * @param {number} priority
    */
-  const scanOpenDocument = async (document, priority) => {
+  const scanOpenDocument = async (document, _priority) => {
     if (dependencyIndex.isCurrent(document.uri.fsPath, document.version)) {
       return;
     }

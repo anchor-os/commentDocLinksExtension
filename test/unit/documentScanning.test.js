@@ -84,7 +84,7 @@ function harness(state) {
   const documentScanner = createDocumentScanner({
     dependencyIndex,
     scanner,
-    contextFor: (fsPath) => ({
+    contextFor: (_fsPath) => ({
       resolveTargetPath(relativePath) {
         return resolveInRoot(root, relativePath);
       },
@@ -259,7 +259,7 @@ test("the same document version is never scanned twice", async () => {
   const documentScanner = createDocumentScanner({
     dependencyIndex,
     scanner,
-    contextFor: (fsPath) => ({
+    contextFor: (_fsPath) => ({
       resolveTargetPath(relativePath) {
         return resolveInRoot(root, relativePath);
       },

@@ -95,12 +95,12 @@ function ticketHover(reference, result) {
  */
 function externalHover(reference) {
   if (reference.type === REFERENCE_TYPE.ISSUE) {
-    return "**Issue reference**\n\n" + `\`#${reference.identifier}\``;
+    return `**Issue reference**\n\n\`#${reference.identifier}\``;
   }
 
   if (reference.type === REFERENCE_TYPE.API) {
-    return "**API reference**\n\n" + `\`${reference.identifier}\``;
+    return `**API reference**\n\n\`${reference.identifier}\``;
   }
 
-  return "**Documentation reference**\n\n" + `\`${reference.raw}\``;
+  return `**Documentation reference**\n\n\`${reference.raw}\``;
 }

@@ -33,7 +33,7 @@ function makeRandom(seed) {
  * @param {string} sourcePath
  * @returns {string}
  */
-function sourceContent(sourcePath) {
+function _sourceContent(sourcePath) {
   const base = path.basename(sourcePath, ".js");
   const lines = [
     "/**",
@@ -114,7 +114,7 @@ function documentationContent(docPath) {
  * @param {string} sourcePath
  * @returns {string}
  */
-function overviewDocumentationContent(docPath, sourcePath) {
+function overviewDocumentationContent(_docPath, sourcePath) {
   const base = path.basename(sourcePath, ".js");
 
   return [
@@ -168,7 +168,7 @@ export function createWorkspace(key) {
 
   for (let i = 0; i < sizes.docFiles; i++) {
     const docPath = path.join(docDir, `doc-${i}.md`);
-    const sourcePath = path.join(srcDir, `mod-${i}.js`);
+    const _sourcePath = path.join(srcDir, `mod-${i}.js`);
 
     fs.writeFileSync(docPath, documentationContent(docPath), "utf8");
 

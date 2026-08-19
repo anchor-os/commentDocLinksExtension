@@ -84,7 +84,7 @@ test("bounded concurrency never exceeds the limit", async () => {
   let running = 0;
   let peak = 0;
 
-  const jobs = Array.from({ length: 10 }, (_, i) => {
+  const _jobs = Array.from({ length: 10 }, (_, i) => {
     scheduler.enqueue({
       key: `job-${i}`,
       priority: PRIORITY.OPEN,

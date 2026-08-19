@@ -34,23 +34,29 @@ import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { fileURLToPath } from "node:url";
 import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
-const FIXTURE_PATH = fileURLToPath(new URL("../fixtures/cbl-v1-parity-fixture.json", import.meta.url));
+const FIXTURE_PATH = fileURLToPath(
+  new URL("../fixtures/cbl-v1-parity-fixture.json", import.meta.url),
+);
 const fixture = JSON.parse(readFileSync(FIXTURE_PATH, "utf-8"));
 
 // Resolve the binary: explicit env, then the installed npm package, then PATH.
 function resolveBinary() {
   if (process.env.CBL_BINARY) return process.env.CBL_BINARY;
-  const localBin = fileURLToPath(new URL("../../node_modules/.bin/custom-biome-lint", import.meta.url));
+  const localBin = fileURLToPath(
+    new URL("../../node_modules/.bin/custom-biome-lint", import.meta.url),
+  );
   if (existsSync(localBin)) return localBin;
   return "custom-biome-lint";
 }
 
 const BINARY = resolveBinary();
-const LOCAL_BIN = fileURLToPath(new URL("../../node_modules/.bin/custom-biome-lint", import.meta.url));
+const LOCAL_BIN = fileURLToPath(
+  new URL("../../node_modules/.bin/custom-biome-lint", import.meta.url),
+);
 const BINARY_AVAILABLE = Boolean(process.env.CBL_BINARY) || existsSync(LOCAL_BIN);
 
 // ---- v1 coordinate conversion (the ONLY place byte->editor mapping happens) -
@@ -97,7 +103,10 @@ for (const c of fixture.cases) {
             const s = toAbsoluteChar(c.source, ed.editor.startLine0, ed.editor.startChar);
             const e = toAbsoluteChar(c.source, ed.editor.endLine0, ed.editor.endChar);
             const applied = c.source.slice(0, s) + ed.editor.replacement + c.source.slice(e);
-            assert.ok(applied.includes(ed.editor.replacement), "applied edit should contain the replacement");
+            assert.ok(
+              applied.includes(ed.editor.replacement),
+              "applied edit should contain the replacement",
+            );
           });
         }
       }
@@ -118,29 +127,30 @@ function runBinaryOnFile(source, filename) {
   const filePath = join(TMP_DIR, filename);
   writeFileSync(filePath, source);
   return new Promise((resolve, reject) => {
-    execFile(BINARY, [filePath, "--format", "json"], { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 }, (err, stdout) => {
-      if (err && !stdout) {
-        reject(err);
-        return;
-      }
-      resolve(String(stdout ?? ""));
-    });
+    execFile(
+      BINARY,
+      [filePath, "--format", "json"],
+      { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 },
+      (err, stdout) => {
+        if (err && !stdout) {
+          reject(err);
+          return;
+        }
+        resolve(String(stdout ?? ""));
+      },
+    );
   });
 }
 
 for (const c of fixture.cases) {
-  test(
-    `[${c.filename}] live stdout matches v1 envelope`,
-    { skip: !BINARY_AVAILABLE },
-    async () => {
-      const stdout = await runBinaryOnFile(c.source, c.filename);
-      const parsed = JSON.parse(stdout);
-      // Normalize the echoed path to the fixture's virtual filename, and drop
-      // the non-deterministic timing field before comparing.
-      for (const f of parsed.files ?? []) f.path = c.filename;
-      delete parsed.summary?.elapsedMs;
-      delete c.expectedStdout.summary?.elapsedMs;
-      assert.deepStrictEqual(parsed, c.expectedStdout);
-    },
-  );
+  test(`[${c.filename}] live stdout matches v1 envelope`, { skip: !BINARY_AVAILABLE }, async () => {
+    const stdout = await runBinaryOnFile(c.source, c.filename);
+    const parsed = JSON.parse(stdout);
+    // Normalize the echoed path to the fixture's virtual filename, and drop
+    // the non-deterministic timing field before comparing.
+    for (const f of parsed.files ?? []) f.path = c.filename;
+    delete parsed.summary?.elapsedMs;
+    delete c.expectedStdout.summary?.elapsedMs;
+    assert.deepStrictEqual(parsed, c.expectedStdout);
+  });
 }
