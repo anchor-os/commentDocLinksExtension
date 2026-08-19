@@ -10,6 +10,16 @@
         (getanchor.io)
     ]]></description>
 
+    <change-notes><![CDATA[
+        <p><strong>0.1.20</strong> &mdash; custom-biome-lint v1 contract</p>
+        <ul>
+            <li>Both VS Code and JetBrains adapters now consume the custom-biome-lint v1 JSON contract (envelope + summary).</li>
+            <li>Correct UTF-8 byte &rarr; UTF-16 column conversion so diagnostics and quick-fix edits land on the right characters, including emoji/astral characters.</li>
+            <li>Stdin linting and the rule catalog are supported; multiple safe fixes and suppressions per violation are offered.</li>
+            <li>Full changelog: <a href="https://github.com/anchor-os/commentDocLinksExtension/blob/main/CHANGELOG.md">CHANGELOG.md</a></li>
+        </ul>
+    ]]></change-notes>
+
     <!-- Compatibility with WebStorm and other IntelliJ-based IDEs. -->
     <depends>com.intellij.modules.platform</depends>
 

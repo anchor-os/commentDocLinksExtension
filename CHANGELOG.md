@@ -6,6 +6,31 @@ file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.20] - 2026-08-19
+
+### Added
+
+- Consume the `custom-biome-lint` **v1** JSON contract in both the VS Code and
+  JetBrains adapters (envelope `version` / `files` / `summary`).
+- Rule catalog support: `custom-biome-lint --rules` is queried so the IDE can
+  surface each rule's description and default severity.
+
+### Changed
+
+- Lint diagnostics and quick-fix edits now use correct **UTF-8 byte → UTF-16**
+  coordinate conversion, so they land on the right characters for multi-byte
+  and emoji/astral text (e.g. `😀`).
+- Linting runs over stdin (`custom-biome-lint --stdin <path>`) for unsaved
+  buffers; non-zero CLI exits that still emit valid JSON are parsed.
+- Multiple safe fixes and suppressions per violation are offered, and
+  line-only rules produce whole-line ranges.
+
+### Fixed
+
+- Parity: the VS Code and JetBrains adapters share identical byte→UTF-16
+  conversion math (verified by a shared fixture), so diagnostics and applied
+  fixes match exactly across editors.
+
 ## [0.1.18] - 2026-08-18
 
 ### Fixed
