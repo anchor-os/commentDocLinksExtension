@@ -1,0 +1,593 @@
+{
+  "contractVersion": 1,
+  "binary": "custom-biome-lint",
+  "invocation": "custom-biome-lint --stdin <virtualPath> --format json   (feed file contents on stdin)",
+  "coordinateModel": {
+    "contract": "1-based line + 1-based BYTE offset (UTF-8) in 'files[].violations[]' (startLine/startColumn/endLine/endColumn, plus convenience line/col).",
+    "editor": "Editors index by UTF-16 code units. IntelliJ char offset and VS Code Position.character are BOTH UTF-16 code-unit indices, so a single byte->utf16 conversion applies to both adapters (only the API differs).",
+    "edits": "fixes[]/suppressions[] edits use the same byte-coordinate model and MUST be converted before applying to editor text."
+  },
+  "cases": [
+    {
+      "id": "ascii",
+      "filename": "sample-ascii.js",
+      "source": "const m = new Map();\n",
+      "expectedStdout": {
+        "files": [
+          {
+            "path": "sample-ascii.js",
+            "violations": [
+              {
+                "col": 15,
+                "endColumn": 18,
+                "endLine": 1,
+                "line": 1,
+                "message": "Use Immutable.js Map instead of native Map.",
+                "rule": "no-native-map",
+                "severity": "error",
+                "startColumn": 15,
+                "startLine": 1,
+                "suppressions": [
+                  {
+                    "edits": [
+                      {
+                        "endColumn": 21,
+                        "endLine": 1,
+                        "replacement": " // custom-biome-ignore-line no-native-map",
+                        "startColumn": 21,
+                        "startLine": 1
+                      }
+                    ],
+                    "kind": "suppress",
+                    "title": "Suppress no-native-map"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "clean": false,
+          "elapsedMs": 2,
+          "errors": 1,
+          "filesCacheSkipped": 0,
+          "filesChecked": 1,
+          "filesWithViolations": 1,
+          "warnings": 0
+        },
+        "version": 1
+      },
+      "violations": [
+        {
+          "rule": "no-native-map",
+          "severity": "error",
+          "contract": {
+            "line": 1,
+            "startColumn": 15,
+            "endColumn": 18,
+            "startLine": 1,
+            "endLine": 1,
+            "lineOnly": false
+          },
+          "editor": {
+            "line0": 0,
+            "startChar": 14,
+            "endChar": 17
+          },
+          "suggestions": {
+            "suppressions": [
+              {
+                "kind": "suppress",
+                "title": "Suppress no-native-map",
+                "edits": [
+                  {
+                    "contract": {
+                      "startLine": 1,
+                      "startColumn": 21,
+                      "endLine": 1,
+                      "endColumn": 21,
+                      "replacement": " // custom-biome-ignore-line no-native-map"
+                    },
+                    "editor": {
+                      "startLine0": 0,
+                      "startChar": 20,
+                      "endLine0": 0,
+                      "endChar": 20,
+                      "replacement": " // custom-biome-ignore-line no-native-map"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "2b",
+      "filename": "sample-2b.js",
+      "source": "const é = new Map();\n",
+      "expectedStdout": {
+        "files": [
+          {
+            "path": "sample-2b.js",
+            "violations": [
+              {
+                "col": 16,
+                "endColumn": 19,
+                "endLine": 1,
+                "line": 1,
+                "message": "Use Immutable.js Map instead of native Map.",
+                "rule": "no-native-map",
+                "severity": "error",
+                "startColumn": 16,
+                "startLine": 1,
+                "suppressions": [
+                  {
+                    "edits": [
+                      {
+                        "endColumn": 22,
+                        "endLine": 1,
+                        "replacement": " // custom-biome-ignore-line no-native-map",
+                        "startColumn": 22,
+                        "startLine": 1
+                      }
+                    ],
+                    "kind": "suppress",
+                    "title": "Suppress no-native-map"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "clean": false,
+          "elapsedMs": 0,
+          "errors": 1,
+          "filesCacheSkipped": 0,
+          "filesChecked": 1,
+          "filesWithViolations": 1,
+          "warnings": 0
+        },
+        "version": 1
+      },
+      "violations": [
+        {
+          "rule": "no-native-map",
+          "severity": "error",
+          "contract": {
+            "line": 1,
+            "startColumn": 16,
+            "endColumn": 19,
+            "startLine": 1,
+            "endLine": 1,
+            "lineOnly": false
+          },
+          "editor": {
+            "line0": 0,
+            "startChar": 14,
+            "endChar": 17
+          },
+          "suggestions": {
+            "suppressions": [
+              {
+                "kind": "suppress",
+                "title": "Suppress no-native-map",
+                "edits": [
+                  {
+                    "contract": {
+                      "startLine": 1,
+                      "startColumn": 22,
+                      "endLine": 1,
+                      "endColumn": 22,
+                      "replacement": " // custom-biome-ignore-line no-native-map"
+                    },
+                    "editor": {
+                      "startLine0": 0,
+                      "startChar": 20,
+                      "endLine0": 0,
+                      "endChar": 20,
+                      "replacement": " // custom-biome-ignore-line no-native-map"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "astral-prev",
+      "filename": "sample-astral-prev.js",
+      "source": "// 🚀\nconst m = new Map();\n",
+      "expectedStdout": {
+        "files": [
+          {
+            "path": "sample-astral-prev.js",
+            "violations": [
+              {
+                "col": 15,
+                "endColumn": 18,
+                "endLine": 2,
+                "line": 2,
+                "message": "Use Immutable.js Map instead of native Map.",
+                "rule": "no-native-map",
+                "severity": "error",
+                "startColumn": 15,
+                "startLine": 2,
+                "suppressions": [
+                  {
+                    "edits": [
+                      {
+                        "endColumn": 21,
+                        "endLine": 2,
+                        "replacement": " // custom-biome-ignore-line no-native-map",
+                        "startColumn": 21,
+                        "startLine": 2
+                      }
+                    ],
+                    "kind": "suppress",
+                    "title": "Suppress no-native-map"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "clean": false,
+          "elapsedMs": 0,
+          "errors": 1,
+          "filesCacheSkipped": 0,
+          "filesChecked": 1,
+          "filesWithViolations": 1,
+          "warnings": 0
+        },
+        "version": 1
+      },
+      "violations": [
+        {
+          "rule": "no-native-map",
+          "severity": "error",
+          "contract": {
+            "line": 2,
+            "startColumn": 15,
+            "endColumn": 18,
+            "startLine": 2,
+            "endLine": 2,
+            "lineOnly": false
+          },
+          "editor": {
+            "line0": 1,
+            "startChar": 14,
+            "endChar": 17
+          },
+          "suggestions": {
+            "suppressions": [
+              {
+                "kind": "suppress",
+                "title": "Suppress no-native-map",
+                "edits": [
+                  {
+                    "contract": {
+                      "startLine": 2,
+                      "startColumn": 21,
+                      "endLine": 2,
+                      "endColumn": 21,
+                      "replacement": " // custom-biome-ignore-line no-native-map"
+                    },
+                    "editor": {
+                      "startLine0": 1,
+                      "startChar": 20,
+                      "endLine0": 1,
+                      "endChar": 20,
+                      "replacement": " // custom-biome-ignore-line no-native-map"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "astral-same",
+      "filename": "sample-astral-same.js",
+      "source": "const a = \"🚀\"; const m = new Map();\n",
+      "expectedStdout": {
+        "files": [
+          {
+            "path": "sample-astral-same.js",
+            "violations": [
+              {
+                "col": 33,
+                "endColumn": 36,
+                "endLine": 1,
+                "line": 1,
+                "message": "Use Immutable.js Map instead of native Map.",
+                "rule": "no-native-map",
+                "severity": "error",
+                "startColumn": 33,
+                "startLine": 1,
+                "suppressions": [
+                  {
+                    "edits": [
+                      {
+                        "endColumn": 39,
+                        "endLine": 1,
+                        "replacement": " // custom-biome-ignore-line no-native-map",
+                        "startColumn": 39,
+                        "startLine": 1
+                      }
+                    ],
+                    "kind": "suppress",
+                    "title": "Suppress no-native-map"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "clean": false,
+          "elapsedMs": 0,
+          "errors": 1,
+          "filesCacheSkipped": 0,
+          "filesChecked": 1,
+          "filesWithViolations": 1,
+          "warnings": 0
+        },
+        "version": 1
+      },
+      "violations": [
+        {
+          "rule": "no-native-map",
+          "severity": "error",
+          "contract": {
+            "line": 1,
+            "startColumn": 33,
+            "endColumn": 36,
+            "startLine": 1,
+            "endLine": 1,
+            "lineOnly": false
+          },
+          "editor": {
+            "line0": 0,
+            "startChar": 30,
+            "endChar": 33
+          },
+          "suggestions": {
+            "suppressions": [
+              {
+                "kind": "suppress",
+                "title": "Suppress no-native-map",
+                "edits": [
+                  {
+                    "contract": {
+                      "startLine": 1,
+                      "startColumn": 39,
+                      "endLine": 1,
+                      "endColumn": 39,
+                      "replacement": " // custom-biome-ignore-line no-native-map"
+                    },
+                    "editor": {
+                      "startLine0": 0,
+                      "startChar": 36,
+                      "endLine0": 0,
+                      "endChar": 36,
+                      "replacement": " // custom-biome-ignore-line no-native-map"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "fix",
+      "filename": "sample-fix.js",
+      "source": "import { createSelector } from \"reselect\";\nconst selectA = () => createSelector([], () => 1);\n",
+      "expectedStdout": {
+        "files": [
+          {
+            "path": "sample-fix.js",
+            "violations": [
+              {
+                "col": 17,
+                "endColumn": 50,
+                "endLine": 2,
+                "fixes": [
+                  {
+                    "edits": [
+                      {
+                        "endColumn": 50,
+                        "endLine": 2,
+                        "replacement": "createSelector([], () => 1)",
+                        "startColumn": 17,
+                        "startLine": 2
+                      }
+                    ],
+                    "kind": "safe",
+                    "title": "Apply safe fix for no-arrow-function-create-selector"
+                  }
+                ],
+                "line": 2,
+                "message": "Avoid wrapping createSelector in an arrow function for \"selectA\". It breaks memoization (a new selector is created on every call). Use createSelector directly, or rename to \"makeSelectA\".",
+                "rule": "no-arrow-function-create-selector",
+                "severity": "error",
+                "startColumn": 17,
+                "startLine": 2,
+                "suppressions": [
+                  {
+                    "edits": [
+                      {
+                        "endColumn": 1,
+                        "endLine": 2,
+                        "replacement": "// custom-biome-ignore-next-line no-arrow-function-create-selector, reselect-arity-match\n",
+                        "startColumn": 1,
+                        "startLine": 2
+                      }
+                    ],
+                    "kind": "suppress",
+                    "title": "Suppress no-arrow-function-create-selector"
+                  }
+                ]
+              },
+              {
+                "col": 42,
+                "line": 2,
+                "message": "createSelector expects 1 parameter(s) in the result function, but found 0.",
+                "rule": "reselect-arity-match",
+                "severity": "error",
+                "startColumn": 42,
+                "startLine": 2,
+                "suppressions": [
+                  {
+                    "edits": [
+                      {
+                        "endColumn": 1,
+                        "endLine": 2,
+                        "replacement": "// custom-biome-ignore-next-line no-arrow-function-create-selector, reselect-arity-match\n",
+                        "startColumn": 1,
+                        "startLine": 2
+                      }
+                    ],
+                    "kind": "suppress",
+                    "title": "Suppress reselect-arity-match"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "summary": {
+          "clean": false,
+          "elapsedMs": 0,
+          "errors": 2,
+          "filesCacheSkipped": 0,
+          "filesChecked": 1,
+          "filesWithViolations": 1,
+          "warnings": 0
+        },
+        "version": 1
+      },
+      "violations": [
+        {
+          "rule": "no-arrow-function-create-selector",
+          "severity": "error",
+          "contract": {
+            "line": 2,
+            "startColumn": 17,
+            "endColumn": 50,
+            "startLine": 2,
+            "endLine": 2,
+            "lineOnly": false
+          },
+          "editor": {
+            "line0": 1,
+            "startChar": 16,
+            "endChar": 49
+          },
+          "suggestions": {
+            "fixes": [
+              {
+                "kind": "safe",
+                "title": "Apply safe fix for no-arrow-function-create-selector",
+                "edits": [
+                  {
+                    "contract": {
+                      "startLine": 2,
+                      "startColumn": 17,
+                      "endLine": 2,
+                      "endColumn": 50,
+                      "replacement": "createSelector([], () => 1)"
+                    },
+                    "editor": {
+                      "startLine0": 1,
+                      "startChar": 16,
+                      "endLine0": 1,
+                      "endChar": 49,
+                      "replacement": "createSelector([], () => 1)"
+                    }
+                  }
+                ]
+              }
+            ],
+            "suppressions": [
+              {
+                "kind": "suppress",
+                "title": "Suppress no-arrow-function-create-selector",
+                "edits": [
+                  {
+                    "contract": {
+                      "startLine": 2,
+                      "startColumn": 1,
+                      "endLine": 2,
+                      "endColumn": 1,
+                      "replacement": "// custom-biome-ignore-next-line no-arrow-function-create-selector, reselect-arity-match\n"
+                    },
+                    "editor": {
+                      "startLine0": 1,
+                      "startChar": 0,
+                      "endLine0": 1,
+                      "endChar": 0,
+                      "replacement": "// custom-biome-ignore-next-line no-arrow-function-create-selector, reselect-arity-match\n"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "rule": "reselect-arity-match",
+          "severity": "error",
+          "contract": {
+            "line": 2,
+            "startColumn": 42,
+            "endColumn": 42,
+            "startLine": 2,
+            "endLine": 2,
+            "lineOnly": true
+          },
+          "editor": {
+            "line0": 1,
+            "startChar": 41,
+            "endChar": null
+          },
+          "suggestions": {
+            "suppressions": [
+              {
+                "kind": "suppress",
+                "title": "Suppress reselect-arity-match",
+                "edits": [
+                  {
+                    "contract": {
+                      "startLine": 2,
+                      "startColumn": 1,
+                      "endLine": 2,
+                      "endColumn": 1,
+                      "replacement": "// custom-biome-ignore-next-line no-arrow-function-create-selector, reselect-arity-match\n"
+                    },
+                    "editor": {
+                      "startLine0": 1,
+                      "startChar": 0,
+                      "endLine0": 1,
+                      "endChar": 0,
+                      "replacement": "// custom-biome-ignore-next-line no-arrow-function-create-selector, reselect-arity-match\n"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
