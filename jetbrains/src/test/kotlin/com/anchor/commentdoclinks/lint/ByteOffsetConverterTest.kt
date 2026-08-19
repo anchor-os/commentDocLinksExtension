@@ -122,9 +122,9 @@ class ByteOffsetConverterTest {
 
     @Test
     fun `insertion edit is zero width and applied verbatim`() {
-        // "const x = new Map()" is 20 chars; a trailing insertion is byte
+        // "const m = new Map();" is 20 chars; a trailing insertion is byte
         // column 21 (1-based) == char offset 20 (end of line).
-        val text = "const x = new Map()"
+        val text = "const m = new Map();"
         val edit =
             LintEdit(
                 startLine = 1,
@@ -134,6 +134,6 @@ class ByteOffsetConverterTest {
                 replacement = " // custom-biome-ignore-line no-native-map",
             )
         val result = LintEdits.apply(text, listOf(edit))
-        assertEquals("const x = new Map() // custom-biome-ignore-line no-native-map", result)
+        assertEquals("const m = new Map(); // custom-biome-ignore-line no-native-map", result)
     }
 }

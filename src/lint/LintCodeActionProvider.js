@@ -83,30 +83,30 @@ export class LintCodeActionProvider {
         continue;
       }
 
-      if (descriptor.fix && descriptor.fix.edits.length > 0) {
+      // Each fix/suppression action is an independent alternative the user can
+      // pick; surface one Quick Fix code action per action.
+      for (const fix of descriptor.fixes) {
+        if (fix.edits.length === 0) continue;
         const fixAction = new vscode.CodeAction(
-          descriptor.fix.title || "Apply safe fix",
+          fix.title || "Apply safe fix",
           vscode.CodeActionKind.QuickFix,
         );
 
         fixAction.diagnostics = [diagnostic];
-        fixAction.edit = buildWorkspaceEdit(document.uri, descriptor.fix.edits, document);
-        fixAction.isPreferred = descriptor.fix.kind === "safe";
+        fixAction.edit = buildWorkspaceEdit(document.uri, fix.edits, document);
+        fixAction.isPreferred = fix.kind === "safe";
         actions.push(fixAction);
       }
 
-      if (descriptor.suppression && descriptor.suppression.edits.length > 0) {
+      for (const suppression of descriptor.suppressions) {
+        if (suppression.edits.length === 0) continue;
         const suppressAction = new vscode.CodeAction(
-          `Suppress ${descriptor.rule}`,
+          suppression.title || `Suppress ${descriptor.rule}`,
           vscode.CodeActionKind.QuickFix,
         );
 
         suppressAction.diagnostics = [diagnostic];
-        suppressAction.edit = buildWorkspaceEdit(
-          document.uri,
-          descriptor.suppression.edits,
-          document,
-        );
+        suppressAction.edit = buildWorkspaceEdit(document.uri, suppression.edits, document);
         actions.push(suppressAction);
       }
     }

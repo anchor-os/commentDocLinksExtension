@@ -76,10 +76,19 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
         val document = file.viewProvider.document ?: return PsiReference.EMPTY_ARRAY
 
         val references = mutableListOf<PsiReference>()
+        var inFence = false
         for (line in 0 until document.lineCount) {
             val lineStart = document.getLineStartOffset(line)
             val lineEnd = document.getLineEndOffset(line)
             val lineText = document.getText(TextRange(lineStart, lineEnd))
+            val trimmed = lineText.trim()
+            // Toggle fenced-code state so lines inside ``` blocks are never
+            // mistaken for headings.
+            if (trimmed.startsWith("```")) {
+                inFence = !inFence
+                continue
+            }
+            if (inFence) continue
             val isHeadingLine =
                 HEADING_LINE_PREFIX.matches(lineText) ||
                     (line + 1 < document.lineCount &&
@@ -190,7 +199,7 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
             if (!HEADING_LINE_PREFIX.matches(text)) return null
             return text
         }
-        val lines = text.split('\n', '\r')
+        val lines = text.lines()
         if (lines.size == 2 && isSetextUnderline(lines[1].trim())) return lines[0]
         return null
     }

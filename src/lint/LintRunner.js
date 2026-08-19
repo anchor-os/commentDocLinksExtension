@@ -53,7 +53,7 @@ export const defaultExecutor = (executable, args, cwd, signal, inputText) =>
     const child = execFile(
       executable,
       args,
-      { cwd, maxBuffer: 64 * 1024 * 1024, windowsHide: true },
+      { cwd, maxBuffer: 64 * 1024 * 1024, windowsHide: true, timeout: 30_000 },
       /**
        * @param {Error & { code?: string | number }} error
        * @param {string | Buffer} stdout
@@ -86,6 +86,9 @@ export const defaultExecutor = (executable, args, cwd, signal, inputText) =>
     }
 
     if (inputText != null) {
+      // The linter may exit before draining stdin (EPIPE). Swallow the write
+      // error; the captured stdout is still resolved by the execFile callback.
+      child.stdin?.on("error", () => {});
       child.stdin?.end(inputText);
     }
 
@@ -112,6 +115,11 @@ export async function runLint(options, executor = defaultExecutor) {
   }
 
   try {
+    if (outcome.stdout.trim().length === 0 && outcome.stderr.trim().length > 0) {
+      throw new LintExecutionError(
+        `custom-biome-lint failed (exit ${outcome.exitCode}): ${outcome.stderr.trim()}`,
+      );
+    }
     return parseLintResult(outcome.stdout);
   } catch (error) {
     if (error instanceof LintParseError) {

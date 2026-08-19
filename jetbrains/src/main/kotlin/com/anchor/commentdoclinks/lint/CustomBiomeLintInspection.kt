@@ -9,6 +9,7 @@ import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
@@ -56,6 +57,9 @@ class CustomBiomeLintInspection : LocalInspectionTool() {
                     install.workspaceDir,
                     text,
                 )
+            } catch (e: ProcessCanceledException) {
+                // Cancellation must propagate so the IDE stays responsive.
+                throw e
             } catch (_: Exception) {
                 return emptyArray()
             }
@@ -73,16 +77,19 @@ class CustomBiomeLintInspection : LocalInspectionTool() {
                         ProblemHighlightType.ERROR
                     }
 
+                // The v1 contract treats multiple fix/suppression actions as
+                // ALTERNATIVES (the user picks one), so register one quick fix
+                // per action rather than merging their edits into a single set.
                 val fixes = mutableListOf<LocalQuickFix>()
-                val fixEdits = violation.fixes.flatMap { it.edits }
-                if (fixEdits.isNotEmpty()) {
-                    val title = violation.fixes.firstNotNullOfOrNull { it.title }
-                        ?: "Fix ${violation.rule}"
-                    fixes.add(LintQuickFix(title, fixEdits))
+                for (action in violation.fixes) {
+                    if (action.edits.isEmpty()) continue
+                    val title = action.title ?: "Fix ${violation.rule}"
+                    fixes.add(LintQuickFix(title, action.edits))
                 }
-                val suppressEdits = violation.suppressions.flatMap { it.edits }
-                if (suppressEdits.isNotEmpty()) {
-                    fixes.add(LintQuickFix("Suppress ${violation.rule}", suppressEdits))
+                for (action in violation.suppressions) {
+                    if (action.edits.isEmpty()) continue
+                    val title = action.title ?: "Suppress ${violation.rule}"
+                    fixes.add(LintQuickFix(title, action.edits))
                 }
 
                 holder.registerProblem(

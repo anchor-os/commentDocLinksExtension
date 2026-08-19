@@ -6,6 +6,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.anchor.commentdoclinks.lint.CustomBiomeLintService.LintExecutionException
 
 /**
  * Verifies the v1 Rust -> JSON -> Kotlin contract (files[].violations[]).
@@ -140,6 +141,20 @@ class LintResultParserTest {
         // All fields have defaults, so a bare object is a clean (no-op) result.
         val result = CustomBiomeLintService.parseLintResult("""{ "version": 1, "files": [] }""")
         assertEquals(emptyList(), result.files)
+    }
+
+    @Test
+    fun `rejects a non-1 contract version`() {
+        var threw: LintExecutionException? = null
+        try {
+            CustomBiomeLintService.parseLintResult(
+                """{ "version": 2, "files": [] }""",
+            )
+        } catch (e: LintExecutionException) {
+            threw = e
+        }
+        assertNotNull(threw, "non-1 version should be rejected")
+        assertTrue(threw?.message?.contains("contract version") == true)
     }
 
     @Test
