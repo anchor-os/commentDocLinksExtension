@@ -259,3 +259,28 @@ test("clearDocument removes diagnostics and aborts in-flight runs", async () => 
   assert.equal(host._cleared.length, 1);
   assert.equal(pending.length, 1);
 });
+
+test("Fix 2: 'not installed' decision uses availability, not transient status", async () => {
+  const host = makeHost();
+  const provider = new ResultProvider(v1Result([RAW]), true);
+  const manager = new LintManager({ host, provider });
+
+  manager.lintDocument(doc("/ws/a.js"), { immediate: true });
+
+  // Immediately after triggering the first lint the status is RUNNING (set
+  // synchronously by the manager before the await). The command must NOT key
+  // its "not installed" decision off this transient status — it consults real
+  // availability instead, which is correct from the very first run.
+  assert.equal(manager.statusFor("/ws/a.js"), "RUNNING");
+
+  // The command's decision: installed => no false "not installed" warning.
+  assert.equal(LintManager.isLintNotInstalled(provider, "/ws/a.js"), false);
+
+  await flush();
+  assert.equal(manager.statusFor("/ws/a.js"), "AVAILABLE");
+});
+
+test("Fix 2: isLintNotInstalled is true only when the package is absent", () => {
+  assert.equal(LintManager.isLintNotInstalled({ isAvailable: () => true }, "/ws/a.js"), false);
+  assert.equal(LintManager.isLintNotInstalled({ isAvailable: () => false }, "/ws/a.js"), true);
+});
