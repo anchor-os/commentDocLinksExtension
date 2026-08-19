@@ -43,33 +43,26 @@ object CustomBiomeLintService {
             val pkgFile = File(candidate, "package.json")
             if (pkgFile.isFile) {
                 val executable = resolveExecutable(candidate)
-                val install =
-                    if (executable != null) {
-                        // The binary may be hoisted, so use the linted file's
-                        // own workspace root (nearest package.json) as the cwd
-                        // rather than the directory that merely contains the
-                        // resolved node_modules.
-                        Install(candidate.absolutePath, findWorkspaceRoot(startPath), executable)
-                    } else {
-                        null
-                    }
-                cache[startPath] = Optional.ofNullable(install)
-                return install
+                if (executable != null) {
+                    // The binary may be hoisted, so use the linted file's own
+                    // workspace root (nearest package.json) as the cwd rather
+                    // than the directory that merely contains the resolved
+                    // node_modules.
+                    val install = Install(candidate.absolutePath, findWorkspaceRoot(startPath), executable)
+                    cache[startPath] = Optional.ofNullable(install)
+                    return install
+                }
+                // Installed but unusable (broken nested copy): keep walking up
+                // so a valid hoisted installation can be used instead.
             }
 
             val parent = dir.parentFile ?: break
             dir = parent
         }
 
-        // Fall back to a binary on the system PATH (v1 contract default).
-        val pathExecutable = resolveOnPath("custom-biome-lint")
-        if (pathExecutable != null) {
-            val workspaceDir = findWorkspaceRoot(startPath)
-            val install = Install(pathExecutable, workspaceDir, pathExecutable)
-            cache[startPath] = Optional.ofNullable(install)
-            return install
-        }
-
+        // No workspace install found. Lint stays disabled — there is deliberately
+        // NO global/PATH fallback: custom-biome-lint must be installed in the
+        // workspace for the feature to activate.
         cache[startPath] = Optional.empty()
         return null
     }
@@ -100,32 +93,6 @@ object CustomBiomeLintService {
 
         val executable = File(packageDir, binRelative)
         return if (executable.isFile) executable.absolutePath else null
-    }
-
-    /** Resolve an executable name against the system PATH; null if absent. */
-    private fun resolveOnPath(name: String): String? {
-        val path = System.getenv("PATH") ?: return null
-        val isWindows = System.getProperty("os.name").startsWith("Windows", ignoreCase = true)
-        val names =
-            if (isWindows) {
-                val exts =
-                    (System.getenv("PATHEXT") ?: ".COM;.EXE;.BAT;.CMD")
-                        .split(File.pathSeparator)
-                        .map { it.trim().lowercase() }
-                        .filter { it.isNotBlank() }
-                listOf(name) + exts.map { name + it }
-            } else {
-                listOf(name)
-            }
-        for (dir in path.split(File.pathSeparator)) {
-            for (candidateName in names) {
-                val candidate = File(dir, candidateName)
-                if (candidate.isFile && (isWindows || candidate.canExecute())) {
-                    return candidate.absolutePath
-                }
-            }
-        }
-        return null
     }
 
     /**

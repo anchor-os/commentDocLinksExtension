@@ -50,9 +50,18 @@ import { LintParseError, parseLintResult, parseRules } from "./LintResultParser.
  */
 export const defaultExecutor = (executable, args, cwd, signal, inputText) =>
   new Promise((resolve, reject) => {
+    // On Windows a `.js` CLI cannot be executed directly (no shebang
+    // handling by CreateProcess). Always relaunch JS launchers through the
+    // current Node/Electron runtime (`process.execPath`) so the same command
+    // works on macOS, Linux, and Windows. Native binaries (no JS extension)
+    // are spawned as-is.
+    const isJsLauncher = /\.(?:js|cjs|mjs)$/i.test(executable);
+    const command = isJsLauncher ? process.execPath : executable;
+    const finalArgs = isJsLauncher ? [executable, ...args] : args;
+
     const child = execFile(
-      executable,
-      args,
+      command,
+      finalArgs,
       { cwd, maxBuffer: 64 * 1024 * 1024, windowsHide: true, timeout: 30_000 },
       /**
        * @param {Error & { code?: string | number }} error
