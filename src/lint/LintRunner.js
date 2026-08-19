@@ -149,6 +149,13 @@ export async function runRules(options, executor = defaultExecutor) {
   }
 
   try {
+    // A failed --rules invocation that writes only stderr must not become a
+    // successful empty rule list.
+    if (outcome.stdout.trim().length === 0 && outcome.stderr.trim().length > 0) {
+      throw new LintExecutionError(
+        `custom-biome-lint --rules failed (exit ${outcome.exitCode}): ${outcome.stderr.trim()}`,
+      );
+    }
     return parseRules(outcome.stdout);
   } catch (error) {
     if (error instanceof LintParseError) {

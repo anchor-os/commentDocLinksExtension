@@ -76,19 +76,14 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
         val document = file.viewProvider.document ?: return PsiReference.EMPTY_ARRAY
 
         val references = mutableListOf<PsiReference>()
-        var inFence = false
+        val fullText = document.text
         for (line in 0 until document.lineCount) {
             val lineStart = document.getLineStartOffset(line)
             val lineEnd = document.getLineEndOffset(line)
             val lineText = document.getText(TextRange(lineStart, lineEnd))
-            val trimmed = lineText.trim()
-            // Toggle fenced-code state so lines inside ``` blocks are never
-            // mistaken for headings.
-            if (trimmed.startsWith("```")) {
-                inFence = !inFence
-                continue
-            }
-            if (inFence) continue
+            // Skip lines inside a fenced code block (shared fence detector also
+            // used by the element-level provider path below).
+            if (isInsideFence(fullText, line)) continue
             val isHeadingLine =
                 HEADING_LINE_PREFIX.matches(lineText) ||
                     (line + 1 < document.lineCount &&
@@ -142,6 +137,12 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
 
     private fun referencesForElement(element: PsiElement): Array<PsiReference> {
         val file = element.containingFile ?: return EMPTY
+        val document = file.viewProvider.document ?: return EMPTY
+        // Reject headings whose line falls inside a fenced code block: the
+        // provider is registered for every Markdown PSI element, so
+        // heading-like text within a fence must not reach the scanners.
+        val startLine = document.getLineNumber(element.textRange.startOffset)
+        if (isInsideFence(document.text, startLine)) return EMPTY
         val lineText = headingLineText(element.text) ?: return EMPTY
         LOG.debug("CDL MD PROVIDER heading lineText=${lineText.take(80)}")
 
@@ -205,6 +206,47 @@ class MarkdownSourceLinkContributor : PsiReferenceContributor() {
     }
 
     private fun isSetextUnderline(line: String): Boolean = line.isNotBlank() && line.all { it == '=' || it == '-' }
+
+    /**
+     * Returns true if [targetLine] (0-based) of [text] lies inside a fenced
+     * code block. Fence state is scanned from the top so the two reference
+     * paths (file-level and element-level) stay consistent.
+     *
+     * The delimiter check is complete: only a line whose leading backticks
+     * count is `>= 3` toggles state, indentation is preserved (so a
+     * four-space-indented ``` is content, not a fence), and a closing fence
+     * must match the opening delimiter length and carry no info text — so a
+     * line like ```` ```js ```` inside a block is treated as content rather
+     * than a premature close.
+     */
+    internal fun isInsideFence(text: String, targetLine: Int): Boolean {
+        val lines = text.lines()
+        val upper = targetLine.coerceAtMost(lines.lastIndex)
+        var inFence = false
+        var fenceLen = 0
+        for (line in 0..upper) {
+            val trimmedEnd = lines[line].trimEnd()
+            val backticks = leadingBackticks(trimmedEnd)
+            if (backticks < 3) continue
+            if (inFence) {
+                val infoText = trimmedEnd.drop(backticks).trimStart()
+                if (backticks == fenceLen && infoText.isEmpty()) {
+                    inFence = false
+                    fenceLen = 0
+                }
+            } else {
+                inFence = true
+                fenceLen = backticks
+            }
+        }
+        return inFence
+    }
+
+    private fun leadingBackticks(line: String): Int {
+        var count = 0
+        while (count < line.length && line[count] == '`') count++
+        return count
+    }
 
     /**
      * Find source references (`src/file.js#anchor`, `src/file.js — anchor`,

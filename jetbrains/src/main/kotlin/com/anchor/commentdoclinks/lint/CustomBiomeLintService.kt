@@ -45,7 +45,11 @@ object CustomBiomeLintService {
                 val executable = resolveExecutable(candidate)
                 val install =
                     if (executable != null) {
-                        Install(candidate.absolutePath, dir.absolutePath, executable)
+                        // The binary may be hoisted, so use the linted file's
+                        // own workspace root (nearest package.json) as the cwd
+                        // rather than the directory that merely contains the
+                        // resolved node_modules.
+                        Install(candidate.absolutePath, findWorkspaceRoot(startPath), executable)
                     } else {
                         null
                     }

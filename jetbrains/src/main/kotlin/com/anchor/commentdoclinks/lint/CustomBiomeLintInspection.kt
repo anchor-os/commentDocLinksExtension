@@ -80,13 +80,18 @@ class CustomBiomeLintInspection : LocalInspectionTool() {
                 // The v1 contract treats multiple fix/suppression actions as
                 // ALTERNATIVES (the user picks one), so register one quick fix
                 // per action rather than merging their edits into a single set.
+                // Register "safe" actions before any other action so the
+                // lower-risk fix is the default the user sees first.
                 val fixes = mutableListOf<LocalQuickFix>()
-                for (action in violation.fixes) {
+                val (safeFixes, otherFixes) = violation.fixes.partition { it.kind == "safe" }
+                for (action in safeFixes + otherFixes) {
                     if (action.edits.isEmpty()) continue
                     val title = action.title ?: "Fix ${violation.rule}"
                     fixes.add(LintQuickFix(title, action.edits))
                 }
-                for (action in violation.suppressions) {
+                val (safeSuppressions, otherSuppressions) =
+                    violation.suppressions.partition { it.kind == "safe" }
+                for (action in safeSuppressions + otherSuppressions) {
                     if (action.edits.isEmpty()) continue
                     val title = action.title ?: "Suppress ${violation.rule}"
                     fixes.add(LintQuickFix(title, action.edits))
