@@ -123,6 +123,9 @@ export function activate(context) {
     clearDiagnostics(document) {
       lintCollection.delete(document.uri);
     },
+    getDocumentText(document) {
+      return document.getText();
+    },
     log(message) {
       lintOutput.appendLine(message);
     },

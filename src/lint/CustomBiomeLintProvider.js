@@ -71,10 +71,10 @@ export class CustomBiomeLintProvider extends LintProvider {
   }
 
   /**
-   * @param {{ file: string, signal?: AbortSignal }} request
+   * @param {{ file: string, text?: string, signal?: AbortSignal }} request
    * @returns {Promise<import("./LintResultParser.js").LintResult>}
    */
-  async lint({ file, signal }) {
+  async lint({ file, text, signal }) {
     const install = this.#resolve(file);
 
     if (install === null) {
@@ -86,7 +86,23 @@ export class CustomBiomeLintProvider extends LintProvider {
       file,
       cwd: install.workspaceDir,
       signal,
+      text,
     });
+  }
+
+  /**
+   * Fetch the rule catalog for `file`'s workspace.
+   * @param {string} file
+   * @returns {Promise<import("./LintResultParser.js").LintRule[]>}
+   */
+  async rules(file) {
+    const install = this.#resolve(file);
+
+    if (install === null) {
+      throw new LintExecutionError("custom-biome-lint is not installed in this workspace");
+    }
+
+    return runRules({ executable: install.executable, cwd: install.workspaceDir });
   }
 
   /** Drop cached installs (e.g. after a workspace refresh). */

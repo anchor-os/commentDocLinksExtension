@@ -77,8 +77,23 @@ const RAW = {
   rule: "no-native-map",
   message: "Use Immutable.js Map instead of native Map.",
   severity: "error",
-  range: { start: { line: 1, column: 7 }, end: { line: 1, column: 14 } },
+  startLine: 1,
+  startColumn: 7,
+  endLine: 1,
+  endColumn: 14,
+  fixes: [],
+  suppressions: [],
 };
+
+/**
+ * @param {import("../../src/lint/LintResultParser.js").LintViolation[]} violations
+ * @returns {import("../../src/lint/LintResultParser.js").LintResult}
+ */
+const v1Result = (violations) => ({
+  version: 1,
+  files: [{ path: "/ws/a.js", violations }],
+  summary: null,
+});
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
@@ -93,7 +108,7 @@ test("clears diagnostics when the package is not installed", async () => {
   const host = makeHost();
   const manager = new LintManager({
     host,
-    provider: new ResultProvider({ diagnostics: [RAW] }, false),
+    provider: new ResultProvider(v1Result([RAW]), false),
   });
 
   manager.lintDocument(doc("/ws/a.js"), { immediate: true });
@@ -106,7 +121,7 @@ test("clears diagnostics when the package is not installed", async () => {
 
 test("publishes mapped diagnostics when available", async () => {
   const host = makeHost();
-  const manager = new LintManager({ host, provider: new ResultProvider({ diagnostics: [RAW] }) });
+  const manager = new LintManager({ host, provider: new ResultProvider(v1Result([RAW])) });
 
   manager.lintDocument(doc("/ws/a.js"), { immediate: true });
   await flush();
@@ -118,7 +133,7 @@ test("publishes mapped diagnostics when available", async () => {
 
 test("never lints unsupported languages", async () => {
   const host = makeHost();
-  const provider = new ResultProvider({ diagnostics: [RAW] });
+  const provider = new ResultProvider(v1Result([RAW]));
   const manager = new LintManager({ host, provider });
 
   manager.lintDocument(doc("/ws/a.md", "markdown"), { immediate: true });
@@ -130,7 +145,7 @@ test("never lints unsupported languages", async () => {
 
 test("debounces rapid change events into a single run", async () => {
   const host = makeHost();
-  const provider = new ResultProvider({ diagnostics: [RAW] });
+  const provider = new ResultProvider(v1Result([RAW]));
   const manager = new LintManager({ host, provider, debounceMs: 20 });
 
   manager.lintDocument(doc("/ws/a.js"));
@@ -159,13 +174,23 @@ test("drops stale results in favor of the latest request", async () => {
     rule: "old-rule",
     message: "old",
     severity: "error",
-    range: { start: { line: 1, column: 0 }, end: { line: 1, column: 1 } },
+    startLine: 1,
+    startColumn: 1,
+    endLine: 1,
+    endColumn: 1,
+    fixes: [],
+    suppressions: [],
   };
   const newer = {
     rule: "new-rule",
     message: "new",
-    severity: "warn",
-    range: { start: { line: 2, column: 0 }, end: { line: 2, column: 1 } },
+    severity: "warning",
+    startLine: 2,
+    startColumn: 1,
+    endLine: 2,
+    endColumn: 1,
+    fixes: [],
+    suppressions: [],
   };
 
   manager.lintDocument(doc("/ws/a.js"), { immediate: true });
@@ -173,13 +198,13 @@ test("drops stale results in favor of the latest request", async () => {
 
   assert.equal(pending.length, 2);
 
-  pending[0]({ diagnostics: [older] });
+  pending[0](v1Result([older]));
   await flush();
 
   // Older result must be ignored.
   assert.equal(host._setCalls.length, 0);
 
-  pending[1]({ diagnostics: [newer] });
+  pending[1](v1Result([newer]));
   await flush();
 
   assert.equal(host._setCalls.length, 1);
@@ -207,7 +232,7 @@ test("reports ERROR and clears stale diagnostics on execution failure", async ()
 
 test("restart clears the provider cache and re-lints", async () => {
   const host = makeHost();
-  const provider = new ResultProvider({ diagnostics: [RAW] });
+  const provider = new ResultProvider(v1Result([RAW]));
   const manager = new LintManager({ host, provider });
 
   manager.restart([doc("/ws/a.js")]);
