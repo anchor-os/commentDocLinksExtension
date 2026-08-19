@@ -86,57 +86,93 @@ touching VS Code wiring.
 - Each lint request carries a monotonic `requestId` per document URI.
   Results are published **only** if the request is still the latest for
   that URI — older in-flight results are dropped (Phase 13). The linter
-  reads the on-disk file (cwd = detected package root) so config discovery
-  via `package.json` / `ignoreBiomeExtensionRules` works in monorepos.
+  runs with `cwd` set to the **package.json nearest to the linted file**
+  (not to wherever the binary lives), so config discovery via
+  `package.json` / `ignoreBiomeExtensionRules` works in monorepos even when
+  the binary is hoisted to a root `node_modules`.
 - Diagnostics use a **separate** collection
   `createDiagnosticCollection("custom-biome-lint")` so clearing lint never
   touches the `commentDocLinks` collection (Phase 18).
 
-## 5. Machine-readable contract (Rust -> JSON)
+## 5. Machine-readable contract (Rust -> JSON, v1 envelope)
 
-`custom-biome-lint <file> --format json` (run with cwd = the directory
-containing the nearest `package.json` that declares the dependency).
+`custom-biome-lint --stdin <virtualPath> --format json`
+(preferred: lints the live, unsaved buffer) or
+`custom-biome-lint <file> --format json` (run with `cwd` = the
+`package.json` nearest to the linted file).
 
 - `stdout` → JSON (a lint result, even when violations exist).
 - `stderr` → logs / errors only.
 - A non-zero exit because of violations is **not** a crash; only
   unparseable stdout / spawn failure / non-zero with empty stdout is an
   execution error.
+- The envelope's `version` must be `1`; the adapter rejects anything else.
 
 ```jsonc
 {
-  "diagnostics": [
+  "version": 1,
+  "files": [
     {
-      "rule": "no-native-map",
-      "message": "Use Immutable.js Map instead of native Map.",
-      "severity": "error",            // "error" | "warn"
-      "range": {
-        "start": { "line": 1, "column": 7 },   // 1-based line, 0-based UTF-16 column
-        "end":   { "line": 1, "column": 14 }
-      },
-      "fix": {                        // present only when a fix exists
-        "kind": "safe",               // "safe" | "unsafe"
-        "title": "Apply safe fix",
-        "edits": [ { "start": {...}, "end": {...}, "text": "Immutable.Map()" } ]
-      },
-      "suppression": {                // present only when suppressible
-        "title": "Suppress no-native-map",
-        "edits": [ { "start": {...}, "end": {...},
-                     "text": "// custom-biome-ignore-next-line no-native-map\n" } ]
-      },
-      "docsUrl": "https://.../rules/no-native-map" // optional
+      "path": "src/checkout/cart.js",
+      "violations": [
+        {
+          "rule": "no-native-map",
+          "message": "Use Immutable.js Map instead of native Map.",
+          "severity": "error",          // "error" | "warning"
+          "line": 1, "col": 7,          // 1-based point (always present)
+          "startLine": 1, "startColumn": 7,    // 1-based UTF-8 BYTE columns
+          "endLine": 1, "endColumn": 14,       // half-open [start, end)
+          "docsUrl": "https://.../rules/no-native-map",  // optional
+          "fixes": [                        // alternatives; may be empty
+            {
+              "kind": "safe",              // "safe" | "unsafe"
+              "title": "Apply safe fix",
+              "edits": [ { "startLine": 1, "startColumn": 7,
+                           "endLine": 1, "endColumn": 14,
+                           "replacement": "Immutable.Map()" } ]
+            }
+          ],
+          "suppressions": [                // alternatives; may be empty
+            {
+              "kind": "suppress",
+              "title": "Suppress no-native-map",
+              "edits": [ { "startLine": 1, "startColumn": 1,
+                           "endLine": 1, "endColumn": 1,
+                           "replacement": "// custom-biome-ignore-next-line no-native-map\n" } ]
+            }
+          ]
+        }
+      ]
     }
-  ]
+  ],
+  "summary": null
 }
 ```
 
 Conventions:
-- **Lines are 1-based, columns are 0-based UTF-16** (LSP/ESLint style).
-  The mapper converts to VS Code's 0-based line / 0-based character ranges.
+- **Lines are 1-based; columns are 1-based UTF-8 *byte* offsets, NOT
+  characters and NOT UTF-16.** A multibyte char (`é`, `你`, `😀`) advances
+  the byte column by its UTF-8 length. Spans are half-open
+  `[startColumn, endColumn)`. `endLine`/`endColumn` are **omitted** for
+  line-only rules (the whole line is highlighted). The IDE adapter converts
+  these byte columns to native editor offsets (UTF-16 in VS Code, document
+  offsets in JetBrains) via `lintUtf16.js` / `ByteOffsetConverter.kt`; it
+  never computes placement itself.
 - **Off rules never appear** in the output; the Rust linter already applied
   `ignoreBiomeExtensionRules`. The extension never re-reads rule config.
-- **Fixes and suppression edits are provided by Rust** as exact text edits.
-  The IDE applies them via `WorkspaceEdit`; it never computes placement.
+- **`fixes` and `suppressions` are lists of alternative actions.** Each
+  action becomes its own Quick Fix / Code Action — they are never merged
+  into a single edit set. `safe` fixes are surfaced before `unsafe` ones.
+- **Edits are provided by Rust** as exact text (byte-column span +
+  `replacement`). The IDE applies them via `WorkspaceEdit` /
+  `LocalQuickFix`; it never computes suppression placement.
+- **Execution:** a native binary is spawned directly. A `.js` launcher is
+  relaunched through a Node runtime so the same command works on macOS,
+  Linux, and Windows (where spawning a `.js` file directly fails): VS Code
+  uses `process.execPath` (the Electron/Node runtime); JetBrains resolves the
+  system `node` binary from `PATH` and passes the script as its first
+  argument. This keeps both adapters equivalent for JS-based launchers while
+  native Rust binaries run unchanged on every OS.
 
 ## 6. IDE mapping
 
@@ -145,8 +181,8 @@ Conventions:
 | `error`         | `DiagnosticSeverity.Error`     | `ERROR`          |
 | `warn`          | `DiagnosticSeverity.Warning`   | `WARNING`        |
 | diagnostic      | `Diagnostic` (source `custom-biome-lint`, `code = rule`) | `Problem` / highlight |
-| `fix` (safe)    | `CodeAction` + `WorkspaceEdit` | `LocalQuickFix`  |
-| `suppression`   | `CodeAction` "Suppress <rule>" | `IntentionAction`|
+| `fixes`         | one `CodeAction` per action (`safe` first) + `WorkspaceEdit` | one `LocalQuickFix` per action |
+| `suppressions`  | one `CodeAction` "Suppress <rule>" per action | one `LocalQuickFix` per action |
 | `docsUrl`       | hover "Open rule documentation"| hover / doc link |
 
 Rule documentation URLs are centralized in `ruleDocumentation.js` (one map

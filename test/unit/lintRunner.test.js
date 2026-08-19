@@ -1,9 +1,19 @@
 // @ts-check
 
 import assert from "node:assert/strict";
+import path from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 import { LintParseError } from "../../src/lint/LintResultParser.js";
-import { LintExecutionError, runLint, runRules } from "../../src/lint/LintRunner.js";
+import {
+  defaultExecutor,
+  LintExecutionError,
+  runLint,
+  runRules,
+} from "../../src/lint/LintRunner.js";
+
+const dirname = path.dirname(fileURLToPath(import.meta.url));
+const LAUNCHER_FIXTURE = path.resolve(dirname, "../fixtures/lint-launcher/echo-argv.js");
 
 /**
  * @param {string} stdout
@@ -118,6 +128,23 @@ test("runRules rejects when output is not JSON", async () => {
     () => runRules({ executable: "cbl", cwd: "/ws" }, fakeExecutor("nope")),
     LintExecutionError,
   );
+});
+
+// TODO 1: a `.js` launcher must be run through the current Node/Electron
+// runtime (`process.execPath`) so it works on Windows too, where spawning a
+// `.js` file directly fails. The fixture prints its own argv; argv[0] being
+// the script proves `process.execPath` was the command (cross-platform guard).
+test("launches .js launchers through process.execPath (Windows-safe)", async () => {
+  const outcome = await defaultExecutor(
+    LAUNCHER_FIXTURE,
+    ["--stdin", "/ws/a.js", "--format", "json"],
+    undefined,
+    undefined,
+    undefined,
+  );
+  const argv = JSON.parse(outcome.stdout).argv;
+  assert.equal(argv[0], LAUNCHER_FIXTURE, "script must be argv[0] => node ran it");
+  assert.deepEqual(argv.slice(1), ["--stdin", "/ws/a.js", "--format", "json"]);
 });
 
 void LintParseError;

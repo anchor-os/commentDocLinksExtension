@@ -52,15 +52,22 @@ export function findCustomBiomeLint(fileOrDir) {
       const executable = resolveExecutable(candidate);
 
       if (executable === null) {
-        // Installed but unusable: treat as not available so we never spawn a
-        // missing binary. Continue walking up in case a usable copy exists.
-        // (Deliberately returns null for this branch to avoid a broken run.)
-        return null;
+        // Installed but unusable (e.g. a broken nested copy). Do NOT stop:
+        // keep walking upward so a valid hoisted installation can still be
+        // used instead of spawning a missing binary.
+        const parent = path.dirname(dir);
+        if (parent === dir) break;
+        dir = parent;
+        continue;
       }
 
       return {
         packageDir: candidate,
-        workspaceDir: dir,
+        // Configuration is discovered from the package.json nearest to the
+        // linted file, NOT from where the binary happens to live. This keeps
+        // monorepo packages using their own settings even when the binary is
+        // hoisted to a root node_modules.
+        workspaceDir: findWorkspaceRoot(startDir),
         executable,
       };
     }
@@ -87,6 +94,25 @@ function isPackageDirectory(dir) {
   } catch {
     return false;
   }
+}
+
+/**
+ * Find the nearest `package.json` ancestor of `startDir` — the directory that
+ * owns the configuration the linter should read. Falls back to `startDir`
+ * when no `package.json` exists anywhere up the tree.
+ *
+ * @param {string} startDir
+ * @returns {string}
+ */
+function findWorkspaceRoot(startDir) {
+  let dir = path.resolve(startDir);
+  while (true) {
+    if (fs.existsSync(path.join(dir, "package.json"))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return path.resolve(startDir);
 }
 
 /**
