@@ -28,7 +28,6 @@
             implementationClass="com.anchor.commentdoclinks.completion.ReferenceCompletionContributor"/>
 
         <annotator
-            language="ANY"
             implementationClass="com.anchor.commentdoclinks.decorations.CommentDocLinkAnnotator"/>
 
         <applicationConfigurable

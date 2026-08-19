@@ -1,110 +1,164 @@
 // @ts-check
 
 import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-
-import { LintParseError, parseLintResult } from "./LintResultParser.js";
+import { LintParseError, parseLintResult, parseRules } from "./LintResultParser.js";
 
 /**
- * Execute the installed `custom-biome-lint` binary and return its raw
- * result. This is the ONLY module that knows about `child_process`; the
- * rest of the extension talks to {@link import("./LintProvider.js")}.
+ * Run `custom-biome-lint` and parse its v1 JSON output into a {@link LintResult}.
  *
- * The executor is injectable so the runner can be unit-tested without
- * spawning a real binary.
- */
-
-const execFileAsync = promisify(execFile);
-
-/**
- * @typedef {object} LintRunOptions
- * @property {string} executable Absolute path to the resolved binary.
- * @property {string} file Absolute path to the file to lint.
- * @property {string} cwd Working directory (the package's config root).
- * @property {AbortSignal} [signal] Optional cancellation signal.
+ * Strategy (matches the other adapters): prefer stdin mode
+ * (`echo <buffer> | custom-biome-lint --stdin <virtualPath> --format json`) so
+ * unsaved editor buffers are linted without touching disk; fall back to file
+ * mode (`custom-biome-lint <path> --format json`) when no buffer text is
+ * available. Both modes emit the same v1 envelope; a non-zero exit code caused
+ * by violations is normal and must NOT be treated as a failure — we still parse
+ * the captured stdout.
+ *
+ * We deliberately do NOT rely on `util.promisify(execFile)` alone: it rejects on
+ * a non-zero exit and discards the captured stdout, so a "has violations" run
+ * would be misreported as an execution error. Instead we resolve with the
+ * captured stdout/stderr/exitCode from the callback regardless of exit code, and
+ * only reject on spawn errors (e.g. binary not found).
+ *
+ * @typedef {import("./LintResultParser.js").LintResult} LintResult
+ * @typedef {import("./LintResultParser.js").LintRule} LintRule
  */
 
 /**
  * @typedef {object} LintRunOutcome
- * @property {number} exitCode Process exit code.
- * @property {string} stdout Captured stdout (expected to be JSON).
- * @property {string} stderr Captured stderr (logs/errors).
+ * @property {number} exitCode
+ * @property {string} stdout
+ * @property {string} stderr
  */
 
 /**
- * Default executor: run `executable file --format json` in `cwd`.
- *
- * @param {string} executable
- * @param {string} file
- * @param {string} cwd
- * @param {AbortSignal|undefined} signal
- * @returns {Promise<LintRunOutcome>}
+ * @typedef {object} LintRunOptions
+ * @property {string} executable Absolute/relative binary path.
+ * @property {string} file The file path (also the stdin virtual path).
+ * @property {string} [cwd]
+ * @property {AbortSignal} [signal]
+ * @property {string} [text] Editor buffer text; when present, stdin mode is used.
  */
-async function defaultExecutor(executable, file, cwd, signal) {
-  const { stdout, stderr } = await execFileAsync(executable, [file, "--format", "json"], {
-    cwd,
-    signal,
-    maxBuffer: 64 * 1024 * 1024,
-    windowsHide: true,
+
+/**
+ * @typedef {(executable: string, args: string[], cwd: string|undefined, signal: AbortSignal|undefined, inputText: string|undefined) => Promise<LintRunOutcome>} LintExecutor
+ */
+
+/**
+ * Real executor. Resolves even on a non-zero exit so violations parse correctly.
+ * @type {LintExecutor}
+ */
+export const defaultExecutor = (executable, args, cwd, signal, inputText) =>
+  new Promise((resolve, reject) => {
+    const child = execFile(
+      executable,
+      args,
+      { cwd, maxBuffer: 64 * 1024 * 1024, windowsHide: true },
+      /**
+       * @param {Error & { code?: string | number }} error
+       * @param {string | Buffer} stdout
+       * @param {string | Buffer} stderr
+       */
+      (error, stdout, stderr) => {
+        // On a non-zero exit, `error` is non-null but stdout/stderr are still
+        // populated — that is exactly the "has violations" case we must parse.
+        const exitCode = error && typeof error.code === "number" ? error.code : error ? 1 : 0;
+        resolve({
+          exitCode,
+          stdout: String(stdout ?? ""),
+          stderr: String(stderr ?? ""),
+        });
+      },
+    );
+
+    if (signal) {
+      if (signal.aborted) {
+        child.kill("SIGTERM");
+      } else {
+        signal.addEventListener(
+          "abort",
+          () => {
+            child.kill("SIGTERM");
+          },
+          { once: true },
+        );
+      }
+    }
+
+    if (inputText != null) {
+      child.stdin?.end(inputText);
+    }
+
+    // Spawn-level errors (ENOENT, EACCES) reject — these are genuine failures.
+    child.on("error", reject);
   });
 
-  return {
-    exitCode: 0,
-    stdout: typeof stdout === "string" ? stdout : String(stdout ?? ""),
-    stderr: typeof stderr === "string" ? stderr : String(stderr ?? ""),
-  };
-}
-
 /**
- * @typedef {(executable: string, file: string, cwd: string, signal: AbortSignal|undefined) => Promise<LintRunOutcome>} LintExecutor
- */
-
-/**
- * Run the linter and parse its JSON output.
- *
- * A non-zero exit code is expected when violations exist and is NOT treated
- * as a failure — `execFileAsync` only rejects on a non-zero exit when no
- * stdout/stderr handler captured output. With our handlers it resolves and
- * we inspect `exitCode` ourselves, so violations parse normally.
- *
  * @param {LintRunOptions} options
  * @param {LintExecutor} [executor]
- * @returns {Promise<import("./LintResultParser.js").LintResult>}
+ * @returns {Promise<LintResult>}
  */
 export async function runLint(options, executor = defaultExecutor) {
-  const { executable, file, cwd, signal } = options;
+  const { executable, file, cwd, signal, text } = options;
+  const args = text != null ? ["--stdin", file, "--format", "json"] : [file, "--format", "json"];
 
-  const outcome = await executor(executable, file, cwd, signal);
+  let outcome;
+  try {
+    outcome = await executor(executable, args, cwd, signal, text);
+  } catch (cause) {
+    throw new LintExecutionError(
+      `failed to spawn custom-biome-lint: ${cause instanceof Error ? cause.message : String(cause)}`,
+    );
+  }
 
   try {
     return parseLintResult(outcome.stdout);
   } catch (error) {
     if (error instanceof LintParseError) {
-      const detail = outcome.stderr.trim();
-
       throw new LintExecutionError(
-        `custom-biome-lint produced no usable JSON${detail ? `: ${detail}` : ""}`,
-        { exitCode: outcome.exitCode, stderr: outcome.stderr },
+        `custom-biome-lint produced no parseable v1 json (exit ${outcome.exitCode}): ${error.message}`,
       );
     }
-
     throw error;
   }
 }
 
 /**
- * Thrown when the linter could not be executed or produced no parseable
- * output (a real failure, as opposed to a result containing violations).
+ * Fetch the rule catalog via `custom-biome-lint --rules`.
+ * @param {{ executable: string, cwd?: string, signal?: AbortSignal }} options
+ * @param {LintExecutor} [executor]
+ * @returns {Promise<LintRule[]>}
+ */
+export async function runRules(options, executor = defaultExecutor) {
+  const { executable, cwd, signal } = options;
+  let outcome;
+  try {
+    outcome = await executor(executable, ["--rules"], cwd, signal, undefined);
+  } catch (cause) {
+    throw new LintExecutionError(
+      `failed to spawn custom-biome-lint: ${cause instanceof Error ? cause.message : String(cause)}`,
+    );
+  }
+
+  try {
+    return parseRules(outcome.stdout);
+  } catch (error) {
+    if (error instanceof LintParseError) {
+      throw new LintExecutionError(
+        `custom-biome-lint --rules produced no parseable json (exit ${outcome.exitCode}): ${error.message}`,
+      );
+    }
+    throw error;
+  }
+}
+
+/**
+ * Error thrown when the binary cannot be spawned or its output is not v1 JSON.
+ * Distinguishes "binary failed" from "had violations".
  */
 export class LintExecutionError extends Error {
-  /**
-   * @param {string} message
-   * @param {{ exitCode: number, stderr: string }} [meta]
-   */
-  constructor(message, meta) {
+  constructor(message) {
     super(message);
     this.name = "LintExecutionError";
-    this.exitCode = meta?.exitCode ?? -1;
-    this.stderr = meta?.stderr ?? "";
   }
 }

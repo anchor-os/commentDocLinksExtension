@@ -3,6 +3,7 @@ package com.anchor.commentdoclinks.config
 import com.anchor.commentdoclinks.model.TicketLink
 import com.intellij.ide.util.PropertiesComponent
 import kotlinx.serialization.json.Json
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Plugin configuration, mirroring the VS Code `commentDocLinks.*` settings.
@@ -15,8 +16,15 @@ import kotlinx.serialization.json.Json
  * but not yet wired into the highlighter; the link color is currently derived
  * from `DOC_COMMENT_TAG_VALUE` via [com.anchor.commentdoclinks.decorations.LINK_KEY].
  */
-object CommentDocLinksConfig {
-    private const val PREFIX = "commentDocLinks."
+    object CommentDocLinksConfig {
+        private const val PREFIX = "commentDocLinks."
+
+        private val ticketLinksRevision = AtomicInteger(0)
+
+        /** Monotonic revision bumped whenever [ticketLinks] changes, used to
+         * invalidate reference caches that depend on the ticket configuration. */
+        val currentTicketLinksRevision: Int get() = ticketLinksRevision.get()
+
 
     private val ticketLinksJson =
         Json {
@@ -47,9 +55,11 @@ object CommentDocLinksConfig {
             return runCatching { ticketLinksJson.decodeFromString<List<TicketLink>>(raw) }
                 .getOrElse { emptyList() }
         }
-        set(value) =
+        set(value) {
             PropertiesComponent.getInstance().setValue(
                 PREFIX + "ticketLinks",
                 ticketLinksJson.encodeToString(value),
             )
+            ticketLinksRevision.incrementAndGet()
+        }
 }

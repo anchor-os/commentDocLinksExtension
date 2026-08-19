@@ -6,13 +6,15 @@ import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
+import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.editor.Document
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 
 /**
- * JetBrains/WebStorm lint integration for `custom-biome-lint`.
+ * JetBrains/WebStorm lint integration for `custom-biome-lint` (v1 protocol).
  *
  * Consumes the SAME Rust JSON contract used by the VS Code extension. The
  * Rust linter stays the single source of truth for what is wrong and how it
@@ -44,69 +46,99 @@ class CustomBiomeLintInspection : LocalInspectionTool() {
         val virtualFile = file.virtualFile ?: return emptyArray()
         val install = CustomBiomeLintService.findInstall(virtualFile.path) ?: return emptyArray()
         val document = file.viewProvider.document ?: return emptyArray()
+        val text = document.text
 
         val result =
             try {
-                CustomBiomeLintService.runLint(install.executable, virtualFile.path, install.workspaceDir)
+                CustomBiomeLintService.runLint(
+                    install.executable,
+                    virtualFile.path,
+                    install.workspaceDir,
+                    text,
+                )
             } catch (_: Exception) {
                 return emptyArray()
             }
 
+        val byteIndex = ByteOffsetConverter.byteIndexByChar(text)
         val holder = ProblemsHolder(manager, file, isOnTheFly)
 
-        for (diagnostic in result.diagnostics) {
-            val range = toRange(document, diagnostic.range) ?: continue
-            val highlight =
-                if (diagnostic.severity == "warn") {
-                    ProblemHighlightType.WARNING
-                } else {
-                    ProblemHighlightType.ERROR
+        for (lintFile in result.files) {
+            for (violation in lintFile.violations) {
+                val range = violationRange(document, text, byteIndex, violation) ?: continue
+                val highlight =
+                    if (violation.severity == "warning") {
+                        ProblemHighlightType.WARNING
+                    } else {
+                        ProblemHighlightType.ERROR
+                    }
+
+                val fixes = mutableListOf<LocalQuickFix>()
+                val fixEdits = violation.fixes.flatMap { it.edits }
+                if (fixEdits.isNotEmpty()) {
+                    val title = violation.fixes.firstNotNullOfOrNull { it.title }
+                        ?: "Fix ${violation.rule}"
+                    fixes.add(LintQuickFix(title, fixEdits))
+                }
+                val suppressEdits = violation.suppressions.flatMap { it.edits }
+                if (suppressEdits.isNotEmpty()) {
+                    fixes.add(LintQuickFix("Suppress ${violation.rule}", suppressEdits))
                 }
 
-            val fixes = mutableListOf<LocalQuickFix>()
-            diagnostic.fix?.let { fix ->
-                if (fix.edits.isNotEmpty()) {
-                    fixes.add(LintQuickFix(if (fix.title.isBlank()) "Apply safe fix" else fix.title, fix.edits))
-                }
+                holder.registerProblem(
+                    file,
+                    buildDescription(violation),
+                    highlight,
+                    range,
+                    *fixes.toTypedArray(),
+                )
             }
-            diagnostic.suppression?.let { suppression ->
-                if (suppression.edits.isNotEmpty()) {
-                    fixes.add(LintQuickFix("Suppress ${diagnostic.rule}", suppression.edits))
-                }
-            }
-
-            holder.registerProblem(
-                file,
-                buildDescription(diagnostic),
-                highlight,
-                range,
-                *fixes.toTypedArray(),
-            )
         }
 
         return holder.results.toTypedArray()
     }
 
-    private fun buildDescription(diagnostic: LintDiagnostic): String {
-        val url = diagnostic.docsUrl ?: RuleDocumentation.urlFor(diagnostic.rule)
-        val base = "${diagnostic.message}\n\ncustom-biome-lint/${diagnostic.rule}"
-        return if (url != null) "$base\n\n$url" else base
+    private fun buildDescription(violation: LintViolation): String {
+        val base = "${violation.message}\n\ncustom-biome-lint/${violation.rule}"
+        return base
     }
 
-    private fun toRange(
-        document: com.intellij.openapi.editor.Document,
-        range: LintRange,
+    /**
+     * Map a violation's contract coordinates to an IntelliJ [TextRange].
+     * Byte columns are converted to char offsets via [ByteOffsetConverter].
+     * Line-only rules (no `endLine`/`endColumn`) highlight the whole line.
+     */
+    private fun violationRange(
+        document: Document,
+        text: String,
+        byteIndex: LongArray,
+        violation: LintViolation,
     ): TextRange? {
-        val startLine = (range.start.line - 1).coerceAtLeast(0)
-        val endLine = (range.end.line - 1).coerceAtLeast(0)
-        if (startLine >= document.lineCount || endLine >= document.lineCount) return null
+        val startLineNo = (violation.startLine ?: violation.line ?: 1)
+        val startCol = (violation.startColumn ?: violation.col ?: 1)
+        val endLineNo = violation.endLine ?: startLineNo
+        val hasEndCol = violation.endColumn != null
+        val endCol = violation.endColumn ?: 1
+
+        val sLine = (startLineNo - 1).coerceAtLeast(0)
+        val eLine = (endLineNo - 1).coerceAtLeast(0)
+        if (sLine >= document.lineCount || eLine >= document.lineCount) return null
+
+        val sStart = document.getLineStartOffset(sLine)
+        val sEnd = document.getLineEndOffset(sLine)
+        val eStart = document.getLineStartOffset(eLine)
+        val eEnd = document.getLineEndOffset(eLine)
 
         val startOffset =
-            (document.getLineStartOffset(startLine) + range.start.column)
-                .coerceAtMost(document.getLineEndOffset(startLine))
+            ByteOffsetConverter.toCharOffset(text, byteIndex, sStart, sEnd, startLineNo, startCol)
+                ?: return null
         val endOffset =
-            (document.getLineStartOffset(endLine) + range.end.column)
-                .coerceAtMost(document.getLineEndOffset(endLine))
+            if (hasEndCol) {
+                ByteOffsetConverter.toCharOffset(text, byteIndex, eStart, eEnd, endLineNo, endCol)
+                    ?: return null
+            } else {
+                eEnd
+            }
 
         if (startOffset > endOffset) return null
         return TextRange(startOffset, endOffset)
@@ -115,8 +147,9 @@ class CustomBiomeLintInspection : LocalInspectionTool() {
 
 /**
  * Applies exactly the text edits the Rust linter supplied — never computes
- * placement itself. Edits are applied from the end of the document backward
- * so earlier offsets stay valid.
+ * placement itself. Each edit's byte-column coordinates are converted to
+ * Document offsets, then all edits are applied in a single write command,
+ * ordered back-to-front so earlier offsets stay valid.
  */
 class LintQuickFix(
     private val family: String,
@@ -132,30 +165,37 @@ class LintQuickFix(
     ) {
         val psi: PsiElement = descriptor.psiElement ?: return
         val document = psi.containingFile?.viewProvider?.document ?: return
+        val text = document.text
+        val byteIndex = ByteOffsetConverter.byteIndexByChar(text)
 
         val offsets =
-            edits.map { edit ->
-                val startLine = (edit.start.line - 1).coerceAtLeast(0)
-                val endLine = (edit.end.line - 1).coerceAtLeast(0)
-                if (startLine >= document.lineCount || endLine >= document.lineCount) {
-                    null
-                } else {
-                    val start =
-                        (document.getLineStartOffset(startLine) + edit.start.column)
-                            .coerceAtMost(document.getLineEndOffset(startLine))
-                    val end =
-                        (document.getLineStartOffset(endLine) + edit.end.column)
-                            .coerceAtMost(document.getLineEndOffset(endLine))
-                    EditOffset(start, end, edit.text)
-                }
+            edits.mapNotNull { edit ->
+                val sLine = (edit.startLine - 1).coerceAtLeast(0)
+                val eLine = (edit.endLine - 1).coerceAtLeast(0)
+                if (sLine >= document.lineCount || eLine >= document.lineCount) return@mapNotNull null
+
+                val sStart = document.getLineStartOffset(sLine)
+                val sEnd = document.getLineEndOffset(sLine)
+                val eStart = document.getLineStartOffset(eLine)
+                val eEnd = document.getLineEndOffset(eLine)
+
+                val start =
+                    ByteOffsetConverter.toCharOffset(text, byteIndex, sStart, sEnd, edit.startLine, edit.startColumn)
+                        ?: return@mapNotNull null
+                val end =
+                    ByteOffsetConverter.toCharOffset(text, byteIndex, eStart, eEnd, edit.endLine, edit.endColumn)
+                        ?: return@mapNotNull null
+                EditOffset(start, end, edit.replacement)
             }
 
         // All-or-nothing: if any supplied edit is out of range, skip the whole
         // fix rather than mutating the document into an inconsistent state.
-        if (offsets.any { it == null }) return
+        if (offsets.any { it.start > it.end } || offsets.isEmpty()) return
 
-        for (offset in offsets.filterNotNull().sortedByDescending { it.start }) {
-            document.replaceString(offset.start, offset.end, offset.text)
+        WriteCommandAction.runWriteCommandAction(project) {
+            for (offset in offsets.sortedByDescending { it.start }) {
+                document.replaceString(offset.start, offset.end, offset.text)
+            }
         }
     }
 

@@ -33,6 +33,8 @@ import { mapDiagnostics } from "./LintDiagnosticMapper.js";
  * @property {(document: LintDocument, descriptors: import("./LintDiagnosticMapper.js").DiagnosticDescriptor[]) => void} setDiagnostics
  * @property {(document: LintDocument) => void} clearDiagnostics
  * @property {(message: string) => void} [log]
+ * @property {(document: LintDocument) => string} [getDocumentText]
+ *   Optional source-text lookup used for byte->UTF-16 coordinate conversion.
  */
 
 export const LINT_LANGUAGES = new Set(["javascript", "javascriptreact"]);
@@ -210,14 +212,19 @@ export class LintManager {
     this.#status.set(fsPath, "RUNNING");
 
     try {
-      const result = await this.provider.lint({ file: fsPath, signal: controller.signal });
+      const text = this.host?.getDocumentText ? this.host.getDocumentText(document) : undefined;
+      const result = await this.provider.lint({
+        file: fsPath,
+        text,
+        signal: controller.signal,
+      });
 
       // Stale guard: a newer request started while we were running.
       if (this.#latestRequestId.get(fsPath) !== requestId) {
         return;
       }
 
-      const descriptors = mapDiagnostics(result);
+      const descriptors = mapDiagnostics(result, text ?? "");
 
       this.host.setDiagnostics(document, descriptors);
       this.#status.set(fsPath, "AVAILABLE");

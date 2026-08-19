@@ -5,3 +5,4 @@ out/
 .vscode
 .DS_Store
 repomix-output.xml
+.custom-biome-lint-cache/

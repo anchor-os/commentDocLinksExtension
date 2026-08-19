@@ -295,7 +295,7 @@ suite("Comment Doc Links extension", () => {
       editor.document.uri.fsPath.endsWith(
         path.join("worktrees", "feature", "documentation", "foo.md"),
       ),
-      "expected the worktree copy of foo.md to be open, got: " + editor.document.uri.fsPath,
+      `expected the worktree copy of foo.md to be open, got: ${editor.document.uri.fsPath}`,
     );
 
     const line = editor.document.lineAt(editor.selection.active.line).text;
@@ -322,7 +322,7 @@ suite("Comment Doc Links extension", () => {
       editor.document.uri.fsPath.endsWith(
         path.join("worktrees", "feature", "src", "util", "foo.js"),
       ),
-      "expected the worktree copy of foo.js to be open, got: " + editor.document.uri.fsPath,
+      `expected the worktree copy of foo.js to be open, got: ${editor.document.uri.fsPath}`,
     );
   });
 

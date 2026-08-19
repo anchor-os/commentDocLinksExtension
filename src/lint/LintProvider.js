@@ -15,6 +15,7 @@
 /**
  * @typedef {object} LintRequest
  * @property {string} file Absolute path to the file to lint.
+ * @property {string} [text] Current editor buffer text (enables stdin mode).
  * @property {AbortSignal} [signal] Optional cancellation.
  */
 
@@ -38,6 +39,17 @@ export class LintProvider {
    */
   lint(_request) {
     throw new Error("LintProvider.lint not implemented");
+  }
+
+  /**
+   * Return the rule catalog (for the settings UI). Optional; the default
+   * throws so subclasses only implement it if they support `--rules`.
+   *
+   * @param {string} _file Absolute path of a file in the workspace.
+   * @returns {Promise<import("./LintResultParser.js").LintRule[]>}
+   */
+  rules(_file) {
+    throw new Error("LintProvider.rules not implemented");
   }
 
   dispose() {}

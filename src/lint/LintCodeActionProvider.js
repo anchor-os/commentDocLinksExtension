@@ -1,6 +1,7 @@
 // @ts-check
 
 import * as vscode from "vscode";
+import { editToUtf16Range } from "./lintUtf16.js";
 
 /**
  * Quick-fix + suppression code actions for custom-biome-lint diagnostics.
@@ -23,27 +24,25 @@ const LINT_SOURCE = "custom-biome-lint";
 
 /**
  * @param {import("./LintResultParser.js").LintEdit} edit
+ * @param {vscode.TextDocument} document
  * @returns {vscode.Range}
  */
-function toRange(edit) {
-  return new vscode.Range(
-    edit.start.line - 1,
-    edit.start.column,
-    edit.end.line - 1,
-    edit.end.column,
-  );
+function toRange(edit, document) {
+  const r = editToUtf16Range(edit, (line0) => document.lineAt(line0).text);
+  return new vscode.Range(r.startLine, r.startChar, r.endLine, r.endChar);
 }
 
 /**
  * @param {vscode.Uri} uri
  * @param {import("./LintResultParser.js").LintEdit[]} edits
+ * @param {vscode.TextDocument} document
  * @returns {vscode.WorkspaceEdit}
  */
-function buildWorkspaceEdit(uri, edits) {
+function buildWorkspaceEdit(uri, edits, document) {
   const workspaceEdit = new vscode.WorkspaceEdit();
 
   for (const edit of edits) {
-    workspaceEdit.replace(uri, toRange(edit), edit.text);
+    workspaceEdit.replace(uri, toRange(edit, document), edit.replacement);
   }
 
   return workspaceEdit;
@@ -91,7 +90,7 @@ export class LintCodeActionProvider {
         );
 
         fixAction.diagnostics = [diagnostic];
-        fixAction.edit = buildWorkspaceEdit(document.uri, descriptor.fix.edits);
+        fixAction.edit = buildWorkspaceEdit(document.uri, descriptor.fix.edits, document);
         fixAction.isPreferred = descriptor.fix.kind === "safe";
         actions.push(fixAction);
       }
@@ -103,7 +102,11 @@ export class LintCodeActionProvider {
         );
 
         suppressAction.diagnostics = [diagnostic];
-        suppressAction.edit = buildWorkspaceEdit(document.uri, descriptor.suppression.edits);
+        suppressAction.edit = buildWorkspaceEdit(
+          document.uri,
+          descriptor.suppression.edits,
+          document,
+        );
         actions.push(suppressAction);
       }
     }

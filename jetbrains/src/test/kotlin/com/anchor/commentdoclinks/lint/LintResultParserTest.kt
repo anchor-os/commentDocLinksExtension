@@ -4,93 +4,124 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
- * Verifies the shared Rust -> JSON -> Kotlin contract used by the VS Code
- * extension. Mirrors test/unit/lintResultParser.test.js.
+ * Verifies the v1 Rust -> JSON -> Kotlin contract (files[].violations[]).
+ * Mirrors the binary's own tests/ide_contract.rs.
  */
 class LintResultParserTest {
-    private val errorDiagnostic =
+    private val errorViolation =
         """
         {
           "rule": "no-native-map",
           "message": "Use Immutable.js Map instead of native Map.",
           "severity": "error",
-          "range": { "start": { "line": 1, "column": 7 }, "end": { "line": 1, "column": 14 } }
+          "line": 1, "col": 15,
+          "startLine": 1, "startColumn": 15,
+          "endLine": 1, "endColumn": 18
         }
         """.trimIndent()
 
     @Test
-    fun `empty output yields no diagnostics`() {
-        assertEquals(emptyList(), CustomBiomeLintService.parseLintResult("").diagnostics)
-        assertEquals(emptyList(), CustomBiomeLintService.parseLintResult("   ").diagnostics)
+    fun `empty output yields no files`() {
+        assertEquals(emptyList(), CustomBiomeLintService.parseLintResult("").files)
+        assertEquals(emptyList(), CustomBiomeLintService.parseLintResult("   ").files)
     }
 
     @Test
-    fun `parses an error diagnostic`() {
-        val result = CustomBiomeLintService.parseLintResult("""{ "diagnostics": [ $errorDiagnostic ] }""")
-        assertEquals(1, result.diagnostics.size)
-        assertEquals("no-native-map", result.diagnostics[0].rule)
-        assertEquals("error", result.diagnostics[0].severity)
-        assertEquals(1, result.diagnostics[0].range.start.line)
-        assertEquals(7, result.diagnostics[0].range.start.column)
+    fun `parses an error violation from the v1 envelope`() {
+        val json =
+            """{ "version": 1, "files": [ { "path": "src/foo.js", "violations": [ $errorViolation ] } ],
+                 "summary": { "errors": 1, "warnings": 0, "filesWithViolations": 1, "filesChecked": 1,
+                              "filesCacheSkipped": 0, "elapsedMs": 3, "clean": false } }"""
+        val result = CustomBiomeLintService.parseLintResult(json)
+        assertEquals(1, result.version)
+        assertEquals(1, result.files.size)
+        val v = result.files[0].violations[0]
+        assertEquals("src/foo.js", result.files[0].path)
+        assertEquals("no-native-map", v.rule)
+        assertEquals("error", v.severity)
+        assertEquals(1, v.startLine)
+        assertEquals(15, v.startColumn)
+        assertEquals(1, v.endLine)
+        assertEquals(18, v.endColumn)
+        assertNotNull(result.summary)
+        assertEquals(1, result.summary!!.errors)
+        assertEquals(false, result.summary!!.clean)
     }
 
     @Test
-    fun `parses a warn diagnostic`() {
-        val json = """{ "diagnostics": [ ${errorDiagnostic.replace("\"error\"", "\"warn\"")} ] }"""
-        assertEquals("warn", CustomBiomeLintService.parseLintResult(json).diagnostics[0].severity)
+    fun `parses a warning severity`() {
+        val json =
+            """{ "version": 1, "files": [ { "path": "a.js", "violations": [
+                 ${errorViolation.replace("\"error\"", "\"warning\"")} ] } ] }"""
+        val v = CustomBiomeLintService.parseLintResult(json).files[0].violations[0]
+        assertEquals("warning", v.severity)
     }
 
     @Test
-    fun `parses a safe fix`() {
+    fun `parses plural fixes and suppressions with replacement edits`() {
         val json =
             """
             {
-              "diagnostics": [
+              "version": 1,
+              "files": [ { "path": "src/foo.js", "violations": [
                 {
                   "rule": "no-native-map",
                   "message": "Use Immutable.js Map instead of native Map.",
                   "severity": "error",
-                  "range": { "start": { "line": 1, "column": 7 }, "end": { "line": 1, "column": 14 } },
-                  "fix": {
-                    "kind": "safe",
-                    "title": "Apply safe fix",
-                    "edits": [ { "start": { "line": 1, "column": 7 }, "end": { "line": 1, "column": 14 }, "text": "Immutable.Map()" } ]
-                  }
+                  "line": 1, "col": 7,
+                  "startLine": 1, "startColumn": 7,
+                  "endLine": 1, "endColumn": 14,
+                  "fixes": [
+                    { "kind": "safe", "title": "Apply safe fix",
+                      "edits": [ { "startLine": 1, "startColumn": 7, "endLine": 1, "endColumn": 14,
+                                   "replacement": "Immutable.Map()" } ] }
+                  ],
+                  "suppressions": [
+                    { "kind": "suppress", "title": "Suppress no-native-map",
+                      "edits": [ { "startLine": 1, "startColumn": 21, "endLine": 1, "endColumn": 21,
+                                   "replacement": " // custom-biome-ignore-line no-native-map" } ] }
+                  ]
                 }
-              ]
+              ] } ]
             }
             """.trimIndent()
-        val fix = CustomBiomeLintService.parseLintResult(json).diagnostics[0].fix
-        assertNotNull(fix)
-        assertEquals("safe", fix!!.kind)
-        assertEquals("Immutable.Map()", fix.edits[0].text)
+        val v = CustomBiomeLintService.parseLintResult(json).files[0].violations[0]
+        assertEquals(1, v.fixes.size)
+        assertEquals("safe", v.fixes[0].kind)
+        assertEquals("Immutable.Map()", v.fixes[0].edits[0].replacement)
+        assertEquals(1, v.suppressions.size)
+        assertEquals("suppress", v.suppressions[0].kind)
+        assertTrue(v.suppressions[0].edits[0].replacement.contains("custom-biome-ignore-line"))
     }
 
     @Test
-    fun `parses a suppression edit`() {
+    fun `tolerates line-only violations missing endLine endColumn`() {
         val json =
             """
             {
-              "diagnostics": [
+              "version": 1,
+              "files": [ { "path": "a.js", "violations": [
                 {
-                  "rule": "no-native-map",
-                  "message": "Use Immutable.js Map instead of native Map.",
-                  "severity": "error",
-                  "range": { "start": { "line": 1, "column": 0 }, "end": { "line": 1, "column": 0 } },
-                  "suppression": {
-                    "title": "Suppress no-native-map",
-                    "edits": [ { "start": { "line": 1, "column": 0 }, "end": { "line": 1, "column": 0 }, "text": "// custom-biome-ignore-next-line no-native-map\n" } ]
-                  }
+                  "rule": "some-line-rule",
+                  "message": "Line-level issue.",
+                  "severity": "warning",
+                  "line": 3, "col": 1,
+                  "startLine": 3, "startColumn": 1
                 }
-              ]
+              ] } ]
             }
             """.trimIndent()
-        val suppression = CustomBiomeLintService.parseLintResult(json).diagnostics[0].suppression
-        assertNotNull(suppression)
-        assertTrue(suppression!!.edits[0].text.contains("custom-biome-ignore-next-line"))
+        val v = CustomBiomeLintService.parseLintResult(json).files[0].violations[0]
+        assertEquals(3, v.startLine)
+        assertEquals(1, v.startColumn)
+        assertNull(v.endLine)
+        assertNull(v.endColumn)
+        assertTrue(v.fixes.isEmpty())
+        assertTrue(v.suppressions.isEmpty())
     }
 
     @Test
@@ -105,14 +136,10 @@ class LintResultParserTest {
     }
 
     @Test
-    fun `missing diagnostics array throws`() {
-        var threw = false
-        try {
-            CustomBiomeLintService.parseLintResult("{}")
-        } catch (_: Exception) {
-            threw = true
-        }
-        assertTrue(threw)
+    fun `valid but empty envelope parses to no violations`() {
+        // All fields have defaults, so a bare object is a clean (no-op) result.
+        val result = CustomBiomeLintService.parseLintResult("""{ "version": 1, "files": [] }""")
+        assertEquals(emptyList(), result.files)
     }
 
     @Test

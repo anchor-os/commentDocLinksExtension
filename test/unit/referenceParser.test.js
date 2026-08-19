@@ -136,7 +136,7 @@ test("ticket reference does not match a word suffix", () => {
 
 test("ticket link built from configuration rejects a word suffix", () => {
   // Mirrors the regex produced by getTicketLinks() in configuration.js.
-  const regex = new RegExp(`(?<![\\w])(ticketnumber-\\d+)(?![\\w])`, "g");
+  const regex = /(?<![\w])(ticketnumber-\d+)(?![\w])/g;
   const links = [{ baseUrl: "https://issues.example.com/browse/", regex, label: "Jira" }];
 
   // A key continued into an identifier must not be matched (no partial key appended).

@@ -129,7 +129,7 @@ function measure(fn) {
  * @param {() => Promise<void>} during
  * @returns {Promise<number>} Actual timer delay in milliseconds.
  */
-async function measureResponsiveDelay(during) {
+async function _measureResponsiveDelay(during) {
   const started = process.hrtime.bigint();
 
   const timer = new Promise((resolve) => {
@@ -453,7 +453,7 @@ function writeResult(result) {
 
   const resultPath = path.join(resultsDir, `${result.tag}-${result.size}.json`);
 
-  fs.writeFileSync(resultPath, JSON.stringify(result, null, 2) + "\n", "utf8");
+  fs.writeFileSync(resultPath, `${JSON.stringify(result, null, 2)}\n`, "utf8");
 }
 
 /**
