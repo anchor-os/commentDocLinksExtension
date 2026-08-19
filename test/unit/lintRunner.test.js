@@ -210,11 +210,13 @@ test("real execution: absolute path containing spaces is passed through intact",
 });
 
 test("real execution: native (non-.js) executable is spawned directly, not via Node", async () => {
-  // /bin/sh is a real native binary; the JSON it emits proves the command was
-  // spawned as-is (a `.js` launcher would have been rewritten to `node <exe>`).
+  // process.execPath is a real native binary (the test runner's Node) and is
+  // portable across macOS/Windows/Linux. It has no .js extension, so the
+  // launcher spawns it as-is; the JSON it emits proves that (a `.js` launcher
+  // would have been rewritten to `node <exe>`).
   const outcome = await defaultExecutor(
-    "/bin/sh",
-    ["-c", 'printf \'%s\' \'{"version":1,"files":[],"summary":null}\''],
+    process.execPath,
+    ["-e", 'process.stdout.write(\'{"version":1,"files":[],"summary":null}\')'],
     undefined,
     undefined,
     undefined,
