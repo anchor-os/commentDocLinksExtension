@@ -167,9 +167,12 @@ Conventions:
   `replacement`). The IDE applies them via `WorkspaceEdit` /
   `LocalQuickFix`; it never computes suppression placement.
 - **Execution:** a native binary is spawned directly. A `.js` launcher is
-  relaunched through the current Node/Electron runtime (`process.execPath`)
-  so the same command works on macOS, Linux, and Windows (where spawning a
-  `.js` file directly fails).
+  relaunched through a Node runtime so the same command works on macOS,
+  Linux, and Windows (where spawning a `.js` file directly fails): VS Code
+  uses `process.execPath` (the Electron/Node runtime); JetBrains resolves the
+  system `node` binary from `PATH` and passes the script as its first
+  argument. This keeps both adapters equivalent for JS-based launchers while
+  native Rust binaries run unchanged on every OS.
 
 ## 6. IDE mapping
 

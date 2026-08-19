@@ -96,6 +96,41 @@ object CustomBiomeLintService {
     }
 
     /**
+     * Decide how to invoke [executable]. JS launchers (`.js`/`.cjs`/`.mjs`)
+     * must run through the Node runtime on Windows (direct spawn fails), so we
+     * return the Node binary as the command and the script as its first
+     * argument. Native binaries are returned unchanged.
+     *
+     * @return `Pair(command, extraArgs)` where `extraArgs` is non-empty only
+     *   for JS launchers (the script path).
+     */
+    internal fun resolveLauncher(executable: String): Pair<String, List<String>> {
+        val isJsLauncher =
+            executable.endsWith(".js", ignoreCase = true) ||
+                executable.endsWith(".cjs", ignoreCase = true) ||
+                executable.endsWith(".mjs", ignoreCase = true)
+        if (!isJsLauncher) return executable to emptyList()
+        val node = findNode() ?: return executable to emptyList()
+        return node to listOf(executable)
+    }
+
+    /** Locate the `node` binary on the system PATH (Windows: `node.exe`). */
+    private fun findNode(): String? {
+        val path = System.getenv("PATH") ?: return null
+        val isWindows = System.getProperty("os.name").startsWith("Windows", ignoreCase = true)
+        val names = if (isWindows) listOf("node.exe") else listOf("node")
+        for (dir in path.split(File.pathSeparator)) {
+            for (name in names) {
+                val candidate = File(dir, name)
+                if (candidate.isFile && (isWindows || candidate.canExecute())) {
+                    return candidate.absolutePath
+                }
+            }
+        }
+        return null
+    }
+
+    /**
      * Walk up from the file's directory to the nearest ancestor that contains a
      * `package.json`; that directory is the linter's configuration root. Falls
      * back to the file's own parent when no such root exists.
@@ -129,8 +164,14 @@ object CustomBiomeLintService {
         cwd: String,
         buffer: String,
     ): LintResult {
+        // A `.js`/`.cjs`/`.mjs` launcher cannot be spawned directly on Windows
+        // (no shebang handling by CreateProcess), so relaunch it through the
+        // Node runtime — mirroring the VS Code adapter's process.execPath
+        // handling. Native binaries are spawned as-is.
+        val (command, scriptArgs) = resolveLauncher(executable)
+        val args = scriptArgs + listOf("--stdin", virtualPath, "--format", "json")
         val commandLine =
-            GeneralCommandLine(executable, "--stdin", virtualPath, "--format", "json")
+            GeneralCommandLine(command, *args.toTypedArray())
                 .withWorkDirectory(cwd)
                 .withRedirectErrorStream(false)
 
