@@ -33,22 +33,29 @@ import { getRuleDocumentationUrl } from "./ruleDocumentation.js";
  *   0-based line / 0-based UTF-16 character.
  * @property {string} source Always "custom-biome-lint".
  * @property {string} code Rule id (e.g. "no-native-map").
- * @property {{ kind: string|null, title: string|null, edits: import("./LintResultParser.js").LintEdit[] }|null} fix
- * @property {{ kind: string|null, title: string|null, edits: import("./LintResultParser.js").LintEdit[] }|null} suppression
+ * @property {Array<{ kind: string|null, title: string, edits: import("./LintResultParser.js").LintEdit[] }>} fixes
+ *   One per fix action (alternatives).
+ * @property {Array<{ kind: string|null, title: string, edits: import("./LintResultParser.js").LintEdit[] }>} suppressions
+ *   One per suppression action (alternatives).
  * @property {string|null} docsUrl
  */
 
 /**
  * @param {LintAction[]} actions
  * @param {string} fallbackTitle
- * @returns {{ kind: string|null, title: string, edits: import("./LintResultParser.js").LintEdit[] }|null}
+ * @returns {Array<{ kind: string|null, title: string, edits: import("./LintResultParser.js").LintEdit[] }>}
+ *   One entry per action that carries at least one edit. The v1 contract treats
+ *   multiple fix/suppression actions as ALTERNATIVES (the user picks one), so
+ *   each is surfaced separately rather than merged into a single edit set.
  */
-function firstAction(actions, fallbackTitle) {
-  const edits = actions.flatMap((a) => a.edits);
-  if (edits.length === 0) return null;
-  const kind = actions.find((a) => a.kind != null)?.kind ?? null;
-  const title = actions.find((a) => a.title != null)?.title ?? fallbackTitle;
-  return { kind, title, edits };
+function toActionList(actions, fallbackTitle) {
+  return actions
+    .map((a) => ({
+      kind: a.kind ?? null,
+      title: a.title ?? fallbackTitle,
+      edits: a.edits,
+    }))
+    .filter((a) => a.edits.length > 0);
 }
 
 /**
@@ -88,8 +95,8 @@ export function mapDiagnostic(diagnostic, fileText = "") {
     },
     source: "custom-biome-lint",
     code: diagnostic.rule,
-    fix: firstAction(diagnostic.fixes, "Apply safe fix"),
-    suppression: firstAction(diagnostic.suppressions, `Suppress ${diagnostic.rule}`),
+    fixes: toActionList(diagnostic.fixes, "Apply safe fix"),
+    suppressions: toActionList(diagnostic.suppressions, `Suppress ${diagnostic.rule}`),
     docsUrl,
   };
 }

@@ -47,6 +47,7 @@
  * @property {number|null} endColumn 1-based byte column (omitted for line-only rules).
  * @property {LintAction[]} fixes
  * @property {LintAction[]} suppressions
+ * @property {string|null} docsUrl Optional rule documentation URL emitted by the linter.
  */
 
 /**
@@ -151,6 +152,7 @@ function parseViolation(raw) {
     endColumn: typeof r.endColumn === "number" ? r.endColumn : null,
     fixes: /** @type {LintAction[]} */ (fixes),
     suppressions: /** @type {LintAction[]} */ (suppressions),
+    docsUrl: typeof r.docsUrl === "string" ? r.docsUrl : null,
   };
 }
 

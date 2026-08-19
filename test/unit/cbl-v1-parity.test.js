@@ -32,7 +32,7 @@
 
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -103,9 +103,15 @@ for (const c of fixture.cases) {
             const s = toAbsoluteChar(c.source, ed.editor.startLine0, ed.editor.startChar);
             const e = toAbsoluteChar(c.source, ed.editor.endLine0, ed.editor.endChar);
             const applied = c.source.slice(0, s) + ed.editor.replacement + c.source.slice(e);
-            assert.ok(
-              applied.includes(ed.editor.replacement),
-              "applied edit should contain the replacement",
+            assert.equal(
+              applied.slice(s, s + ed.editor.replacement.length),
+              ed.editor.replacement,
+              "replacement must land at the converted start offset",
+            );
+            assert.equal(
+              applied.slice(s + ed.editor.replacement.length),
+              c.source.slice(e),
+              "text after the edit must be preserved",
             );
           });
         }
@@ -115,21 +121,21 @@ for (const c of fixture.cases) {
 }
 
 // ---- live contract checks (need the binary; skipped when absent) ----------
-// Invoked exactly like the adapter: `binary <file> --format json` (positional
-// file, see src/lint/LintRunner.js). The binary exits non-zero when violations
-// exist, so we collect stdout via the callback form and resolve regardless of
-// exit code (only a spawn failure rejects). The reported `path` is the temp
-// file's path, so we normalize it to the fixture's virtual name before
+// Invoked exactly like the adapter: `binary --stdin <virtualPath> --format json`
+// (stdin mode, see src/lint/LintRunner.js). The buffer is fed on stdin so the
+// same code path the editors use is exercised. The binary exits non-zero when
+// violations exist, so we collect stdout via the callback form and resolve
+// regardless of exit code (only a spawn failure rejects). The reported `path`
+// is the virtual path, so we normalize it to the fixture's virtual name before
 // comparing against `expectedStdout`.
 const TMP_DIR = mkdtempSync(join(tmpdir(), "cbl-parity-"));
 
-function runBinaryOnFile(source, filename) {
-  const filePath = join(TMP_DIR, filename);
-  writeFileSync(filePath, source);
+function runBinaryOnStdin(source, filename) {
+  const virtualPath = join(TMP_DIR, filename);
   return new Promise((resolve, reject) => {
-    execFile(
+    const child = execFile(
       BINARY,
-      [filePath, "--format", "json"],
+      ["--stdin", virtualPath, "--format", "json"],
       { encoding: "utf-8", maxBuffer: 64 * 1024 * 1024 },
       (err, stdout) => {
         if (err && !stdout) {
@@ -139,12 +145,15 @@ function runBinaryOnFile(source, filename) {
         resolve(String(stdout ?? ""));
       },
     );
+    // The linter may exit before draining stdin (EPIPE); ignore the write error.
+    child.stdin?.on("error", () => {});
+    child.stdin?.end(source);
   });
 }
 
 for (const c of fixture.cases) {
   test(`[${c.filename}] live stdout matches v1 envelope`, { skip: !BINARY_AVAILABLE }, async () => {
-    const stdout = await runBinaryOnFile(c.source, c.filename);
+    const stdout = await runBinaryOnStdin(c.source, c.filename);
     const parsed = JSON.parse(stdout);
     // Normalize the echoed path to the fixture's virtual filename, and drop
     // the non-deterministic timing field before comparing.

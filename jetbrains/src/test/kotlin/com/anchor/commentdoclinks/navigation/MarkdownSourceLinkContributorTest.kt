@@ -67,4 +67,50 @@ class MarkdownSourceLinkContributorTest {
         assertEquals("doc.md", workspaceRelativePath("/repo/doc.md", "/repo"))
         assertNull(resolveInRoot("/repo", "../escape.md"))
     }
+
+    @Test
+    fun testHeadingInsideFenceIsRejected() {
+        val md =
+            """
+            # Real heading
+            ```
+            # src/inside.js — anchor
+            ```
+            # Another real heading
+            """.trimIndent()
+        val contributor = MarkdownSourceLinkContributor()
+        // Line 0: real heading -> not in fence.
+        assertEquals(false, contributor.isInsideFence(md, 0))
+        // Line 2 (the `# src/inside.js` line) is inside the fence.
+        assertEquals(true, contributor.isInsideFence(md, 2))
+        // Line 4: after the closing fence -> not in fence.
+        assertEquals(false, contributor.isInsideFence(md, 4))
+    }
+
+    @Test
+    fun testFenceWithInfoTextDoesNotClosePrematurely() {
+        val md =
+            """
+            ```
+            ```js
+            # src/inside.js — anchor
+            ```
+            """.trimIndent()
+        val contributor = MarkdownSourceLinkContributor()
+        // The ```` ```js ```` line is content inside the block, not a close.
+        assertEquals(true, contributor.isInsideFence(md, 2))
+    }
+
+    @Test
+    fun testIndentedTripleBacktickIsNotAClosingFence() {
+        val md =
+            """
+            ```
+            # src/inside.js — anchor
+                ```
+            """.trimIndent()
+        val contributor = MarkdownSourceLinkContributor()
+        // A four-space-indented ``` is content, so line 2 stays inside the block.
+        assertEquals(true, contributor.isInsideFence(md, 2))
+    }
 }

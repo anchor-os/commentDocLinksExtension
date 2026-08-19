@@ -43,6 +43,7 @@ data class LintViolation(
     val startColumn: Int? = null,
     val endLine: Int? = null,
     val endColumn: Int? = null,
+    val docsUrl: String? = null, // optional rule documentation URL emitted by the linter
     val fixes: List<LintAction> = emptyList(),
     val suppressions: List<LintAction> = emptyList(),
 )

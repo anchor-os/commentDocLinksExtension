@@ -128,15 +128,27 @@ test("line-only violation (no endLine/endColumn) still parses", () => {
     files: [
       {
         path: "a.js",
-        violations: [{ rule: "r", message: "m", severity: "error", line: 2, col: 1 }],
+        violations: [
+          {
+            rule: "r",
+            message: "m",
+            severity: "error",
+            line: 2,
+            col: 1,
+            startLine: 2,
+            startColumn: 1,
+          },
+        ],
       },
     ],
     summary: null,
   });
 
   const v = parseLintResult(json).files[0].violations[0];
-  assert.equal(v.startLine, null);
+  assert.equal(v.startLine, 2);
+  assert.equal(v.startColumn, 1);
   assert.equal(v.endLine, null);
+  assert.equal(v.endColumn, null);
 });
 
 test("replacement text with an edit is captured", () => {

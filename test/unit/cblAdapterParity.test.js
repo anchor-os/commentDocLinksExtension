@@ -54,23 +54,25 @@ for (const c of fixture.cases) {
     c.violations.forEach((expected, i) => {
       const d = descriptors[i];
       const sourceLines = c.source.split("\n");
-      const applyEdits = (action, kind) => {
-        if (!action) return;
-        const sugEdits = expected.suggestions[kind];
-        if (!sugEdits) return;
-        const editorEdits = sugEdits.flatMap((s) => s.edits);
-        assert.equal(action.edits.length, editorEdits.length);
-        action.edits.forEach((edit, j) => {
-          const editorEdit = editorEdits[j];
-          const r = editToUtf16Range(edit, (line0) => sourceLines[line0] ?? "");
-          assert.equal(r.startLine, editorEdit.editor.startLine0);
-          assert.equal(r.startChar, editorEdit.editor.startChar);
-          assert.equal(r.endLine, editorEdit.editor.endLine0);
-          assert.equal(r.endChar, editorEdit.editor.endChar);
+      const compareActions = (actions, expectedActions, kind) => {
+        const exp = expectedActions ?? [];
+        if (actions.length === 0 && exp.length === 0) return;
+        assert.equal(actions.length, exp.length, `${kind} action count`);
+        actions.forEach((action, idx) => {
+          const editorEdits = expectedActions[idx].edits;
+          assert.equal(action.edits.length, editorEdits.length, `${kind}[${idx}] edit count`);
+          action.edits.forEach((edit, j) => {
+            const editorEdit = editorEdits[j];
+            const r = editToUtf16Range(edit, (line0) => sourceLines[line0] ?? "");
+            assert.equal(r.startLine, editorEdit.editor.startLine0);
+            assert.equal(r.startChar, editorEdit.editor.startChar);
+            assert.equal(r.endLine, editorEdit.editor.endLine0);
+            assert.equal(r.endChar, editorEdit.editor.endChar);
+          });
         });
       };
-      applyEdits(d.fix, "fixes");
-      applyEdits(d.suppression, "suppressions");
+      compareActions(d.fixes, expected.suggestions.fixes, "fixes");
+      compareActions(d.suppressions, expected.suggestions.suppressions, "suppressions");
     });
   });
 }

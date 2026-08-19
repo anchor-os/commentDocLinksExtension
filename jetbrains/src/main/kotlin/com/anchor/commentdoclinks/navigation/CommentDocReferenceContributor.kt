@@ -16,7 +16,8 @@ import com.intellij.psi.PsiReferenceContributor
 import com.intellij.psi.PsiReferenceProvider
 import com.intellij.psi.PsiReferenceRegistrar
 import com.intellij.util.ProcessingContext
-import java.util.concurrent.ConcurrentHashMap
+import java.util.Collections
+import java.util.WeakHashMap
 
 /**
  * Registers [CommentDocReference]s for doc-link comments in any supported
@@ -86,6 +87,11 @@ class CommentDocReferenceContributor : PsiReferenceContributor() {
 
     companion object {
         private val LOG = Logger.getInstance(CommentDocReferenceContributor::class.java)
-        private val CACHE = ConcurrentHashMap<Document, Triple<Long, Int, List<ScannedRef>>>()
+        // Weak-key cache: entries are garbage-collected with their Document, so
+        // released documents do not leak. Wrapped for thread-safe access.
+        private val CACHE =
+            Collections.synchronizedMap(
+                WeakHashMap<Document, Triple<Long, Int, List<ScannedRef>>>(),
+            )
     }
 }

@@ -45,7 +45,11 @@ object CustomBiomeLintService {
                 val executable = resolveExecutable(candidate)
                 val install =
                     if (executable != null) {
-                        Install(candidate.absolutePath, dir.absolutePath, executable)
+                        // The binary may be hoisted, so use the linted file's
+                        // own workspace root (nearest package.json) as the cwd
+                        // rather than the directory that merely contains the
+                        // resolved node_modules.
+                        Install(candidate.absolutePath, findWorkspaceRoot(startPath), executable)
                     } else {
                         null
                     }
@@ -60,8 +64,8 @@ object CustomBiomeLintService {
         // Fall back to a binary on the system PATH (v1 contract default).
         val pathExecutable = resolveOnPath("custom-biome-lint")
         if (pathExecutable != null) {
-            val install = Install(pathExecutable, File(startPath).absoluteFile.parent
-                ?: ".", pathExecutable)
+            val workspaceDir = findWorkspaceRoot(startPath)
+            val install = Install(pathExecutable, workspaceDir, pathExecutable)
             cache[startPath] = Optional.ofNullable(install)
             return install
         }
@@ -101,11 +105,42 @@ object CustomBiomeLintService {
     /** Resolve an executable name against the system PATH; null if absent. */
     private fun resolveOnPath(name: String): String? {
         val path = System.getenv("PATH") ?: return null
+        val isWindows = System.getProperty("os.name").startsWith("Windows", ignoreCase = true)
+        val names =
+            if (isWindows) {
+                val exts =
+                    (System.getenv("PATHEXT") ?: ".COM;.EXE;.BAT;.CMD")
+                        .split(File.pathSeparator)
+                        .map { it.trim().lowercase() }
+                        .filter { it.isNotBlank() }
+                listOf(name) + exts.map { name + it }
+            } else {
+                listOf(name)
+            }
         for (dir in path.split(File.pathSeparator)) {
-            val candidate = File(dir, name)
-            if (candidate.isFile && candidate.canExecute()) return candidate.absolutePath
+            for (candidateName in names) {
+                val candidate = File(dir, candidateName)
+                if (candidate.isFile && (isWindows || candidate.canExecute())) {
+                    return candidate.absolutePath
+                }
+            }
         }
         return null
+    }
+
+    /**
+     * Walk up from the file's directory to the nearest ancestor that contains a
+     * `package.json`; that directory is the linter's configuration root. Falls
+     * back to the file's own parent when no such root exists.
+     */
+    private fun findWorkspaceRoot(startPath: String): String {
+        var dir = File(startPath).absoluteFile
+        if (dir.isFile) dir = dir.parentFile ?: dir
+        while (true) {
+            if (File(dir, "package.json").isFile) return dir.absolutePath
+            dir = dir.parentFile ?: break
+        }
+        return File(startPath).absoluteFile.parent ?: "."
     }
 
     fun clearCache() = cache.clear()
@@ -161,7 +196,13 @@ object CustomBiomeLintService {
     /** Parse raw stdout JSON into a [LintResult] (v1 envelope). */
     fun parseLintResult(json: String): LintResult {
         if (json.isBlank()) return LintResult(files = emptyList())
-        return JSON_FORMAT.decodeFromString<LintResult>(json)
+        val result = JSON_FORMAT.decodeFromString<LintResult>(json)
+        if (result.version != 1) {
+            throw LintExecutionException(
+                "unsupported custom-biome-lint contract version: ${result.version} (expected 1)",
+            )
+        }
+        return result
     }
 
     private val JSON_FORMAT =

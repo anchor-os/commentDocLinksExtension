@@ -118,16 +118,16 @@ test("fix and suppression descriptors carry edits and titles", () => {
     }),
     "const m = new Map();",
   );
-  assert.equal(d.fix?.title, "Apply safe fix");
-  assert.equal(d.fix?.edits[0].replacement, "Immutable.Map");
-  assert.equal(d.suppression?.title, "Suppress no-native-map");
-  assert.equal(d.suppression?.edits[0].replacement, "// skip\n");
+  assert.equal(d.fixes[0].title, "Apply safe fix");
+  assert.equal(d.fixes[0].edits[0].replacement, "Immutable.Map");
+  assert.equal(d.suppressions[0].title, "Suppress no-native-map");
+  assert.equal(d.suppressions[0].edits[0].replacement, "// skip\n");
 });
 
-test("absent fixes/suppressions produce null descriptors", () => {
+test("absent fixes/suppressions produce empty arrays", () => {
   const d = mapDiagnostic(violation({ fixes: [], suppressions: [] }), "x");
-  assert.equal(d.fix, null);
-  assert.equal(d.suppression, null);
+  assert.deepEqual(d.fixes, []);
+  assert.deepEqual(d.suppressions, []);
 });
 
 test("docsUrl falls back to the configured rule URL", () => {
